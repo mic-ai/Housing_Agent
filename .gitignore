@@ -1,0 +1,18 @@
+# dependencies
+homereelmatch/node_modules/
+homereelmatch/.yarn/
+
+# Next.js
+homereelmatch/.next/
+homereelmatch/out/
+
+# environment files
+homereelmatch/.env.local
+homereelmatch/.env*.local
+
+# build outputs
+homereelmatch/dist/
+
+# misc
+.DS_Store
+*.pem

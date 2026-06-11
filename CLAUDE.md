@@ -652,3 +652,81 @@ refactor: VideoPlayer をサーバー/クライアント分離
 - クライアントコンポーネントで直接DBアクセス禁止（必ずAPIを経由）
 - 環境変数を `src/` 配下のコードにハードコード禁止
 - `NEXT_PUBLIC_` プレフィックスをシークレットキーに使用禁止
+
+---
+
+## 実装進捗ログ
+
+### Phase 1 完了（2026-06-11）
+
+#### 環境・設定
+- パッケージマネージャーは **yarn** を使用（`npm install` はDockerオーバーレイfsのENOTEMPTYエラーで失敗するため）
+- Next.js 16 では `middleware.ts` が非推奨 → `src/proxy.ts` に変更
+- `homereelmatch/.env.local.example` 作成済み（実際の認証情報は別途設定が必要）
+- `prisma/schema.prisma` 全モデル定義済み（DBへの `prisma migrate dev` は未実施）
+
+#### 実装済みファイル一覧
+
+**lib/**
+- `src/lib/prisma.ts` — Prismaクライアントシングルトン
+- `src/lib/storage.ts` — Supabase Storage（uploadFaceVideo / deleteFaceVideo / getFaceVideoPublicUrl）
+- `src/lib/auth.ts` — NextAuth v5 Credentialsプロバイダー（Salespersonのメール/パスワード認証）
+- `src/lib/line.ts` — LINE Messaging API通知（新規問い合わせ・予約確定）
+- `src/lib/email.ts` — Resendメール送信（新規問い合わせ・予約確定）
+- `src/lib/utils.ts` — cn(), mapVideoToDTO(), formatDate(), formatDateTime(), extractYouTubeId()
+
+**types/**
+- `src/types/index.ts` — 全DTO型定義（VideoDTO, SalespersonDTO, ContactRequestDTO 等）
+
+**API Routes**
+- `GET/POST /api/videos` — 動画一覧（カーソルページネーション）・登録
+- `GET/PATCH/DELETE /api/videos/[videoId]` — 動画詳細・更新・論理削除
+- `GET /api/hashtags` — ハッシュタグ一覧（usageCount降順）
+- `POST /api/contact` — コンタクト申請（LINE/メール通知付き）
+- `GET /api/booking/slots` — 営業マンの空き時間取得
+- `POST /api/booking/confirm` — 面談予約確定（スロット更新・通知付き）
+- `GET /api/embed/videos` — Embedウィジェット用（CORS対応）
+- `GET/POST /api/auth/[...nextauth]` — NextAuth認証ハンドラー
+
+**コンポーネント**
+- `VideoCard` — 9:16サムネイルカード
+- `VideoFooter` — 営業マン情報・LINE/メールCTAボタン・ハッシュタグリンク
+- `FaceRollPlayer` — `<video>`タグ、controls非表示（スキップ禁止）
+- `MainVideoPlayer` — YouTube IFrame API / Instagram oEmbed切り替え
+- `CompositePlayer` — PRE_ROLL → MAIN → POST_ROLL → ENDED 状態機械
+- `VideoFeedClient` — IntersectionObserverによる無限スクロールフィード
+- `SearchBar` — 検索フォーム（クライアントコンポーネント）
+- `HashtagCloud` — 人気タグ一覧（サーバーコンポーネント）
+- `ContactForm` — react-hook-form + zodバリデーション
+- `BookingCalendar` — 面談予約日時選択UI
+
+**Pages**
+- `(public)/page.tsx` — P-01 ポータルホーム（サムネイルグリッド・検索・ハッシュタグ）
+- `(public)/watch/[videoId]/page.tsx` — P-02 動画視聴（CompositePlayer）
+- `(public)/contact/[salespersonId]/page.tsx` — P-03 コンタクト申請
+- `(public)/booking/[contactRequestId]/page.tsx` — P-04 面談予約
+- `(public)/tag/[tagName]/page.tsx` — P-06 タグ検索結果
+- `(sales)/login/page.tsx` — S-01 営業マンログイン
+- `(sales)/dashboard/page.tsx` — S-02 ダッシュボード（問い合わせ数・動画数・直近予約）
+
+#### 技術的注意点（実装中に判明）
+- Prismaの`queryRaw`ではなく通常のORMクエリのみ使用
+- `mapVideoToDTO()` でPrismaの`videoHashtags`フィールドをDTOの`hashtags`に変換している（VideoCardなどのコンポーネントが`hashtags`を参照するため）
+- Prisma JsonフィールドへのnullセットはPrisma.JsonNullではなく`undefined`を渡す（型エラー回避）
+- YouTubeプレーヤーの`onEnded`イベントで次フェーズへ遷移、InstagramはoEmbed埋め込み（ended取得不可）
+
+---
+
+### Phase 2 以降（未実装）
+
+```
+- POST /api/face-videos/upload（ffprobe尺検証 ≤6秒 + Storageアップロード）
+- FaceVideoUploader コンポーネント（ドラッグ&ドロップ・進捗表示）
+- (sales)/dashboard/videos/ — 動画管理（一覧・新規登録・顔出し差し替え）
+- (sales)/dashboard/inquiries/ — 問い合わせ管理
+- (sales)/dashboard/schedule/ — スケジュール管理（空き時間登録）
+- (admin)/dashboard/ — 管理者画面
+- /api/line/webhook — LINE Webhook（署名検証付き）
+- embed/src/widget.ts — Embedウィジェット（Vanilla TS、Shadow DOM）
+- prisma migrate dev（本番DB接続後に実行）
+```

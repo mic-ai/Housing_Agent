@@ -749,14 +749,55 @@ refactor: VideoPlayer をサーバー/クライアント分離
 - happy-dom の `<input accept="...">` は `userEvent.upload` で MIME タイプフィルタをかける → 非対応ファイルのテストには `fireEvent.change` + `Object.defineProperty(input, "files", ...)` を使用
 - `expect.anything()` は `undefined` に一致しない → 引数なしの fetch 呼び出しに使う場合は `mock.calls[0][0]` で直接確認
 
-### Phase 3 以降（未実装）
+### Phase 3 完了（2026-06-15）
+
+#### 実装済みファイル一覧（Phase 3）
+
+**API Routes**
+- `POST /api/booking/slots` — 空き時間スロット作成（営業マン存在確認・時刻バリデーション）
+- `DELETE /api/booking/slots/[slotId]` — スロット削除（予約済みは409で拒否）
+- `GET /api/contact?salespersonId` — 問い合わせ一覧（ステータスフィルター付き）
+- `PATCH /api/contact/[contactRequestId]` — 問い合わせステータス更新
+- `POST /api/line/webhook` — LINE Webhook（HMAC-SHA256署名検証）
+
+**Pages（営業マンダッシュボード）**
+- `/dashboard/videos` — 設定済み・未設定動画一覧
+- `/dashboard/videos/new` — 動画新規登録フォーム（VideoNewForm）
+- `/dashboard/videos/[videoId]/edit` — 顔出し動画設定（VideoEditClient + CompositePlayerプレビュー）
+- `/dashboard/inquiries` — 問い合わせ管理（InquiriesClient統合）
+- `/dashboard/schedule` — スケジュール管理（ScheduleClient統合）
+
+**Components**
+- `InquiriesClient` — 問い合わせ一覧・ステータス変更・絞り込み（src/components/sales/）
+- `VideoNewForm` — 動画登録フォーム（URL/タイトル/エリア/ハッシュタグ）（src/components/sales/）
+- `VideoEditClient` — 顔出し動画設定 + CompositePlayer プレビュー（src/components/sales/）
+
+### Phase 4 完了（2026-06-15）
+
+#### 実装済みファイル一覧（Phase 4）
+
+**lib/**
+- `src/lib/cors.ts` — CORS ロジック（`isOriginAllowed`, `buildCorsHeaders`）
+  - 未設定 = 全許可（開発モード）、設定時 = 指定 Origin のみ許可
+
+**更新**
+- `src/app/api/embed/videos/route.ts` — `@/lib/cors` をインポートするよう分離
+
+#### 技術的知見（Phase 3/4 実装中に判明）
+- `NextRequest` コンストラクタは Fetch 仕様の forbidden-header により `origin` を除去する → テストでは `vi.spyOn(req.headers, "get")` でモックする
+- Node.js の Undici も happy-dom も同様に `origin` を除去する
+- Vitest のテストファイル内の `vi.mock()` はルートモジュールに効かないケースがある → setup.ts でグローバルモックすること
+- happy-dom の `process.env` はテストコードと route が別スコープになることがある → 直接関数をインポートして unit test する設計が堅牢
+- LINE Webhook: `X-Line-Signature` は HMAC-SHA256 base64 → `crypto.createHmac("sha256", secret).update(body).digest("base64")`
+
+### Phase 5 以降（未実装）
 
 ```
-- (sales)/dashboard/videos/ — 動画管理ページ（一覧・新規登録・顔出し差し替え）
-- (sales)/dashboard/inquiries/ — 問い合わせ管理ページ
-- (sales)/dashboard/schedule/ — スケジュール管理ページ（ScheduleClient を組み込み）
 - (admin)/dashboard/ — 管理者画面
-- /api/line/webhook — LINE Webhook（署名検証付き）
 - embed/src/widget.ts — Embedウィジェット（Vanilla TS、Shadow DOM）
 - prisma migrate dev（本番DB接続後に実行）
+- E2Eテスト（Playwright）: コンタクト申請フロー
+- Lighthouse スコア確認（LCP < 2.5s）
+- モバイルUI調整
+- セキュリティ: RLS（Row Level Security）設定確認
 ```

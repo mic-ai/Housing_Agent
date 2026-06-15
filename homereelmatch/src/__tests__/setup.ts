@@ -61,9 +61,15 @@ vi.mock("@/lib/prisma", () => ({
     availableSlot: {
       findMany: vi.fn(),
       findUnique: vi.fn(),
+      create: vi.fn(),
       update: vi.fn(),
+      delete: vi.fn(),
       createMany: vi.fn(),
       deleteMany: vi.fn(),
+    },
+    user: {
+      create: vi.fn(),
+      findUnique: vi.fn(),
     },
     appointment: {
       create: vi.fn(),

@@ -4,6 +4,35 @@ import { z } from "zod";
 import { notifySalespersonNewInquiry } from "@/lib/line";
 import { sendInquiryNotificationToSalesperson } from "@/lib/email";
 
+const ListQuerySchema = z.object({
+  salespersonId: z.string().min(1),
+  status: z.enum(["PENDING", "RESPONDED", "APPOINTED", "CLOSED"]).optional(),
+});
+
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  try {
+    const { searchParams } = request.nextUrl;
+    const query = ListQuerySchema.parse(Object.fromEntries(searchParams));
+
+    const inquiries = await prisma.contactRequest.findMany({
+      where: {
+        salespersonId: query.salespersonId,
+        ...(query.status ? { status: query.status } : {}),
+      },
+      include: { user: true },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return NextResponse.json({ data: inquiries });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.errors }, { status: 400 });
+    }
+    console.error(error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}
+
 const ContactSchema = z.object({
   name: z.string().min(1).max(100),
   email: z.string().email().optional(),

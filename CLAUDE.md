@@ -831,3 +831,74 @@ refactor: VideoPlayer をサーバー/クライアント分離
 - セキュリティ: Supabase RLS（Row Level Security）設定確認
 - 管理者ロール（現在は認証済みユーザー全員が管理者）
 ```
+
+---
+
+## セッション終了ノート（2026-06-15）
+
+### このセッションで実施した作業
+
+**開始時の状態**: Phase 1 基盤実装済み（テスト環境なし）
+
+**実施内容**:
+1. **Vitest テスト環境セットアップ** — vitest + @testing-library/react + happy-dom 導入、グローバルモック設定
+2. **Phase 2〜5 を TDD（Red→Green→Refactor）で実装** — 計 105 テスト、ソースファイル 59 本
+
+### 実装した主要機能
+
+| カテゴリ | 機能 |
+|---|---|
+| 顔出し動画 | アップロード API（ffprobe 尺検証）・FaceVideoUploader コンポーネント |
+| 検索・フィルター | FilterPanel（エリア/建物タイプ/価格帯） |
+| 営業マン DB | スロット CRUD、問い合わせ一覧＋ステータス更新 |
+| LINE | Webhook（HMAC-SHA256 署名検証） |
+| ダッシュボード | videos・inquiries・schedule の 5 ページ＋各クライアントコンポーネント |
+| 管理者 | 動画管理（一括公開/非公開）・統計サマリーページ |
+| Embed | Vanilla TS + Shadow DOM ウィジェット（auto-init 対応） |
+| CORS | `src/lib/cors.ts` に分離、未設定=全許可（開発モード） |
+
+### テストの重要な知見（次セッションで役立つ）
+
+1. **`NextRequest` の `origin` ヘッダー問題**
+   - Fetch 仕様の forbidden-header のため、コンストラクタで設定しても除去される
+   - 解決策: `vi.spyOn(req.headers, "get").mockImplementation(...)` でモック
+
+2. **Vitest テストファイル内の `vi.mock()` がルートモジュールに効かない**
+   - `setup.ts` でグローバルモックとして登録すること
+   - テストファイルの `vi.mock()` はそのテストの直接インポートには効くが、インポートするモジュールが更にインポートするモジュールには効かないことがある
+
+3. **happy-dom の `process.env` スコープ分離**
+   - テストコード側の `process.env` 変更がルートモジュール側に伝わらないことがある
+   - 解決策: 対象関数を直接インポートして unit test する設計（`cors.test.ts` パターン）
+
+4. **Node.js 環境（`environmentMatchGlobs: node`）も `origin` を除去する**
+   - Undici（Node.js の fetch 実装）も forbidden-header を除去する
+   - happy-dom に戻して `vi.spyOn` で対処する方が正しい
+
+### コマンドリファレンス
+
+```bash
+# テスト実行
+npm run test              # 全テスト
+npx vitest run src/__tests__/api/  # API テストのみ
+
+# 型チェック
+npx tsc --noEmit
+
+# Embed ウィジェットビルド
+npm run embed:build
+```
+
+### 次のセッションで始めるべき作業
+
+優先度高:
+1. `.env.local` の実値設定 → `prisma migrate dev` 実行
+2. 管理者ロール実装（`session.user.role === "ADMIN"` チェック）
+
+優先度中:
+3. Playwright E2E テスト（コンタクト申請フロー）
+4. モバイル UI 調整（縦型動画フィードの最適化）
+
+優先度低:
+5. Lighthouse パフォーマンス測定
+6. Supabase RLS ポリシー設定

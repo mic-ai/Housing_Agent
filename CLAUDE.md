@@ -717,14 +717,44 @@ refactor: VideoPlayer をサーバー/クライアント分離
 
 ---
 
-### Phase 2 以降（未実装）
+### Phase 2 完了（2026-06-15）
+
+#### テスト環境
+- **Vitest + @testing-library/react + happy-dom** 導入（`npm run test`）
+- `src/__tests__/setup.ts` に Prisma / Supabase Storage / NextAuth のグローバルモック設定
+- fetch モックは `vi.stubGlobal("fetch", vi.fn())` + `afterEach(() => vi.unstubAllGlobals())` パターンを使用
+- 合計 **54テスト** 全通過、型エラーなし
+
+#### 実装済みファイル一覧（Phase 2）
+
+**API Routes**
+- `POST /api/face-videos/upload` — ファイル形式・サイズ(50MB)・尺(≤6s)検証 + Supabase Storage アップロード
+- `GET/DELETE /api/face-videos/[salespersonVideoId]` — 取得・削除（Storageファイルも連動削除）
+
+**lib/**
+- `src/lib/video-duration.ts` — ffprobe による動画尺検証（一時ファイル経由）
+
+**コンポーネント**
+- `FaceVideoUploader` — ドラッグ&ドロップ・進捗バー・クライアントバリデーション（src/components/video/）
+- `FilterPanel` — エリア/建物タイプ/価格帯フィルター + リセット（src/components/search/）
+- `VideoListClient` — 営業マン動画管理一覧（非公開バッジ・顔出し設定リンク）（src/components/sales/）
+- `ScheduleClient` — 空き時間スロット管理（追加・削除・予約済バッジ）（src/components/sales/）
+
+**修正**
+- `extractYouTubeId` — 生ID（11文字）のパススルー対応
+
+#### 技術的注意点（Phase 2 実装中に判明）
+- yarn は Docker overlay fs の EIO エラーで `.bin` rmdir が失敗するため **npm** を使用（devDependencies の追加は npm）
+- happy-dom では `toLocaleString("ja-JP")` が "2026/6/20" 形式になる（"2026年6月20日" にならない）→ テストは日付テキストではなく UI 要素（削除ボタン等）の出現で状態を確認
+- happy-dom の `<input accept="...">` は `userEvent.upload` で MIME タイプフィルタをかける → 非対応ファイルのテストには `fireEvent.change` + `Object.defineProperty(input, "files", ...)` を使用
+- `expect.anything()` は `undefined` に一致しない → 引数なしの fetch 呼び出しに使う場合は `mock.calls[0][0]` で直接確認
+
+### Phase 3 以降（未実装）
 
 ```
-- POST /api/face-videos/upload（ffprobe尺検証 ≤6秒 + Storageアップロード）
-- FaceVideoUploader コンポーネント（ドラッグ&ドロップ・進捗表示）
-- (sales)/dashboard/videos/ — 動画管理（一覧・新規登録・顔出し差し替え）
-- (sales)/dashboard/inquiries/ — 問い合わせ管理
-- (sales)/dashboard/schedule/ — スケジュール管理（空き時間登録）
+- (sales)/dashboard/videos/ — 動画管理ページ（一覧・新規登録・顔出し差し替え）
+- (sales)/dashboard/inquiries/ — 問い合わせ管理ページ
+- (sales)/dashboard/schedule/ — スケジュール管理ページ（ScheduleClient を組み込み）
 - (admin)/dashboard/ — 管理者画面
 - /api/line/webhook — LINE Webhook（署名検証付き）
 - embed/src/widget.ts — Embedウィジェット（Vanilla TS、Shadow DOM）

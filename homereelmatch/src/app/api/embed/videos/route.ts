@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-
-const ALLOWED_ORIGINS = (process.env.EMBED_ALLOWED_ORIGINS ?? "").split(",").filter(Boolean);
+import { isOriginAllowed, buildCorsHeaders } from "@/lib/cors";
 
 const QuerySchema = z.object({
   count: z.coerce.number().min(1).max(10).default(5),
@@ -10,19 +9,12 @@ const QuerySchema = z.object({
 });
 
 export async function GET(request: NextRequest) {
-  const origin = request.headers.get("origin") ?? "";
-  const isAllowed =
-    ALLOWED_ORIGINS.length === 0 ||
-    ALLOWED_ORIGINS.some((o) => o.trim() === origin);
+  const origin = request.headers.get("origin");
+  const allowed = isOriginAllowed(origin);
 
-  const corsHeaders: Record<string, string> = isAllowed
-    ? {
-        "Access-Control-Allow-Origin": origin,
-        "Access-Control-Allow-Methods": "GET",
-      }
-    : {};
+  const corsHeaders: Record<string, string> = allowed && origin ? buildCorsHeaders(origin) : {};
 
-  if (!isAllowed) {
+  if (!allowed) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403, headers: corsHeaders });
   }
 
@@ -62,20 +54,17 @@ export async function GET(request: NextRequest) {
 }
 
 export async function OPTIONS(request: NextRequest) {
-  const origin = request.headers.get("origin") ?? "";
-  const isAllowed =
-    ALLOWED_ORIGINS.length === 0 ||
-    ALLOWED_ORIGINS.some((o) => o.trim() === origin);
+  const origin = request.headers.get("origin");
+  const allowed = isOriginAllowed(origin);
 
-  if (!isAllowed) {
+  if (!allowed || !origin) {
     return new NextResponse(null, { status: 403 });
   }
 
   return new NextResponse(null, {
     status: 204,
     headers: {
-      "Access-Control-Allow-Origin": origin,
-      "Access-Control-Allow-Methods": "GET, OPTIONS",
+      ...buildCorsHeaders(origin),
       "Access-Control-Max-Age": "86400",
     },
   });

@@ -790,14 +790,44 @@ refactor: VideoPlayer をサーバー/クライアント分離
 - happy-dom の `process.env` はテストコードと route が別スコープになることがある → 直接関数をインポートして unit test する設計が堅牢
 - LINE Webhook: `X-Line-Signature` は HMAC-SHA256 base64 → `crypto.createHmac("sha256", secret).update(body).digest("base64")`
 
-### Phase 5 以降（未実装）
+### Phase 5 完了（2026-06-15）
+
+#### 実装済みファイル一覧（Phase 5）
+
+**管理者 API**
+- `GET /api/admin/videos` — 全動画一覧（非公開含む・salespersonCount付き・isActiveフィルター）
+- `PATCH /api/admin/videos` — 複数動画の一括公開/非公開切り替え
+- `PATCH /api/admin/videos/[videoId]` — 個別動画更新（isActive/title/description等）
+
+**管理者ページ**
+- `(admin)/dashboard/page.tsx` — 統計サマリー（動画数・営業マン数・未対応問い合わせ）
+- `VideoManagerClient` — 動画一覧・公開切り替え・一括操作（src/components/admin/）
+
+**Embedウィジェット**
+- `embed/src/widget.ts` — Vanilla TypeScript, Shadow DOM 実装
+  - `createWidget(options)` / `HomeReelMatchWidget` クラス
+  - auto-init: `[data-homereelmatch]` 属性で自動初期化
+  - Shadow DOM でホストサイト CSS と完全隔離
+- `embed/vite.config.ts` — IIFE 形式でビルド（`npm run embed:build`）
+- `embed/dist/embed.js` — CDN 配信用ミニファイ済み
+
+#### 全フェーズ完了サマリー
+
+| フェーズ | 内容 | テスト |
+|---|---|---|
+| Phase 1 | 基盤（DB設計・Auth・API基本・コンポーネント） | - |
+| Phase 2 | 顔出し動画アップロード・フィルター・ScheduleClient | 34件 |
+| Phase 3 | 営業マンダッシュボード全ページ・LINE Webhook | 79件 |
+| Phase 4 | Embed CORS ロジック分離 | 89件 |
+| Phase 5 | 管理者ダッシュボード・Embedウィジェット | **105件** |
+
+### 残課題
 
 ```
-- (admin)/dashboard/ — 管理者画面
-- embed/src/widget.ts — Embedウィジェット（Vanilla TS、Shadow DOM）
 - prisma migrate dev（本番DB接続後に実行）
 - E2Eテスト（Playwright）: コンタクト申請フロー
 - Lighthouse スコア確認（LCP < 2.5s）
 - モバイルUI調整
-- セキュリティ: RLS（Row Level Security）設定確認
+- セキュリティ: Supabase RLS（Row Level Security）設定確認
+- 管理者ロール（現在は認証済みユーザー全員が管理者）
 ```

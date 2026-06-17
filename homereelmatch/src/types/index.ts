@@ -9,6 +9,20 @@ export interface HashtagDTO {
   usageCount: number;
 }
 
+export interface HouseMakerDTO {
+  id: string;
+  name: string;
+  logoUrl: string | null;
+  isActive: boolean;
+}
+
+export interface VenueDTO {
+  id: string;
+  name: string;
+  address: string | null;
+  isActive: boolean;
+}
+
 export interface SalespersonDTO {
   id: string;
   name: string;
@@ -40,9 +54,8 @@ export interface VideoDTO {
   thumbnailUrl: string | null;
   title: string;
   description: string | null;
-  area: string | null;
-  houseType: string | null;
-  priceRange: string | null;
+  houseMaker: HouseMakerDTO | null;
+  venue: VenueDTO | null;
   viewCount: number;
   hashtags: HashtagDTO[];
   salespersonVideos: SalespersonVideoDTO[];

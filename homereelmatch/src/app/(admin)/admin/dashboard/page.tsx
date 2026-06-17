@@ -2,17 +2,22 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { VideoManagerClient } from "@/components/admin/VideoManagerClient";
+import { HouseMakerManagerClient } from "@/components/admin/HouseMakerManagerClient";
+import { VenueManagerClient } from "@/components/admin/VenueManagerClient";
 
 export default async function AdminDashboardPage() {
   const session = await auth();
-  // 管理者チェック（将来的にrole判定を追加可能）
   if (!session?.user?.id) redirect("/login");
+  if (session.user.role !== "ADMIN") redirect("/dashboard");
 
-  const [videoCount, salespersonCount, pendingInquiries] = await Promise.all([
-    prisma.video.count(),
-    prisma.salesperson.count(),
-    prisma.contactRequest.count({ where: { status: "PENDING" } }),
-  ]);
+  const [videoCount, salespersonCount, pendingInquiries, houseMakerCount, venueCount] =
+    await Promise.all([
+      prisma.video.count(),
+      prisma.salesperson.count(),
+      prisma.contactRequest.count({ where: { status: "PENDING" } }),
+      prisma.houseMaker.count(),
+      prisma.venue.count(),
+    ]);
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
@@ -37,6 +42,28 @@ export default async function AdminDashboardPage() {
             </div>
           ))}
         </div>
+
+        {/* ハウスメーカー管理 */}
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-base font-semibold text-gray-300">ハウスメーカー管理</h2>
+            <span className="text-xs text-gray-500">{houseMakerCount}件登録済み</span>
+          </div>
+          <div className="bg-gray-900 rounded-xl p-5">
+            <HouseMakerManagerClient />
+          </div>
+        </section>
+
+        {/* 会場名管理 */}
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-base font-semibold text-gray-300">会場名管理</h2>
+            <span className="text-xs text-gray-500">{venueCount}件登録済み</span>
+          </div>
+          <div className="bg-gray-900 rounded-xl p-5">
+            <VenueManagerClient />
+          </div>
+        </section>
 
         {/* 動画管理 */}
         <section>

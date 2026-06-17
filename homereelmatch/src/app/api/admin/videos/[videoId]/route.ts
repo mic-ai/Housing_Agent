@@ -1,19 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/admin";
 import { z } from "zod";
 
 const PatchSchema = z.object({
   isActive: z.boolean().optional(),
   title: z.string().min(1).max(200).optional(),
   description: z.string().optional(),
-  area: z.string().optional(),
-  houseType: z.string().optional(),
-  priceRange: z.string().optional(),
+  houseMakerId: z.string().nullable().optional(),
+  venueId: z.string().nullable().optional(),
 }).refine((d) => Object.keys(d).length > 0, { message: "At least one field required" });
 
 type Params = { params: Promise<{ videoId: string }> };
 
 export async function PATCH(request: NextRequest, { params }: Params): Promise<NextResponse> {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   try {
     const { videoId } = await params;
     const body = await request.json();

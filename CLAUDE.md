@@ -820,17 +820,39 @@ refactor: VideoPlayer をサーバー/クライアント分離
 | Phase 3 | 営業マンダッシュボード全ページ・LINE Webhook | 79件 |
 | Phase 4 | Embed CORS ロジック分離 | 89件 |
 | Phase 5 | 管理者ダッシュボード・Embedウィジェット | **105件** |
+| Phase 6 | 管理者ロール実装・Playwright E2E テスト | **114件 + E2E 13件** |
 
 ### 残課題
 
 ```
 - prisma migrate dev（本番DB接続後に実行）
-- E2Eテスト（Playwright）: コンタクト申請フロー
-- Lighthouse スコア確認（LCP < 2.5s）
-- モバイルUI調整
+  → prisma/migrations/20260616000000_add_salesperson_role/migration.sql 作成済み
 - セキュリティ: Supabase RLS（Row Level Security）設定確認
-- 管理者ロール（現在は認証済みユーザー全員が管理者）
 ```
+
+### Lighthouse スコア（dev モード計測 / 2026-06-16 更新）
+
+#### ホームページ（/）
+
+| 指標 | スコア | 備考 |
+|---|---|---|
+| Performance | 94 | TBT 270ms、dev モードとして良好 |
+| Accessibility | 100 | コントラスト比修正済み |
+| Best Practices | 100 | |
+| SEO | 100 | |
+| LCP | 1.8s | **目標 < 2.5s 達成** |
+| Speed Index | 0.9s | |
+| CLS | 0.014 | 許容範囲内 |
+
+#### 動画視聴ページ（/watch/[videoId]）
+
+| 指標 | スコア | 備考 |
+|---|---|---|
+| Performance | 89 | |
+| Accessibility | 100 | color-contrast + landmark-one-main 修正済み |
+| Best Practices | 96 | |
+| SEO | 100 | |
+| LCP | 1.2s | 優秀 |
 
 ---
 
@@ -902,3 +924,192 @@ npm run embed:build
 優先度低:
 5. Lighthouse パフォーマンス測定
 6. Supabase RLS ポリシー設定
+
+---
+
+## セッション終了ノート（2026-06-16）
+
+### このセッションで実施した作業
+
+**開始時の状態**: Phase 5（管理者ダッシュボード・Embed）実装済み、セキュリティ未実装
+
+**実施内容**:
+1. **API セキュリティ強化** — `requireSalesperson()` ヘルパー追加、9本のAPIルートに認証 + 所有権チェック
+2. **Playwright E2E テスト実行** — Docker PostgreSQL + seed データで 13/13 全通過確認
+3. **Lighthouse 計測** — ホームページ Performance 94、LCP 1.8s、Accessibility 100
+4. **アクセシビリティ修正** — ウォッチページの color-contrast（Tailwind v4 green-600 対応）・landmark-one-main
+
+### 全フェーズ完了サマリー
+
+| フェーズ | 内容 | テスト |
+|---|---|---|
+| Phase 1 | 基盤（DB設計・Auth・API基本・コンポーネント） | — |
+| Phase 2 | 顔出し動画アップロード・フィルター・ScheduleClient | 34件 |
+| Phase 3 | 営業マンダッシュボード全ページ・LINE Webhook | 79件 |
+| Phase 4 | Embed CORS ロジック分離 | 89件 |
+| Phase 5 | 管理者ダッシュボード・Embedウィジェット | 105件 |
+| Phase 6 | 管理者ロール実装・Playwright E2E テスト | 114件 + E2E 13件 |
+| Security | API 認証・所有権チェック・Lighthouse 最適化 | **141件 + E2E 13件** |
+
+### 重要技術ノート
+
+- **Tailwind v4 の green-600 は `#00a63e`（Tailwind v3 比で明るい）** → white との contrast 3.21:1で WCAG AA 不合格 → `bg-green-700` に変更
+- **`landmark-one-main`**: `<div>` → `<main>` に変更で解決
+- **Playwright `reuseExistingServer`**: dev サーバーが起動済みなら再利用、なければ自動起動
+- **API 所有権チェックパターン**: `requireSalesperson()` (401) → `auth()` で session 取得 → `session.user.id !== resource.salespersonId` (403) → ADMIN は除外
+
+### コマンドリファレンス
+
+```bash
+# 単体テスト
+npm run test
+
+# E2E テスト（要 Docker PostgreSQL + seed 実行済み）
+npm run test:e2e
+
+# Lighthouse 計測（要 dev server 起動）
+CHROME_PATH=/home/agent/.cache/ms-playwright/chromium-1228/chrome-linux64/chrome \
+  npx lighthouse http://localhost:3000 \
+  --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage --disable-gpu" \
+  --output=json --output-path=/tmp/lh.json --quiet
+
+# DB セットアップ（Docker PostgreSQL）
+DATABASE_URL="postgresql://hrmuser:hrmpass@localhost:5432/homereelmatch" npx prisma db push
+DATABASE_URL="postgresql://hrmuser:hrmpass@localhost:5432/homereelmatch" npx tsx prisma/seed.ts
+```
+
+### 追加実装（2026-06-16 続き）
+
+- **P-05 予約完了ページ** — `src/app/(public)/booking/[contactRequestId]/complete/page.tsx` 追加
+  - 予約日時・担当営業マン・モデルハウス情報を表示
+  - `ContactRequest.appointment` リレーション経由でデータ取得
+  - seed に `cr_test_002` + Appointment を追加（E2E テスト用）
+  - E2E テスト 13→14 件
+- **OGP 強化**（`/watch/[videoId]`）
+  - `og:type: "video.other"`, `og:video` (YouTube embed URL), Twitter Card "player" 追加
+  - `og:url` に正規 URL を設定
+- **アクセシビリティ修正**（前セッション）
+  - `bg-green-600` → `bg-green-700`（Tailwind v4 で #00a63e はコントラスト比 3.21:1 → 不合格）
+  - watch ページを `<div>` → `<main>` に変更（landmark-one-main）
+
+### 残課題
+
+```
+- prisma migrate dev（本番DB接続後に実行）
+  → prisma/migrations/20260616000000_add_salesperson_role/migration.sql 作成済み
+- Supabase RLS ポリシー適用: supabase/rls-policies.sql を Supabase Dashboard で実行
+- 本番環境変数の設定（.env.local.example 参照）
+- Vercel デプロイ
+```
+
+---
+
+## セッション終了ノート（2026-06-17）
+
+### このセッションで実施した作業
+
+**開始時の状態**: 全フェーズ完了・セキュリティ強化済み。ユーザーがWindowsローカル環境でのテストを試みていた。
+
+**実施内容**:
+1. **ローカル環境セットアップ支援** — `.env.local` 作成・`prisma db push`・`npx tsx prisma/seed.ts` の手順案内
+2. **ハウスメーカー・会場名管理機能の実装** — 要件変更対応（展示場専用のため エリア/建物タイプ/価格帯 を廃止）
+
+### ローカル環境セットアップ（Windows）
+
+```powershell
+# homereelmatch フォルダで実行
+cd D:\claude-test\Housing_Agent\homereelmatch
+
+# スキーマ適用（初回）
+npx prisma db push
+
+# スキーマ変更時（カラム削除を伴う場合）
+npx prisma db push --accept-data-loss
+
+# シードデータ投入
+npx tsx prisma/seed.ts
+
+# 開発サーバー起動
+npm run dev
+```
+
+**テスト認証情報**:
+- 営業マン: `sales@test.example.com` / `password123`
+- 管理者: `admin@test.example.com` / `password123`
+
+**重要**: Prisma は `.env.local` を読まない（Next.js 専用）。`.env` ファイルに `DATABASE_URL` を書くか、PowerShell で `$env:DATABASE_URL="..."` で渡す。
+
+### ハウスメーカー・会場名管理機能（2026-06-17 実装）
+
+#### 要件変更
+- **削除**: `Video.area`、`Video.houseType`、`Video.priceRange`（展示場専用のため不要）
+- **追加**: `Video.houseMakerId`（FK → `HouseMaker`）、`Video.venueId`（FK → `Venue`）
+
+#### 新規 Prisma モデル
+```prisma
+model HouseMaker {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  logoUrl   String?
+  isActive  Boolean  @default(true)
+  videos    Video[]
+  createdAt DateTime @default(now())
+  @@map("house_makers")
+}
+
+model Venue {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  address   String?
+  isActive  Boolean  @default(true)
+  videos    Video[]
+  createdAt DateTime @default(now())
+  @@map("venues")
+}
+```
+
+#### 実装済みファイル一覧
+
+**API Routes（管理者用）**
+- `GET/POST /api/admin/house-makers` — ハウスメーカー一覧取得・新規登録（requireAdmin）
+- `PATCH/DELETE /api/admin/house-makers/[id]` — 名前変更・有効化/無効化・削除
+- `GET/POST /api/admin/venues` — 会場名一覧取得・新規登録（requireAdmin）
+- `PATCH/DELETE /api/admin/venues/[id]` — 更新・削除
+
+**API Routes（公開・ドロップダウン用）**
+- `GET /api/house-makers` — 有効なハウスメーカー一覧（営業マン動画登録フォーム用）
+- `GET /api/venues` — 有効な会場一覧（同上）
+
+**コンポーネント**
+- `HouseMakerManagerClient` — 追加・有効化/無効化・削除 UI（src/components/admin/）
+- `VenueManagerClient` — 追加（名前＋住所）・有効化/無効化・削除 UI（src/components/admin/）
+
+**更新ファイル**
+- `prisma/schema.prisma` — HouseMaker・Venue モデル追加、Video モデル更新
+- `src/types/index.ts` — `HouseMakerDTO`・`VenueDTO` 追加、`VideoDTO` 更新（area/houseType/priceRange 削除）
+- `src/lib/utils.ts` — `mapVideoToDTO` 更新（houseMaker・venue を include）
+- `src/app/api/videos/route.ts` — QuerySchema・CreateVideoSchema 更新、include に houseMaker/venue 追加
+- `src/app/api/videos/[videoId]/route.ts` — PatchVideoSchema 更新、GET の include 追加
+- `src/app/api/admin/videos/[videoId]/route.ts` — PatchSchema 更新
+- `src/components/sales/VideoNewForm.tsx` — エリア/建物タイプ/価格帯 → ハウスメーカー・会場名ドロップダウン（props で受け取り）
+- `src/app/(sales)/dashboard/videos/new/page.tsx` — サーバーサイドで HouseMaker・Venue を取得して VideoNewForm に渡す
+- `src/app/(admin)/admin/dashboard/page.tsx` — ハウスメーカー管理・会場名管理セクション追加
+- `src/app/(public)/page.tsx` — area 削除、include に houseMaker/venue 追加
+- `src/components/video/VideoFeedClient.tsx` — area prop 削除
+- `src/hooks/useVideoFeed.ts` — area オプション削除
+- `prisma/seed.ts` — サンプル HouseMaker（サンプルハウス）・Venue（テスト展示場）追加、Video の area/houseType/priceRange を houseMakerId/venueId に置き換え
+
+#### 操作フロー
+1. 管理者（`admin@test.example.com`）で `/admin/dashboard` にアクセス
+2. 「ハウスメーカー管理」セクションで登録
+3. 「会場名管理」セクションで登録
+4. 営業マンが `/dashboard/videos/new` で動画登録時にドロップダウンから選択
+
+### 残課題
+
+```
+- prisma migrate dev（本番DB接続後に実行）
+- Supabase RLS ポリシー適用: supabase/rls-policies.sql を Supabase Dashboard で実行
+- 本番環境変数の設定（.env.local.example 参照）
+- Vercel デプロイ
+```

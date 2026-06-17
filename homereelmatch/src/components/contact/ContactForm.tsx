@@ -82,7 +82,7 @@ export function ContactForm({ salespersonId, videoId, defaultMethod = "LINE" }: 
         </label>
         <input
           {...register("name")}
-          className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         {errors.name && <p className="text-red-400 text-xs mt-1">{errors.name.message}</p>}
       </div>
@@ -93,12 +93,12 @@ export function ContactForm({ salespersonId, videoId, defaultMethod = "LINE" }: 
         </label>
         <div className="flex gap-3">
           {(["LINE", "EMAIL"] as const).map((m) => (
-            <label key={m} className="flex items-center gap-2 cursor-pointer">
+            <label key={m} className="flex items-center gap-2 cursor-pointer min-h-[44px]">
               <input
                 type="radio"
                 value={m}
                 {...register("contactMethod")}
-                className="accent-blue-500"
+                className="accent-blue-500 w-4 h-4"
               />
               <span className="text-white text-sm">{m === "LINE" ? "LINE" : "メール"}</span>
             </label>
@@ -114,7 +114,7 @@ export function ContactForm({ salespersonId, videoId, defaultMethod = "LINE" }: 
           <input
             {...register("lineId")}
             placeholder="@your-line-id"
-            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           {errors.lineId && <p className="text-red-400 text-xs mt-1">{errors.lineId.message}</p>}
         </div>
@@ -128,7 +128,7 @@ export function ContactForm({ salespersonId, videoId, defaultMethod = "LINE" }: 
           <input
             {...register("email")}
             type="email"
-            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           {errors.email && <p className="text-red-400 text-xs mt-1">{errors.email.message}</p>}
         </div>
@@ -139,7 +139,7 @@ export function ContactForm({ salespersonId, videoId, defaultMethod = "LINE" }: 
         <input
           {...register("phone")}
           type="tel"
-          className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
 
@@ -150,7 +150,7 @@ export function ContactForm({ salespersonId, videoId, defaultMethod = "LINE" }: 
           <label className="block text-xs text-gray-400 mb-1">購入検討時期</label>
           <select
             {...register("purchaseTiming")}
-            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none text-sm"
+            className="w-full px-3 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none text-sm"
           >
             <option value="">選択してください</option>
             <option value="3months">3ヶ月以内</option>
@@ -165,7 +165,7 @@ export function ContactForm({ salespersonId, videoId, defaultMethod = "LINE" }: 
           <input
             {...register("area")}
             placeholder="例: 名古屋市・中区"
-            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none text-sm"
+            className="w-full px-3 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none text-sm"
           />
         </div>
 
@@ -173,7 +173,7 @@ export function ContactForm({ salespersonId, videoId, defaultMethod = "LINE" }: 
           <label className="block text-xs text-gray-400 mb-1">予算感</label>
           <select
             {...register("budget")}
-            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none text-sm"
+            className="w-full px-3 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none text-sm"
           >
             <option value="">選択してください</option>
             <option value="under3000">〜3,000万円</option>
@@ -188,7 +188,7 @@ export function ContactForm({ salespersonId, videoId, defaultMethod = "LINE" }: 
           <textarea
             {...register("message")}
             rows={3}
-            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none text-sm resize-none"
+            className="w-full px-3 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none text-sm resize-none"
           />
         </div>
       </fieldset>

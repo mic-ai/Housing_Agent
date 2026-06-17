@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { requireSalesperson } from "@/lib/admin";
 
 export async function GET(
   _request: NextRequest,
@@ -15,6 +16,8 @@ export async function GET(
         salespersonVideos: {
           include: { salesperson: { include: { company: true } } },
         },
+        houseMaker: true,
+        venue: true,
       },
     });
 
@@ -37,9 +40,8 @@ export async function GET(
 const PatchVideoSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   description: z.string().max(1000).optional(),
-  area: z.string().optional(),
-  houseType: z.string().optional(),
-  priceRange: z.string().optional(),
+  houseMakerId: z.string().nullable().optional(),
+  venueId: z.string().nullable().optional(),
   isActive: z.boolean().optional(),
   hashtags: z.array(z.string()).optional(),
 });
@@ -48,6 +50,9 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ videoId: string }> }
 ) {
+  const denied = await requireSalesperson();
+  if (denied) return denied;
+
   try {
     const { videoId } = await params;
     const body = await request.json();
@@ -92,6 +97,9 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ videoId: string }> }
 ) {
+  const denied = await requireSalesperson();
+  if (denied) return denied;
+
   try {
     const { videoId } = await params;
     await prisma.video.update({

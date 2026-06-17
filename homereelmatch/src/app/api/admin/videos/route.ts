@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/admin";
 import { z } from "zod";
 
 const ListQuerySchema = z.object({
@@ -13,6 +14,9 @@ const BulkPatchSchema = z.object({
 });
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   try {
     const { searchParams } = request.nextUrl;
     const query = ListQuerySchema.parse(Object.fromEntries(searchParams));
@@ -51,6 +55,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 }
 
 export async function PATCH(request: NextRequest): Promise<NextResponse> {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   try {
     const body = await request.json();
     const data = BulkPatchSchema.parse(body);

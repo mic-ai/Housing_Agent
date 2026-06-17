@@ -5,7 +5,6 @@ import type { VideoDTO } from "@/types";
 
 interface UseVideoFeedOptions {
   tag?: string;
-  area?: string;
   q?: string;
   limit?: number;
 }
@@ -20,13 +19,12 @@ export function useVideoFeed(options: UseVideoFeedOptions = {}) {
     (nextCursor?: string) => {
       const params = new URLSearchParams();
       if (options.tag) params.set("tag", options.tag);
-      if (options.area) params.set("area", options.area);
       if (options.q) params.set("q", options.q);
       if (options.limit) params.set("limit", String(options.limit));
       if (nextCursor) params.set("cursor", nextCursor);
       return `/api/videos?${params.toString()}`;
     },
-    [options.tag, options.area, options.q, options.limit]
+    [options.tag, options.q, options.limit]
   );
 
   const loadMore = useCallback(async () => {
@@ -49,12 +47,12 @@ export function useVideoFeed(options: UseVideoFeedOptions = {}) {
     setVideos([]);
     setCursor(null);
     setHasMore(true);
-  }, [options.tag, options.area, options.q]);
+  }, [options.tag, options.q]);
 
   useEffect(() => {
     loadMore();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [options.tag, options.area, options.q]);
+  }, [options.tag, options.q]);
 
   return { videos, loading, hasMore, loadMore };
 }

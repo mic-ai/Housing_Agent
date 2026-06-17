@@ -63,13 +63,13 @@ export function VideoFooter({
         <div className="flex gap-2">
           <Link
             href={`/contact/${sp.id}?videoId=${videoId}&method=LINE`}
-            className="flex-1 flex items-center justify-center gap-1 bg-green-500 hover:bg-green-600 text-white text-sm font-medium py-2 px-3 rounded-lg transition-colors"
+            className="flex-1 flex items-center justify-center gap-1 bg-green-700 hover:bg-green-800 text-white text-sm font-medium py-3 px-3 rounded-lg transition-colors min-h-[44px]"
           >
             <span>&#128241;</span> LINEで連絡
           </Link>
           <Link
             href={`/contact/${sp.id}?videoId=${videoId}&method=EMAIL`}
-            className="flex-1 flex items-center justify-center gap-1 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium py-2 px-3 rounded-lg transition-colors"
+            className="flex-1 flex items-center justify-center gap-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-3 px-3 rounded-lg transition-colors min-h-[44px]"
           >
             <span>&#9993;</span> メールで連絡
           </Link>

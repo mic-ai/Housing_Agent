@@ -1,12 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 
-// Handlers under test (GET list + PATCH do not exist yet — Red phase)
 import { GET } from "@/app/api/contact/route";
 import { PATCH } from "@/app/api/contact/[contactRequestId]/route";
 
 const SP_ID = "sp_001";
+
+const SP_SESSION = {
+  user: { id: SP_ID, name: "営業太郎", email: "sp@example.com", role: "SALESPERSON" as const, companyId: "co1" },
+  expires: "2099-01-01T00:00:00.000Z",
+};
 
 const INQUIRY = {
   id: "cr_001",
@@ -38,7 +43,10 @@ function makePatchReq(body: object) {
 }
 
 describe("GET /api/contact (問い合わせ一覧)", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(auth).mockResolvedValue(SP_SESSION as never);
+  });
 
   it("salespersonIdで問い合わせ一覧を返す", async () => {
     vi.mocked(prisma.contactRequest.findMany).mockResolvedValue([INQUIRY] as never);
@@ -71,10 +79,29 @@ describe("GET /api/contact (問い合わせ一覧)", () => {
     const body = await res.json();
     expect(body.data[0].user.name).toBe("田中太郎");
   });
+
+  it("未認証は401を返す", async () => {
+    vi.mocked(auth).mockResolvedValue(null as never);
+    const res = await GET(makeGetReq(SP_ID));
+    expect(res.status).toBe(401);
+  });
+
+  it("他の営業マンの問い合わせ一覧は403を返す", async () => {
+    vi.mocked(auth).mockResolvedValue({
+      ...SP_SESSION,
+      user: { ...SP_SESSION.user, id: "other_sp" },
+    } as never);
+    const res = await GET(makeGetReq(SP_ID));
+    expect(res.status).toBe(403);
+  });
 });
 
 describe("PATCH /api/contact/[contactRequestId]", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(auth).mockResolvedValue(SP_SESSION as never);
+    vi.mocked(prisma.contactRequest.findUnique).mockResolvedValue(INQUIRY as never);
+  });
 
   it("ステータスをRESPONDEDに更新できる", async () => {
     vi.mocked(prisma.contactRequest.update).mockResolvedValue({ ...INQUIRY, status: "RESPONDED" } as never);
@@ -92,5 +119,26 @@ describe("PATCH /api/contact/[contactRequestId]", () => {
   it("空のbodyは400を返す", async () => {
     const res = await PATCH(makePatchReq({}), { params: patchParams });
     expect(res.status).toBe(400);
+  });
+
+  it("未認証は401を返す", async () => {
+    vi.mocked(auth).mockResolvedValue(null as never);
+    const res = await PATCH(makePatchReq({ status: "RESPONDED" }), { params: patchParams });
+    expect(res.status).toBe(401);
+  });
+
+  it("存在しないContactRequestは404を返す", async () => {
+    vi.mocked(prisma.contactRequest.findUnique).mockResolvedValue(null);
+    const res = await PATCH(makePatchReq({ status: "RESPONDED" }), { params: patchParams });
+    expect(res.status).toBe(404);
+  });
+
+  it("他の営業マンの問い合わせ更新は403を返す", async () => {
+    vi.mocked(auth).mockResolvedValue({
+      ...SP_SESSION,
+      user: { ...SP_SESSION.user, id: "other_sp" },
+    } as never);
+    const res = await PATCH(makePatchReq({ status: "RESPONDED" }), { params: patchParams });
+    expect(res.status).toBe(403);
   });
 });

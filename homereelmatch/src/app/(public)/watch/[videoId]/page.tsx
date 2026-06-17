@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { CompositePlayer } from "@/components/video/CompositePlayer";
 import { VideoFooter } from "@/components/video/VideoFooter";
+import { extractYouTubeId } from "@/lib/utils";
 import type { Metadata } from "next";
 
 interface WatchPageProps {
@@ -12,12 +13,37 @@ export async function generateMetadata({ params }: WatchPageProps): Promise<Meta
   const { videoId } = await params;
   const video = await prisma.video.findUnique({ where: { id: videoId } });
   if (!video) return { title: "動画が見つかりません" };
+  const ytId = video.platform === "YOUTUBE" ? extractYouTubeId(video.url) : null;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://homereelmatch.example.com";
+
   return {
     title: video.title,
     description: video.description ?? undefined,
     openGraph: {
       title: video.title,
+      description: video.description ?? undefined,
+      type: "video.other",
+      url: `${appUrl}/watch/${video.id}`,
+      images: video.thumbnailUrl
+        ? [{ url: video.thumbnailUrl, width: 1280, height: 720, alt: video.title }]
+        : [],
+      videos: ytId
+        ? [{ url: `https://www.youtube.com/embed/${ytId}`, width: 1280, height: 720, type: "text/html" }]
+        : [],
+    },
+    twitter: {
+      card: "player",
+      title: video.title,
+      description: video.description ?? undefined,
       images: video.thumbnailUrl ? [video.thumbnailUrl] : [],
+      ...(ytId && {
+        players: [{
+          playerUrl: `https://www.youtube.com/embed/${ytId}`,
+          streamUrl: `https://www.youtube.com/embed/${ytId}`,
+          width: 1280,
+          height: 720,
+        }],
+      }),
     },
   };
 }
@@ -42,7 +68,7 @@ export default async function WatchPage({ params }: WatchPageProps) {
   const primarySalespersonVideo = video.salespersonVideos[0] ?? null;
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center">
+    <main className="min-h-screen bg-black flex items-center justify-center">
       <div className="relative w-full max-w-sm mx-auto aspect-[9/16] bg-black">
         <CompositePlayer
           platform={video.platform}
@@ -76,6 +102,6 @@ export default async function WatchPage({ params }: WatchPageProps) {
           }
         />
       </div>
-    </div>
+    </main>
   );
 }

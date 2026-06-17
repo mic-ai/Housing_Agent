@@ -37,6 +37,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           name: salesperson.name,
           email: salesperson.email,
           companyId: salesperson.companyId,
+          role: salesperson.role,
         };
       },
     }),
@@ -44,17 +45,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     jwt({ token, user }) {
       if (user) {
-        token.id = user.id;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        token.companyId = (user as any).companyId;
+        token.id = user.id as string;
+        token.companyId = user.companyId;
+        token.role = user.role;
       }
       return token;
     },
     session({ session, token }) {
       if (token) {
         session.user.id = token.id as string;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (session.user as any).companyId = token.companyId;
+        session.user.companyId = token.companyId as string;
+        session.user.role = token.role as "SALESPERSON" | "ADMIN";
       }
       return session;
     },

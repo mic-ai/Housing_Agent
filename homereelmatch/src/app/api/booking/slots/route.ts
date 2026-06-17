@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { requireSalesperson } from "@/lib/admin";
+import { auth } from "@/lib/auth";
 
 const CreateSlotSchema = z.object({
   salespersonId: z.string().min(1),
@@ -9,6 +11,9 @@ const CreateSlotSchema = z.object({
 });
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  const denied = await requireSalesperson();
+  if (denied) return denied;
+
   try {
     const body = await request.json();
     const data = CreateSlotSchema.parse(body);
@@ -17,6 +22,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const end = new Date(data.endAt);
     if (start >= end) {
       return NextResponse.json({ error: "startAt は endAt より前である必要があります" }, { status: 400 });
+    }
+
+    // Ownership: SALESPERSON can only create slots for themselves
+    const session = (await auth())!;
+    if (session.user.role !== "ADMIN" && session.user.id !== data.salespersonId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const salesperson = await prisma.salesperson.findUnique({ where: { id: data.salespersonId } });

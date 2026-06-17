@@ -27,6 +27,16 @@ vi.mock("next/headers", () => ({
 // Prisma mock
 vi.mock("@/lib/prisma", () => ({
   prisma: {
+    $transaction: vi.fn((callback: (tx: unknown) => unknown) => {
+      const tx = {
+        video: { create: vi.fn(), update: vi.fn() },
+        hashtag: { upsert: vi.fn() },
+        videoHashtag: { create: vi.fn(), deleteMany: vi.fn() },
+        user: { create: vi.fn() },
+        contactRequest: { create: vi.fn() },
+      };
+      return callback(tx);
+    }),
     video: {
       findMany: vi.fn(),
       findUnique: vi.fn(),

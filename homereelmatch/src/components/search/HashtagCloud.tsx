@@ -18,7 +18,7 @@ export async function HashtagCloud() {
           className="px-3 py-1 bg-white/10 hover:bg-white/20 text-white text-sm rounded-full transition-colors"
         >
           #{tag.tagName}
-          <span className="ml-1 text-gray-400 text-xs">{tag.usageCount}</span>
+          <span className="ml-1 text-gray-300 text-xs">{tag.usageCount}</span>
         </Link>
       ))}
     </div>

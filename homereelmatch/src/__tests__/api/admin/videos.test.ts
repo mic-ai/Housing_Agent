@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 
-// Routes under test (do not exist yet — Red phase)
 import { GET, PATCH } from "@/app/api/admin/videos/route";
 import { PATCH as PATCH_VIDEO } from "@/app/api/admin/videos/[videoId]/route";
 
@@ -24,6 +24,16 @@ const VIDEO = {
   salespersonVideos: [],
 };
 
+const ADMIN_SESSION = {
+  user: { id: "admin1", name: "管理者", email: "admin@example.com", role: "ADMIN" as const, companyId: "co1" },
+  expires: "2099-01-01T00:00:00.000Z",
+};
+
+const SALESPERSON_SESSION = {
+  user: { id: "sp1", name: "営業マン", email: "sp@example.com", role: "SALESPERSON" as const, companyId: "co1" },
+  expires: "2099-01-01T00:00:00.000Z",
+};
+
 const patchParams = Promise.resolve({ videoId: "vid_001" });
 
 function makeReq(method: string, body?: object) {
@@ -34,8 +44,27 @@ function makeReq(method: string, body?: object) {
   });
 }
 
-describe("GET /api/admin/videos", () => {
+describe("GET /api/admin/videos — 認証チェック", () => {
   beforeEach(() => vi.clearAllMocks());
+
+  it("未認証は401を返す", async () => {
+    vi.mocked(auth).mockResolvedValue(null as never);
+    const res = await GET(new NextRequest("http://localhost/api/admin/videos"));
+    expect(res.status).toBe(401);
+  });
+
+  it("SALESPERSON ロールは403を返す", async () => {
+    vi.mocked(auth).mockResolvedValue(SALESPERSON_SESSION as never);
+    const res = await GET(new NextRequest("http://localhost/api/admin/videos"));
+    expect(res.status).toBe(403);
+  });
+});
+
+describe("GET /api/admin/videos", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(auth).mockResolvedValue(ADMIN_SESSION as never);
+  });
 
   it("全動画一覧を返す（非公開も含む）", async () => {
     vi.mocked(prisma.video.findMany).mockResolvedValue([VIDEO, { ...VIDEO, id: "vid_002", isActive: false }] as never);
@@ -66,8 +95,27 @@ describe("GET /api/admin/videos", () => {
   });
 });
 
-describe("PATCH /api/admin/videos (一括操作)", () => {
+describe("PATCH /api/admin/videos (一括操作) — 認証チェック", () => {
   beforeEach(() => vi.clearAllMocks());
+
+  it("未認証は401を返す", async () => {
+    vi.mocked(auth).mockResolvedValue(null as never);
+    const res = await PATCH(makeReq("PATCH", { ids: ["vid_001"], isActive: false }));
+    expect(res.status).toBe(401);
+  });
+
+  it("SALESPERSON ロールは403を返す", async () => {
+    vi.mocked(auth).mockResolvedValue(SALESPERSON_SESSION as never);
+    const res = await PATCH(makeReq("PATCH", { ids: ["vid_001"], isActive: false }));
+    expect(res.status).toBe(403);
+  });
+});
+
+describe("PATCH /api/admin/videos (一括操作)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(auth).mockResolvedValue(ADMIN_SESSION as never);
+  });
 
   it("複数動画を一括で非公開にできる", async () => {
     vi.mocked(prisma.video.updateMany).mockResolvedValue({ count: 2 } as never);
@@ -87,8 +135,37 @@ describe("PATCH /api/admin/videos (一括操作)", () => {
   });
 });
 
-describe("PATCH /api/admin/videos/[videoId]", () => {
+describe("PATCH /api/admin/videos/[videoId] — 認証チェック", () => {
   beforeEach(() => vi.clearAllMocks());
+
+  it("未認証は401を返す", async () => {
+    vi.mocked(auth).mockResolvedValue(null as never);
+    const req = new NextRequest("http://localhost/api/admin/videos/vid_001", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isActive: false }),
+    });
+    const res = await PATCH_VIDEO(req, { params: patchParams });
+    expect(res.status).toBe(401);
+  });
+
+  it("SALESPERSON ロールは403を返す", async () => {
+    vi.mocked(auth).mockResolvedValue(SALESPERSON_SESSION as never);
+    const req = new NextRequest("http://localhost/api/admin/videos/vid_001", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isActive: false }),
+    });
+    const res = await PATCH_VIDEO(req, { params: patchParams });
+    expect(res.status).toBe(403);
+  });
+});
+
+describe("PATCH /api/admin/videos/[videoId]", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(auth).mockResolvedValue(ADMIN_SESSION as never);
+  });
 
   it("動画の isActive を切り替えられる", async () => {
     vi.mocked(prisma.video.update).mockResolvedValue({ ...VIDEO, isActive: false } as never);

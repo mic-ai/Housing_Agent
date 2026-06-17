@@ -1,12 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { requireSalesperson } from "@/lib/admin";
+
+const videoInclude = {
+  videoHashtags: { include: { hashtag: true } },
+  salespersonVideos: {
+    include: { salesperson: { include: { company: true } } },
+  },
+  houseMaker: true,
+  venue: true,
+} as const;
 
 const QuerySchema = z.object({
   tag: z.string().optional(),
-  area: z.string().optional(),
-  houseType: z.string().optional(),
-  priceRange: z.string().optional(),
+  venueId: z.string().optional(),
+  houseMakerId: z.string().optional(),
   q: z.string().optional(),
   limit: z.coerce.number().min(1).max(50).default(20),
   cursor: z.string().optional(),
@@ -24,9 +33,8 @@ export async function GET(request: NextRequest) {
         some: { hashtag: { tagName: query.tag } },
       };
     }
-    if (query.area) where.area = query.area;
-    if (query.houseType) where.houseType = query.houseType;
-    if (query.priceRange) where.priceRange = query.priceRange;
+    if (query.venueId) where.venueId = query.venueId;
+    if (query.houseMakerId) where.houseMakerId = query.houseMakerId;
     if (query.q) {
       where.OR = [
         { title: { contains: query.q, mode: "insensitive" } },
@@ -45,14 +53,7 @@ export async function GET(request: NextRequest) {
       take: query.limit + 1,
       ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
       orderBy: { createdAt: "desc" },
-      include: {
-        videoHashtags: { include: { hashtag: true } },
-        salespersonVideos: {
-          include: {
-            salesperson: { include: { company: true } },
-          },
-        },
-      },
+      include: videoInclude,
     });
 
     const hasMore = videos.length > query.limit;
@@ -75,13 +76,15 @@ const CreateVideoSchema = z.object({
   thumbnailUrl: z.string().url().optional(),
   title: z.string().min(1).max(200),
   description: z.string().max(1000).optional(),
-  area: z.string().optional(),
-  houseType: z.string().optional(),
-  priceRange: z.string().optional(),
+  houseMakerId: z.string().optional(),
+  venueId: z.string().optional(),
   hashtags: z.array(z.string()).optional(),
 });
 
 export async function POST(request: NextRequest) {
+  const denied = await requireSalesperson();
+  if (denied) return denied;
+
   try {
     const body = await request.json();
     const data = CreateVideoSchema.parse(body);
@@ -94,9 +97,8 @@ export async function POST(request: NextRequest) {
           thumbnailUrl: data.thumbnailUrl,
           title: data.title,
           description: data.description,
-          area: data.area,
-          houseType: data.houseType,
-          priceRange: data.priceRange,
+          houseMakerId: data.houseMakerId,
+          venueId: data.venueId,
         },
       });
 

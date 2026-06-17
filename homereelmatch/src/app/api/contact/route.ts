@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { notifySalespersonNewInquiry } from "@/lib/line";
 import { sendInquiryNotificationToSalesperson } from "@/lib/email";
+import { requireSalesperson } from "@/lib/admin";
+import { auth } from "@/lib/auth";
 
 const ListQuerySchema = z.object({
   salespersonId: z.string().min(1),
@@ -10,9 +12,18 @@ const ListQuerySchema = z.object({
 });
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
+  const denied = await requireSalesperson();
+  if (denied) return denied;
+
   try {
     const { searchParams } = request.nextUrl;
     const query = ListQuerySchema.parse(Object.fromEntries(searchParams));
+
+    // Ownership: SALESPERSON can only list their own inquiries
+    const session = (await auth())!;
+    if (session.user.role !== "ADMIN" && session.user.id !== query.salespersonId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const inquiries = await prisma.contactRequest.findMany({
       where: {

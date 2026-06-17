@@ -6,7 +6,7 @@ import { VideoFeedClient } from "@/components/video/VideoFeedClient";
 import { mapVideoToDTO } from "@/lib/utils";
 
 interface HomePageProps {
-  searchParams: Promise<{ q?: string; tag?: string; area?: string }>;
+  searchParams: Promise<{ q?: string; tag?: string }>;
 }
 
 export default async function HomePage({ searchParams }: HomePageProps) {
@@ -38,6 +38,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       salespersonVideos: {
         include: { salesperson: { include: { company: true } } },
       },
+      houseMaker: true,
+      venue: true,
     },
   });
 
@@ -76,7 +78,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           initialVideos={initialVideos.map(mapVideoToDTO)}
           tag={params.tag}
           q={params.q}
-          area={params.area}
         />
       </main>
     </div>

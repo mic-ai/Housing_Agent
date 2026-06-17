@@ -9,14 +9,12 @@ interface VideoFeedClientProps {
   initialVideos: VideoDTO[];
   tag?: string;
   q?: string;
-  area?: string;
 }
 
 export function VideoFeedClient({
   initialVideos,
   tag,
   q,
-  area,
 }: VideoFeedClientProps) {
   const [videos, setVideos] = useState<VideoDTO[]>(initialVideos);
   const [cursor, setCursor] = useState<string | null>(
@@ -32,7 +30,6 @@ export function VideoFeedClient({
       const params = new URLSearchParams({ cursor, limit: "20" });
       if (tag) params.set("tag", tag);
       if (q) params.set("q", q);
-      if (area) params.set("area", area);
       const res = await fetch(`/api/videos?${params}`);
       const json = await res.json();
       setVideos((prev) => [...prev, ...json.data]);
@@ -41,7 +38,7 @@ export function VideoFeedClient({
     } finally {
       setLoading(false);
     }
-  }, [loading, hasMore, cursor, tag, q, area]);
+  }, [loading, hasMore, cursor, tag, q]);
 
   const sentinelRef = useIntersectionObserver(loadMore, { threshold: 0.1 });
 
@@ -56,8 +53,8 @@ export function VideoFeedClient({
   return (
     <>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {videos.map((video) => (
-          <VideoCard key={video.id} video={video} />
+        {videos.map((video, index) => (
+          <VideoCard key={video.id} video={video} priority={index < 2} />
         ))}
       </div>
 

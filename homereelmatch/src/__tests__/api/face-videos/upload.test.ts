@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { uploadFaceVideo, deleteFaceVideo } from "@/lib/storage";
+import { auth } from "@/lib/auth";
 
 // Duration validation mock — will be replaced by real ffprobe util
 vi.mock("@/lib/video-duration", () => ({
@@ -44,9 +45,15 @@ function makeRequest(fd: FormData) {
   });
 }
 
+const SP_SESSION = {
+  user: { id: SALESPERSON_ID, name: "営業太郎", email: "sp@example.com", role: "SALESPERSON" as const, companyId: "co1" },
+  expires: "2099-01-01T00:00:00.000Z",
+};
+
 describe("POST /api/face-videos/upload", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(auth).mockResolvedValue(SP_SESSION as never);
     vi.mocked(getVideoDurationSec).mockResolvedValue(3); // 3秒 = 合格
     vi.mocked(uploadFaceVideo).mockResolvedValue({
       path: `${SALESPERSON_ID}/${VIDEO_ID}/pre_123.mp4`,
@@ -167,6 +174,31 @@ describe("POST /api/face-videos/upload", () => {
     const req = makeRequest(makeFormData({ type: "middle" }));
     const res = await POST(req);
     expect(res.status).toBe(400);
+  });
+
+  // ── 認証・認可 ─────────────────────────────────────────────
+  it("未認証は401を返す", async () => {
+    vi.mocked(auth).mockResolvedValue(null as never);
+    const res = await POST(makeRequest(makeFormData({})));
+    expect(res.status).toBe(401);
+  });
+
+  it("他の営業マンのIDでアップロードしようとすると403を返す", async () => {
+    vi.mocked(auth).mockResolvedValue({
+      ...SP_SESSION,
+      user: { ...SP_SESSION.user, id: "other_sp" },
+    } as never);
+    const res = await POST(makeRequest(makeFormData({ salespersonId: SALESPERSON_ID })));
+    expect(res.status).toBe(403);
+  });
+
+  it("ADMINは他の営業マンのIDでアップロードできる", async () => {
+    vi.mocked(auth).mockResolvedValue({
+      user: { id: "admin1", role: "ADMIN", companyId: "co1" },
+      expires: "2099-01-01T00:00:00.000Z",
+    } as never);
+    const res = await POST(makeRequest(makeFormData({ salespersonId: SALESPERSON_ID })));
+    expect(res.status).toBe(200);
   });
 
   // ── ストレージ障害 ──────────────────────────────────────────

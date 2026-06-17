@@ -4,9 +4,10 @@ import type { VideoDTO } from "@/types";
 
 interface VideoCardProps {
   video: VideoDTO;
+  priority?: boolean;
 }
 
-export function VideoCard({ video }: VideoCardProps) {
+export function VideoCard({ video, priority = false }: VideoCardProps) {
   const salesperson = video.salespersonVideos[0]?.salesperson;
 
   return (
@@ -17,6 +18,8 @@ export function VideoCard({ video }: VideoCardProps) {
             src={video.thumbnailUrl}
             alt={video.title}
             fill
+            priority={priority}
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             className="object-cover group-hover:scale-105 transition-transform duration-300"
           />
         ) : (
@@ -28,13 +31,13 @@ export function VideoCard({ video }: VideoCardProps) {
         <div className="absolute bottom-0 left-0 right-0 p-3">
           <p className="text-white text-sm font-medium line-clamp-2">{video.title}</p>
           {salesperson && (
-            <p className="text-gray-300 text-xs mt-1">{salesperson.name}</p>
+            <p className="text-gray-200 text-xs mt-1">{salesperson.name}</p>
           )}
           <div className="flex flex-wrap gap-1 mt-1">
             {video.hashtags.slice(0, 3).map((tag) => (
               <span
                 key={tag.id}
-                className="text-xs text-blue-300"
+                className="text-xs text-blue-200"
               >
                 #{tag.tagName}
               </span>

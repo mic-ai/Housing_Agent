@@ -33,11 +33,17 @@ model Company {
   @@map("companies")
 }
 
+enum SalespersonRole {
+  SALESPERSON
+  ADMIN
+}
+
 model Salesperson {
   id              String             @id @default(cuid())
   name            String
   email           String             @unique
   password        String
+  role            SalespersonRole    @default(SALESPERSON)
   lineId          String?
   profileImage    String?
   bio             String?
@@ -51,6 +57,28 @@ model Salesperson {
   @@map("salespersons")
 }
 
+model HouseMaker {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  logoUrl   String?
+  isActive  Boolean  @default(true)
+  videos    Video[]
+  createdAt DateTime @default(now())
+
+  @@map("house_makers")
+}
+
+model Venue {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  address   String?
+  isActive  Boolean  @default(true)
+  videos    Video[]
+  createdAt DateTime @default(now())
+
+  @@map("venues")
+}
+
 model Video {
   id                String             @id @default(cuid())
   platform          Platform
@@ -58,9 +86,10 @@ model Video {
   thumbnailUrl      String?
   title             String
   description       String?
-  area              String?
-  houseType         String?
-  priceRange        String?
+  houseMaker        HouseMaker?        @relation(fields: [houseMakerId], references: [id])
+  houseMakerId      String?
+  venue             Venue?             @relation(fields: [venueId], references: [id])
+  venueId           String?
   viewCount         Int                @default(0)
   isActive          Boolean            @default(true)
   salespersonVideos SalespersonVideo[]

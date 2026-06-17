@@ -3,6 +3,8 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { uploadFaceVideo, buildFaceVideoPath } from "@/lib/storage";
 import { getVideoDurationSec } from "@/lib/video-duration";
+import { requireSalesperson } from "@/lib/admin";
+import { auth } from "@/lib/auth";
 
 const ALLOWED_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
 const MAX_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
@@ -24,6 +26,9 @@ function extFromMime(mime: string): string {
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  const denied = await requireSalesperson();
+  if (denied) return denied;
+
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
@@ -38,6 +43,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
     if (!file) {
       return NextResponse.json({ error: "file is required" }, { status: 400 });
+    }
+
+    // Ownership: SALESPERSON can only upload for themselves
+    const session = (await auth())!;
+    if (session.user.role !== "ADMIN" && session.user.id !== parsed.data.salespersonId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // File type validation

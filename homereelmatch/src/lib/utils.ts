@@ -9,9 +9,8 @@ export function mapVideoToDTO(video: {
   thumbnailUrl: string | null;
   title: string;
   description: string | null;
-  area: string | null;
-  houseType: string | null;
-  priceRange: string | null;
+  houseMaker: { id: string; name: string; logoUrl: string | null; isActive: boolean } | null;
+  venue: { id: string; name: string; address: string | null; isActive: boolean } | null;
   viewCount: number;
   createdAt: Date;
   videoHashtags: Array<{
@@ -46,9 +45,8 @@ export function mapVideoToDTO(video: {
     thumbnailUrl: video.thumbnailUrl,
     title: video.title,
     description: video.description,
-    area: video.area,
-    houseType: video.houseType,
-    priceRange: video.priceRange,
+    houseMaker: video.houseMaker,
+    venue: video.venue,
     viewCount: video.viewCount,
     createdAt: video.createdAt.toISOString(),
     hashtags: video.videoHashtags.map((vh) => vh.hashtag),

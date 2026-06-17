@@ -1,12 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 
-// Handlers under test (POST does not exist yet — Red phase)
 import { POST } from "@/app/api/booking/slots/route";
 import { DELETE } from "@/app/api/booking/slots/[slotId]/route";
 
 const SALESPERSON_ID = "sp_001";
+
+const SP_SESSION = {
+  user: { id: SALESPERSON_ID, name: "営業太郎", email: "sp@example.com", role: "SALESPERSON" as const, companyId: "co1" },
+  expires: "2099-01-01T00:00:00.000Z",
+};
 
 const SLOT = {
   id: "slot_001",
@@ -32,7 +37,10 @@ function makeDeleteReq() {
 const deleteParams = Promise.resolve({ slotId: "slot_001" });
 
 describe("POST /api/booking/slots", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(auth).mockResolvedValue(SP_SESSION as never);
+  });
 
   it("有効なスロットを作成して201を返す", async () => {
     vi.mocked(prisma.availableSlot.create).mockResolvedValue(SLOT as never);
@@ -69,16 +77,57 @@ describe("POST /api/booking/slots", () => {
   it("存在しない営業マンIDで404を返す", async () => {
     vi.mocked(prisma.salesperson.findUnique).mockResolvedValue(null);
     const res = await POST(makePostReq({
-      salespersonId: "nonexistent",
+      salespersonId: SALESPERSON_ID,
       startAt: "2026-07-01T10:00:00Z",
       endAt: "2026-07-01T11:00:00Z",
     }));
     expect(res.status).toBe(404);
   });
+
+  it("未認証は401を返す", async () => {
+    vi.mocked(auth).mockResolvedValue(null as never);
+    const res = await POST(makePostReq({
+      salespersonId: SALESPERSON_ID,
+      startAt: "2026-07-01T10:00:00Z",
+      endAt: "2026-07-01T11:00:00Z",
+    }));
+    expect(res.status).toBe(401);
+  });
+
+  it("他の営業マンのスロット作成は403を返す", async () => {
+    vi.mocked(auth).mockResolvedValue({
+      ...SP_SESSION,
+      user: { ...SP_SESSION.user, id: "other_sp" },
+    } as never);
+    const res = await POST(makePostReq({
+      salespersonId: SALESPERSON_ID,
+      startAt: "2026-07-01T10:00:00Z",
+      endAt: "2026-07-01T11:00:00Z",
+    }));
+    expect(res.status).toBe(403);
+  });
+
+  it("ADMINは他の営業マンのスロットを作成できる", async () => {
+    vi.mocked(auth).mockResolvedValue({
+      user: { id: "admin1", role: "ADMIN", companyId: "co1" },
+      expires: "2099-01-01T00:00:00.000Z",
+    } as never);
+    vi.mocked(prisma.salesperson.findUnique).mockResolvedValue({ id: SALESPERSON_ID } as never);
+    vi.mocked(prisma.availableSlot.create).mockResolvedValue(SLOT as never);
+    const res = await POST(makePostReq({
+      salespersonId: SALESPERSON_ID,
+      startAt: "2026-07-01T10:00:00Z",
+      endAt: "2026-07-01T11:00:00Z",
+    }));
+    expect(res.status).toBe(201);
+  });
 });
 
 describe("DELETE /api/booking/slots/[slotId]", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(auth).mockResolvedValue(SP_SESSION as never);
+  });
 
   it("未予約スロットを削除して200を返す", async () => {
     vi.mocked(prisma.availableSlot.findUnique).mockResolvedValue(SLOT as never);
@@ -101,5 +150,22 @@ describe("DELETE /api/booking/slots/[slotId]", () => {
     vi.mocked(prisma.availableSlot.findUnique).mockResolvedValue(null);
     const res = await DELETE(makeDeleteReq(), { params: deleteParams });
     expect(res.status).toBe(404);
+  });
+
+  it("未認証は401を返す", async () => {
+    vi.mocked(auth).mockResolvedValue(null as never);
+    vi.mocked(prisma.availableSlot.findUnique).mockResolvedValue(SLOT as never);
+    const res = await DELETE(makeDeleteReq(), { params: deleteParams });
+    expect(res.status).toBe(401);
+  });
+
+  it("他の営業マンのスロット削除は403を返す", async () => {
+    vi.mocked(auth).mockResolvedValue({
+      ...SP_SESSION,
+      user: { ...SP_SESSION.user, id: "other_sp" },
+    } as never);
+    vi.mocked(prisma.availableSlot.findUnique).mockResolvedValue(SLOT as never);
+    const res = await DELETE(makeDeleteReq(), { params: deleteParams });
+    expect(res.status).toBe(403);
   });
 });

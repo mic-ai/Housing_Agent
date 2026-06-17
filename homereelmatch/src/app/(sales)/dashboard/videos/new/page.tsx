@@ -1,11 +1,25 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import Link from "next/link";
+import { prisma } from "@/lib/prisma";
 import { VideoNewForm } from "@/components/sales/VideoNewForm";
 
 export default async function VideoNewPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
+
+  const [houseMakers, venues] = await Promise.all([
+    prisma.houseMaker.findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, logoUrl: true, isActive: true },
+    }),
+    prisma.venue.findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, address: true, isActive: true },
+    }),
+  ]);
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
@@ -17,7 +31,7 @@ export default async function VideoNewPage() {
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-6">
-        <VideoNewForm />
+        <VideoNewForm houseMakers={houseMakers} venues={venues} />
       </main>
     </div>
   );

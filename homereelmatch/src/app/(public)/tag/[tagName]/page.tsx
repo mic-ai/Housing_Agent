@@ -25,6 +25,8 @@ export default async function TagPage({ params }: TagPageProps) {
     take: 40,
     orderBy: { createdAt: "desc" },
     include: {
+      houseMaker: true,
+      venue: true,
       videoHashtags: { include: { hashtag: true } },
       salespersonVideos: {
         include: { salesperson: { include: { company: true } } },

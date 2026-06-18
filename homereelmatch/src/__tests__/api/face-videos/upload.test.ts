@@ -135,8 +135,8 @@ describe("POST /api/face-videos/upload", () => {
   });
 
   // ── 尺バリデーション ────────────────────────────────────────
-  it("6秒を超える動画は400を返す", async () => {
-    vi.mocked(getVideoDurationSec).mockResolvedValue(7);
+  it("10秒を超える動画は400を返す", async () => {
+    vi.mocked(getVideoDurationSec).mockResolvedValue(11);
     const req = makeRequest(makeFormData({}));
     const res = await POST(req);
     expect(res.status).toBe(400);
@@ -144,8 +144,8 @@ describe("POST /api/face-videos/upload", () => {
     expect(body.error).toMatch(/duration/i);
   });
 
-  it("ちょうど6秒の動画は受け付ける", async () => {
-    vi.mocked(getVideoDurationSec).mockResolvedValue(6);
+  it("ちょうど10秒の動画は受け付ける", async () => {
+    vi.mocked(getVideoDurationSec).mockResolvedValue(10);
     const req = makeRequest(makeFormData({}));
     const res = await POST(req);
     expect(res.status).toBe(200);

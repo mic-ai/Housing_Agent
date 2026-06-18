@@ -1,3 +1,4 @@
+import { path as ffprobePath } from "@ffprobe-installer/ffprobe";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { writeFile, unlink } from "fs/promises";
@@ -11,7 +12,7 @@ export async function getVideoDurationSec(buffer: Buffer, ext: string): Promise<
   const tmpPath = join(tmpdir(), `hrm-${randomUUID()}.${ext}`);
   try {
     await writeFile(tmpPath, buffer);
-    const { stdout } = await execFileAsync("ffprobe", [
+    const { stdout } = await execFileAsync(ffprobePath, [
       "-v", "quiet",
       "-print_format", "json",
       "-show_streams",

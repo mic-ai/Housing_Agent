@@ -1,12 +1,16 @@
+import { createHmac } from "crypto";
+
 const LINE_API = "https://api.line.me/v2/bot/message/push";
-const ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN!;
 
 async function pushMessage(to: string, text: string): Promise<void> {
+  const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+  if (!token) return; // LINE not configured — skip silently
+
   const res = await fetch(LINE_API, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${ACCESS_TOKEN}`,
+      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({
       to,
@@ -48,15 +52,10 @@ export async function notifyUserBookingConfirmed(params: {
   await pushMessage(params.lineId, text);
 }
 
-export function validateLineSignature(
-  body: string,
-  signature: string
-): boolean {
-  const crypto = require("crypto");
-  const channelSecret = process.env.LINE_CHANNEL_SECRET!;
-  const hash = crypto
-    .createHmac("SHA256", channelSecret)
-    .update(body)
-    .digest("base64");
+export function validateLineSignature(body: string, signature: string): boolean {
+  const secret = process.env.LINE_CHANNEL_SECRET;
+  if (!secret) return false; // LINE not configured
+
+  const hash = createHmac("SHA256", secret).update(body).digest("base64");
   return hash === signature;
 }

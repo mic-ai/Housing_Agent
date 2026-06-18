@@ -17,11 +17,23 @@ interface AdminVideo {
   createdAt: string;
 }
 
-export function VideoManagerClient() {
+interface HouseMaker { id: string; name: string; }
+interface Venue { id: string; name: string; }
+
+interface Props {
+  houseMakers: HouseMaker[];
+  venues: Venue[];
+}
+
+export function VideoManagerClient({ houseMakers, venues }: Props) {
   const [videos, setVideos] = useState<AdminVideo[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [filterActive, setFilterActive] = useState<"all" | "active" | "inactive">("all");
+  const [showForm, setShowForm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [platform, setPlatform] = useState<Platform>("YOUTUBE");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -65,10 +77,49 @@ export function VideoManagerClient() {
     });
   }
 
-  if (loading) return <div className="text-center py-8 text-gray-500">読み込み中...</div>;
+  async function handleRegister(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setFormError(null);
+    setSubmitting(true);
+
+    const fd = new FormData(e.currentTarget);
+    const body = {
+      platform: fd.get("platform") as Platform,
+      url: fd.get("url") as string,
+      title: fd.get("title") as string,
+      description: (fd.get("description") as string) || undefined,
+      houseMakerId: (fd.get("houseMakerId") as string) || undefined,
+      venueId: (fd.get("venueId") as string) || undefined,
+      hashtags: (fd.get("hashtags") as string)
+        .split(/[,、\s]+/)
+        .map((t) => t.replace(/^#/, "").trim())
+        .filter(Boolean),
+    };
+
+    try {
+      const res = await fetch("/api/videos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setFormError(data.error ?? "登録に失敗しました");
+        return;
+      }
+      setShowForm(false);
+      setPlatform("YOUTUBE");
+      await load();
+    } catch {
+      setFormError("登録に失敗しました");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <div className="space-y-4">
+      {/* フィルター＋登録ボタン */}
       <div className="flex flex-wrap gap-3 items-center justify-between">
         <div className="flex gap-2">
           {(["all", "active", "inactive"] as const).map((f) => (
@@ -76,22 +127,127 @@ export function VideoManagerClient() {
               key={f}
               type="button"
               onClick={() => setFilterActive(f)}
-              className={`px-3 py-1.5 text-sm rounded ${filterActive === f ? "bg-blue-600 text-white" : "border border-gray-600 text-gray-300 hover:bg-gray-800"}`}
+              className={`px-3 py-1.5 text-sm rounded ${filterActive === f ? "bg-amber-600 text-white" : "border border-gray-600 text-gray-300 hover:bg-gray-800"}`}
             >
               {f === "all" ? "すべて" : f === "active" ? "公開中" : "非公開"}
             </button>
           ))}
         </div>
-        {selected.size > 0 && (
-          <div className="flex gap-2">
-            <span className="text-sm text-gray-400">{selected.size}件選択中</span>
-            <button type="button" onClick={() => bulkSetActive(true)} className="px-3 py-1 text-xs bg-green-700 text-white rounded hover:bg-green-600">一括公開</button>
-            <button type="button" onClick={() => bulkSetActive(false)} className="px-3 py-1 text-xs bg-red-800 text-white rounded hover:bg-red-700">一括非公開</button>
-          </div>
-        )}
+        <div className="flex gap-2 items-center">
+          {selected.size > 0 && (
+            <>
+              <span className="text-sm text-gray-400">{selected.size}件選択中</span>
+              <button type="button" onClick={() => bulkSetActive(true)} className="px-3 py-1 text-xs bg-green-700 text-white rounded hover:bg-green-600">一括公開</button>
+              <button type="button" onClick={() => bulkSetActive(false)} className="px-3 py-1 text-xs bg-red-800 text-white rounded hover:bg-red-700">一括非公開</button>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={() => { setShowForm((v) => !v); setFormError(null); }}
+            className="px-4 py-1.5 text-sm bg-amber-600 hover:bg-amber-700 text-white rounded transition-colors"
+          >
+            {showForm ? "閉じる" : "動画を登録"}
+          </button>
+        </div>
       </div>
 
-      {videos.length === 0 ? (
+      {/* 動画登録フォーム */}
+      {showForm && (
+        <form onSubmit={handleRegister} className="bg-gray-800 rounded-xl p-5 space-y-4 border border-gray-700">
+          <h3 className="text-sm font-semibold text-gray-200">本編動画を登録</h3>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1">プラットフォーム</label>
+              <select
+                name="platform"
+                value={platform}
+                onChange={(e) => setPlatform(e.target.value as Platform)}
+                className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm"
+              >
+                <option value="YOUTUBE">YouTube</option>
+                <option value="INSTAGRAM">Instagram</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1">動画URL *</label>
+              <input
+                type="url"
+                name="url"
+                required
+                placeholder={platform === "YOUTUBE" ? "https://youtube.com/watch?v=..." : "https://instagram.com/reel/..."}
+                className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm placeholder-gray-500"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1">タイトル *</label>
+            <input
+              type="text"
+              name="title"
+              required
+              maxLength={100}
+              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1">ハウスメーカー</label>
+              <select name="houseMakerId" className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm">
+                <option value="">選択...</option>
+                {houseMakers.map((hm) => (
+                  <option key={hm.id} value={hm.id}>{hm.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1">会場名</label>
+              <select name="venueId" className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm">
+                <option value="">選択...</option>
+                {venues.map((v) => (
+                  <option key={v.id} value={v.id}>{v.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1">ハッシュタグ（カンマ区切り）</label>
+            <input
+              type="text"
+              name="hashtags"
+              placeholder="新築, 注文住宅"
+              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm"
+            />
+          </div>
+
+          {formError && <p className="text-red-400 text-sm">{formError}</p>}
+
+          <div className="flex gap-3">
+            <button
+              type="submit"
+              disabled={submitting}
+              className="px-6 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded transition-colors"
+            >
+              {submitting ? "登録中..." : "登録する"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowForm(false)}
+              className="px-6 py-2 border border-gray-600 text-gray-300 text-sm rounded hover:bg-gray-800"
+            >
+              キャンセル
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* 動画一覧 */}
+      {loading ? (
+        <div className="text-center py-8 text-gray-500">読み込み中...</div>
+      ) : videos.length === 0 ? (
         <p className="text-center text-gray-500 py-12">動画がありません</p>
       ) : (
         <div className="divide-y divide-gray-800">
@@ -115,7 +271,7 @@ export function VideoManagerClient() {
               <button
                 type="button"
                 onClick={() => toggleActive(v.id, v.isActive)}
-                className={`text-xs px-3 py-1 rounded ${v.isActive ? "bg-gray-700 hover:bg-gray-600 text-gray-300" : "bg-blue-700 hover:bg-blue-600 text-white"}`}
+                className={`flex-shrink-0 text-xs px-3 py-1 rounded ${v.isActive ? "bg-gray-700 hover:bg-gray-600 text-gray-300" : "bg-blue-700 hover:bg-blue-600 text-white"}`}
               >
                 {v.isActive ? "非公開にする" : "公開する"}
               </button>

@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { notifySalespersonNewInquiry } from "@/lib/line";
 import { sendInquiryNotificationToSalesperson } from "@/lib/email";
 import { requireSalesperson } from "@/lib/admin";
 import { auth } from "@/lib/auth";
+import { encryptJson, decryptJson } from "@/lib/encrypt";
 
 const ListQuerySchema = z.object({
   salespersonId: z.string().min(1),
@@ -34,7 +36,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json({ data: inquiries });
+    const data = inquiries.map((inq) => ({
+      ...inq,
+      questionnaireJson: decryptJson(inq.questionnaireJson),
+    }));
+
+    return NextResponse.json({ data });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.errors }, { status: 400 });
@@ -110,7 +117,9 @@ export async function POST(request: NextRequest) {
           salespersonId: data.salespersonId,
           videoId: data.videoId,
           contactMethod: data.contactMethod,
-          questionnaireJson: data.questionnaire ?? undefined,
+          questionnaireJson: data.questionnaire
+            ? (encryptJson(data.questionnaire) as Prisma.InputJsonValue)
+            : undefined,
         },
       });
 

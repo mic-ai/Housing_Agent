@@ -7,6 +7,7 @@ import { VideoNewForm } from "@/components/sales/VideoNewForm";
 export default async function VideoNewPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
+  if (session.user.role !== "ADMIN") redirect("/dashboard/videos");
 
   const [houseMakers, venues] = await Promise.all([
     prisma.houseMaker.findMany({

@@ -1105,11 +1105,311 @@ model Venue {
 3. 「会場名管理」セクションで登録
 4. 営業マンが `/dashboard/videos/new` で動画登録時にドロップダウンから選択
 
-### 残課題
+### 残課題（2026-06-17 時点で引き継ぎ → 次セッションで解消済み）
 
 ```
 - prisma migrate dev（本番DB接続後に実行）
 - Supabase RLS ポリシー適用: supabase/rls-policies.sql を Supabase Dashboard で実行
 - 本番環境変数の設定（.env.local.example 参照）
 - Vercel デプロイ
+```
+
+---
+
+## セッション終了ノート（2026-06-18）
+
+### このセッションで実施した作業
+
+**開始時の状態**: 全フェーズ・セキュリティ・ハウスメーカー/会場名管理 実装済み。デプロイ未実施。
+
+**実施内容**:
+1. **動画フィード UI 改善** — VideoCard・VideoFeedClient・VideoCardSkeleton・HashtagCloud・page.tsx
+2. **営業マン連絡カードオーバーレイ** — VideoCard にホバー時スライドアップ型プロフィールカード実装
+3. **暖色系トーン統一** — グレー/ブルー系 → ストーン/アンバー系に全体配色変更
+4. **FilterPanel 整理** — 未使用・壊れたコンポーネントとテストを削除、`area` prop を全箇所から除去
+5. **デプロイ前準備** — ffprobe 問題修正・Prisma ビルド設定・マイグレーション整備・vercel.json 作成
+
+### 動画フィード UI 改善の詳細
+
+#### VideoCard（`src/components/video/VideoCard.tsx`）再構成
+
+ネストした `<a>` タグを避けるため構造を変更:
+- 背景サムネイル + 視聴用 Link（`absolute inset-0 z-10`）+ 営業マンオーバーレイ（`z-30`）を分離
+- **サムネイルなし時**: ハウスメーカー名または動画タイトル頭2文字のイニシャルバッジ表示
+- **ホバー時**: 中央に再生ボタン（`z-10` の Link 内）
+- **ハウスメーカーバッジ**: 左上に `bg-stone-950/70 backdrop-blur-sm` のピル型バッジ
+- **営業マン連絡カード**: ホバーで `translate-y-3 → 0` スライドアップ
+  - 丸アバター（`ring-2 ring-amber-400/40`）+ 名前 + 会社名 + bio（最大2行）
+  - LINE ボタン（緑）+ メールボタン（アンバー）
+  - `pointer-events-none group-hover:pointer-events-auto` で非ホバー時はクリック透過
+
+#### VideoFeedClient（`src/components/video/VideoFeedClient.tsx`）
+- グリッド: `grid-cols-2 sm:grid-cols-3` → `grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3`
+- 空状態: テキストのみ → カメラ SVG アイコン + コンテキスト別メッセージ
+- ローディング: スピナー → `VideoCardSkeleton` × 6枚
+- `area` prop 完全削除
+
+#### VideoCardSkeleton（`src/components/video/VideoCardSkeleton.tsx`）
+- 既存ファイルをストーン系カラーに更新（`bg-stone-900`、`bg-amber-300/20`）
+
+#### HashtagCloud（`src/components/search/HashtagCloud.tsx`）
+- アクティブタグのハイライト: `bg-blue-500` → `bg-amber-500 border-amber-400`
+
+#### page.tsx（`src/app/(public)/page.tsx`）
+- ロゴ背景: `bg-blue-600` → `bg-amber-600`
+- 背景: `bg-gray-950` → `bg-stone-950`
+- HashtagCloud を tag フィルター中も常時表示（`activeTag={params.tag}` を渡す）
+
+#### VideoFooter（`src/components/video/VideoFooter.tsx`）
+- グラデーション: `from-black/80` → `from-stone-950/90`
+- メールボタン: `bg-blue-600` → `bg-amber-600`
+- ハッシュタグ: `text-blue-300` → `text-amber-300`
+- 営業マンアバター: `ring-2 ring-amber-400/30` 追加
+
+#### SearchBar（`src/components/search/SearchBar.tsx`）
+- 検索ボタン: `bg-blue-600` → `bg-amber-600`
+- フォーカスリング: `ring-blue-400` → `ring-amber-400`
+
+### FilterPanel 整理
+
+| 操作 | 対象 | 理由 |
+|------|------|------|
+| 削除 | `src/components/search/FilterPanel.tsx` | Phase 2 実装時は area/houseType/priceRange を持っていたが Phase 3 でこれらフィールドを Video モデルから削除。以降どのページからも使用されていない |
+| 削除 | `src/__tests__/components/search/FilterPanel.test.tsx` | コンポーネント削除に合わせて整理 |
+| 修正 | `VideoFeedClient.tsx` | `area` props・クエリ送信・deps 配列を除去 |
+| 修正 | `page.tsx` | `searchParams` 型・`VideoFeedClient` への `area` 渡しを除去 |
+
+### デプロイ前準備
+
+#### 修正した問題
+
+**① ffprobe が Vercel サーバーレス環境にない**
+- `@ffprobe-installer/ffprobe` を `dependencies` にインストール
+- `src/lib/video-duration.ts` を `execFile("ffprobe", ...)` → `execFile(ffprobePath, ...)` に変更（`ffprobePath` はパッケージ内バイナリのパス）
+
+**② `prisma generate` がビルドに含まれていなかった**
+- `package.json` の `build` スクリプトを `"next build"` → `"prisma generate && next build"` に変更
+
+**③ マイグレーションコマンドが開発用だった**
+- `db:migrate` スクリプトを `prisma migrate dev` → `prisma migrate deploy` に変更（本番用）
+
+**④ 初期マイグレーションファイルが存在しなかった**
+- 開発中は `prisma db push` でスキーマを同期していたため、`migrate deploy` で適用できるマイグレーションが `add_salesperson_role` しかなかった
+- `prisma/migrations/20260611000000_init/migration.sql` を新規作成（全テーブル・Enum・インデックス・FK 定義）
+- タイムスタンプを `add_salesperson_role`（`20260616`）より前の `20260611` にすることで正しい適用順序を保証
+
+#### 新規追加ファイル
+
+- `vercel.json` — Vercel 向け設定（`framework: "nextjs"`, `buildCommand`, `nodeVersion: "22.x"`）
+- `prisma/migrations/20260611000000_init/migration.sql` — 全テーブル作成の初期マイグレーション
+
+### コマンドリファレンス
+
+```bash
+# 型チェック
+npx tsc --noEmit
+
+# 本番マイグレーション（DATABASE_URL に Neon 接続文字列を設定して実行）
+npx prisma migrate deploy
+
+# シードデータ投入
+npx tsx prisma/seed.ts
+```
+
+### 本番デプロイ手順（概要）
+
+1. **Neon** で PostgreSQL DB 作成 → `DATABASE_URL` 取得
+2. **Supabase** で `face-videos` バケット（Public）作成 → `supabase/rls-policies.sql` を SQL Editor で実行
+3. **LINE Developers** で Messaging API チャネル作成 → Channel Secret / Access Token 取得
+4. **Resend** で API Key 取得・送信ドメイン設定
+5. **Google Cloud** で YouTube Data API v3 有効化 → API Key 取得
+6. **Vercel** に GitHub リポジトリをインポート、Environment Variables を全項目設定してデプロイ
+7. ローカルから `npx prisma migrate deploy` を実行してテーブル作成
+8. LINE Developers Console で Webhook URL を `https://ドメイン/api/line/webhook` に設定
+
+### 残課題
+
+```
+- Vercel へのデプロイ実施（環境変数の実値設定が必要）
+- Neon DB への prisma migrate deploy 実行
+- Supabase RLS ポリシー適用（supabase/rls-policies.sql）
+- LINE Webhook URL 設定（デプロイ後に確定するURLで設定）
+```
+
+---
+
+## セッション終了ノート（2026-06-19）
+
+### このセッションで実施した作業
+
+**開始時の状態**: 前セッション（2026-06-18）の変更がコミット未済。残課題4件（すべてローカル実装可能）。
+
+**実施内容**:
+1. **モバイル向け営業マンカードオーバーレイ代替UI** — VideoCard をクライアントコンポーネントに変換
+2. **Embed ウィジェットデモページ（W-01）** — `/embed-demo` ページ新規作成
+3. **個人情報暗号化** — `questionnaireJson` を AES-256-GCM で暗号化
+4. **Instagram oEmbed キャッシュ** — `unstable_cache` + プロキシ API ルート
+
+### 実装詳細
+
+#### VideoCard モバイル対応（`src/components/video/VideoCard.tsx`）
+
+- `"use client"` + `useState<boolean>(false)` でモバイルオーバーレイ状態を管理
+- **デスクトップ (md+)**: 既存の `group-hover:` CSS ホバー動作を維持（`hidden md:block`）
+- **モバイル (md未満)**: カード下部に常時表示のミニバー（アバター＋名前＋シェブロン）
+  - タップで詳細パネルをスライド展開（`max-h-0 → max-h-40` アニメーション）
+  - LINE/メール CTA ボタンを展開後に表示
+  - カード上部タップ（Watch リンク）は引き続き機能
+  - バックドロップ（`z-[25]`）でパネル外タップ時に閉じる
+- `CtaButtons` を共通コンポーネントとして抽出（デスクトップ・モバイル両方で使用）
+- 静的情報（タイトル＋ハッシュタグ）: モバイルでは `bottom-12` にオフセットしてミニバーと重ならないよう調整
+
+#### Embed デモページ（`/embed-demo`）
+
+- `src/app/(public)/embed-demo/page.tsx` — Server Component（メタデータ・ヒーロー・特徴カード）
+- `src/components/embed/EmbedDemoClient.tsx` — Client Component
+  - フェイクブラウザクローム付き「外部サイト風」ライブデモ
+  - `Next.js <Script strategy="lazyOnload">` で `/embed.js` を読み込み
+  - `onLoad` コールバックで `window.HomeReelMatchWidget` を手動 init（auto-init は ref マウント前に発火するため）
+  - コードスニペット（基本設置・タグ絞り込み）＋コピーボタン
+  - オプション一覧テーブル
+- `embed/dist/embed.js` を `public/embed.js` にコピー（`/embed.js` として配信）
+
+#### 個人情報暗号化（`src/lib/encrypt.ts`）
+
+- `encryptJson(data)` / `decryptJson(raw)` を実装
+- AES-256-GCM: IV 12bytes(ランダム) + AuthTag 16bytes + 暗号文
+- 保存形式: `{ "_encrypted": "<24-hex-iv><32-hex-authTag><hex-ciphertext>" }`
+- レガシー行（`_encrypted` キーなし）はそのまま返す（移行安全）
+- `ENCRYPTION_KEY` 未設定時は plaintext 保存（開発モード）、本番では警告ログ
+- `POST /api/contact`: `encryptJson()` 適用後に Prisma へ保存
+- `GET /api/contact`: `decryptJson()` でレスポンス時に復号
+
+#### Instagram oEmbed キャッシュ（`src/lib/instagram.ts`）
+
+- `unstable_cache` + `fetch({ next: { revalidate: 86400 } })` で24hキャッシュ
+- `INSTAGRAM_ACCESS_TOKEN` 未設定時は `null` を返す
+- `GET /api/instagram/oembed?url=...` プロキシルート
+  - キャッシュHIT時はブラウザにも `Cache-Control: s-maxage=86400` を付与
+- `MainVideoPlayer` 更新: Instagram の場合は `InstagramEmbed` コンポーネントを使用
+  - プロキシ成功時: oEmbed HTML を `dangerouslySetInnerHTML` で挿入、`instagram.com/embed.js` を遅延ロード
+  - プロキシ失敗/未設定時: 直 iframe フォールバック（既存動作と同等）
+  - Instagram の ended イベント取得不可のため、30秒タイマーで `onEnded` を発火
+
+### 環境変数追加（`.env.local.example`）
+
+```
+ENCRYPTION_KEY="your-64-hex-char-key-here"   # AES-256 鍵（必須 in 本番）
+INSTAGRAM_ACCESS_TOKEN="..."                   # Instagram oEmbed 用（任意）
+```
+
+**鍵生成コマンド**:
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+### テスト結果
+
+- 全 19 ファイル・152 テスト通過（encrypt: 14件、instagram: 5件追加）
+- `npx tsc --noEmit` エラーなし
+
+---
+
+## セッション継続ノート（2026-06-19 後半）
+
+### 追加実装
+
+#### テスト拡充（`src/__tests__/lib/`）
+
+**`encrypt.test.ts`** — 14テスト
+- round-trip（暗号化→復号で元データ復元）
+- IV ランダム性（同一入力で異なる暗号文）
+- 空オブジェクト・ネスト構造の保持
+- ENCRYPTION_KEY 未設定時の平文 passthrough
+- レガシー行（`_encrypted` キーなし）の passthrough
+- null / undefined / 配列 / 文字列への null 返却
+- 鍵未設定で暗号化済みデータを受け取った場合の null 返却
+- 短すぎるペイロードの null 返却
+- GCM 認証失敗（改ざん検知）の null 返却
+
+**`instagram.test.ts`** — 5テスト
+- `unstable_cache` をモックして関数を直接テスト
+- token 未設定 → null
+- 正常レスポンス → oEmbed データ返却 + URL パラメータ検証
+- 非200レスポンス → null
+- ネットワークエラー → null
+
+#### ビルドパイプライン改善
+
+- `package.json` の `embed:build` スクリプトに `&& cp embed/dist/embed.js public/embed.js` を追加
+  - `npm run embed:build` 一発で `public/embed.js` が更新される
+
+#### ホームページフッター
+
+- `src/app/(public)/page.tsx` に `<footer>` 追加
+  - 「ウィジェット埋め込み」→ `/embed-demo`
+  - 「営業マンログイン」→ `/dashboard/login`
+
+#### E2Eテスト追加（`e2e/contact-flow.spec.ts`）
+
+- "Embedウィジェットデモ" テストスイート（2件追加）
+  - P-01: ホームフッターに `/embed-demo` リンクが存在する
+  - W-01: `/embed-demo` ページが表示され特徴カード・オプション一覧・コードスニペットが含まれる
+
+### 最終テスト結果
+
+```
+ユニットテスト: 19 ファイル / 152 テスト（全通過）
+E2Eテスト定義: 16件（DB接続時に実行可能）
+型エラー: 0
+```
+
+---
+
+## セッション継続ノート（2026-06-19 第3ラウンド）
+
+### 追加実装
+
+#### UI 配色統一（ContactForm + BookingCalendar）
+
+`src/components/contact/ContactForm.tsx`:
+- `bg-gray-800/border-gray-700/ring-blue-500` → `bg-stone-800/border-stone-700/ring-amber-500`
+- `accent-blue-500` → `accent-amber-500`
+- 送信ボタン: `bg-blue-600` → `bg-amber-600`
+- **`alert()` を廃止** → `submitError` state でインラインエラーバナーを表示（`role="alert"`）
+
+`src/components/contact/BookingCalendar.tsx`:
+- `border-blue-500 bg-blue-500/10` → `border-amber-500 bg-amber-500/10`
+- 送信ボタン: `bg-blue-600` → `bg-amber-600`
+- **`alert()` を廃止** → `submitError` state でインラインエラーバナーを表示
+- 空スロット時: テキストのみ → カレンダーアイコン + 説明文
+- 選択済みスロットにチェックマークアイコン追加
+
+#### 動画視聴ページ（WatchPage）改善
+
+**`src/components/video/WatchOverlay.tsx`**（新規、Client Component）:
+- **戻るボタン**: 左上に `←` 丸ボタン → `/` へリンク
+- **シェアボタン**: 右上に共有アイコン丸ボタン
+  - Web Share API 対応デバイス: `navigator.share()` でネイティブシェート
+  - 非対応時: `navigator.clipboard.writeText()` で URL コピー
+  - コピー後 2秒間、右上に「URLをコピーしました」トースト表示
+- **viewCount 増加**: `useEffect` でマウント時に `POST /api/videos/[videoId]/view` を fire-and-forget
+
+**`src/app/api/videos/[videoId]/view/route.ts`**（新規）:
+- `POST /api/videos/:id/view` — 認証不要、`viewCount: { increment: 1 }`
+- 動画なし（Prisma エラー）→ 404、正常 → 204
+
+**`src/app/(public)/watch/[videoId]/page.tsx`** 更新:
+- `WatchOverlay` を import して動画コンテナに追加
+- `canonicalUrl` を `NEXT_PUBLIC_APP_URL` から生成して `WatchOverlay` に渡す
+
+#### テスト
+
+`src/__tests__/api/videos/view.test.ts`（新規、2件）:
+- 204 + `increment: 1` 呼び出し確認
+- Prisma エラー時の 404 確認
+
+```
+ユニットテスト: 20 ファイル / 154 テスト（全通過）
+型エラー: 0
 ```

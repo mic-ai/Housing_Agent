@@ -165,6 +165,36 @@ test.describe("営業マンログインフロー", () => {
   });
 });
 
+test.describe("Embedウィジェットデモ", () => {
+  test("P-01: フッターにウィジェット埋め込みリンクが表示される", async ({ page }) => {
+    await page.goto("/");
+    const embedLink = page.getByRole("link", { name: "ウィジェット埋め込み" });
+    await expect(embedLink).toBeVisible({ timeout: 10_000 });
+    await expect(embedLink).toHaveAttribute("href", "/embed-demo");
+  });
+
+  test("W-01: embed-demoページが表示されオプション一覧が含まれる", async ({ page }) => {
+    await page.goto("/embed-demo");
+
+    // ページタイトルが表示される
+    await expect(page.getByRole("heading", { name: "埋め込みウィジェット" })).toBeVisible({ timeout: 10_000 });
+
+    // 特徴カードが3枚表示される
+    await expect(page.getByText("2行で設置")).toBeVisible();
+    await expect(page.getByText("スタイル隔離")).toBeVisible();
+    await expect(page.getByText("タグ絞り込み")).toBeVisible();
+
+    // オプション一覧テーブルに必須属性が表示される
+    await expect(page.getByText("data-api-url")).toBeVisible();
+    await expect(page.getByText("data-count")).toBeVisible();
+    await expect(page.getByText("data-tag")).toBeVisible();
+
+    // コードスニペットが表示される
+    await expect(page.getByText("基本設置")).toBeVisible();
+    await expect(page.getByText("タグで絞り込み")).toBeVisible();
+  });
+});
+
 test.describe("管理者ロール制御", () => {
   test("未ログインで管理者ダッシュボードにアクセスするとログインへリダイレクト", async ({ page }) => {
     await page.goto("/admin/dashboard");

@@ -61,7 +61,7 @@ export function VideoEditClient({ video, salespersonId, initialSalespersonVideo 
       <div className="bg-gray-900 rounded-xl p-5 space-y-6">
         <div>
           <h2 className="text-base font-semibold text-gray-300 mb-3">
-            プリロール（本編前・最大6秒）
+            プリロール（本編前・最大10秒）
           </h2>
           <FaceVideoUploader
             salespersonId={salespersonId}
@@ -77,7 +77,7 @@ export function VideoEditClient({ video, salespersonId, initialSalespersonVideo 
 
         <div>
           <h2 className="text-base font-semibold text-gray-300 mb-3">
-            ポストロール（本編後・最大6秒）
+            ポストロール（本編後・最大10秒）
           </h2>
           <FaceVideoUploader
             salespersonId={salespersonId}

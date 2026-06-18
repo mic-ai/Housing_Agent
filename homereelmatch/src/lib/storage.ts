@@ -1,37 +1,59 @@
-import { createClient } from "@supabase/supabase-js";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 const BUCKET = "face-videos";
+
+// Lazy-init: only create clients when env vars are present.
+// Returns null when Supabase is not configured (face-video feature disabled).
+function makeAnonClient(): SupabaseClient | null {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key);
+}
+
+function makeAdminClient(): SupabaseClient | null {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key);
+}
+
+// Public anon client (used externally for URL generation etc.)
+export const supabase = makeAnonClient();
+
+function requireAdmin(): SupabaseClient {
+  const admin = makeAdminClient();
+  if (!admin) {
+    throw new Error("Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.");
+  }
+  return admin;
+}
 
 export async function uploadFaceVideo(
   file: Buffer,
   path: string,
   contentType: string
 ): Promise<{ path: string; publicUrl: string }> {
-  const { error } = await supabaseAdmin.storage
+  const admin = requireAdmin();
+  const { error } = await admin.storage
     .from(BUCKET)
     .upload(path, file, { contentType, upsert: true });
 
   if (error) throw new Error(`Storage upload failed: ${error.message}`);
 
-  const { data } = supabaseAdmin.storage.from(BUCKET).getPublicUrl(path);
+  const { data } = admin.storage.from(BUCKET).getPublicUrl(path);
   return { path, publicUrl: data.publicUrl };
 }
 
 export async function deleteFaceVideo(path: string): Promise<void> {
-  const { error } = await supabaseAdmin.storage.from(BUCKET).remove([path]);
+  const admin = requireAdmin();
+  const { error } = await admin.storage.from(BUCKET).remove([path]);
   if (error) throw new Error(`Storage delete failed: ${error.message}`);
 }
 
 export function getFaceVideoPublicUrl(path: string): string {
-  const { data } = supabaseAdmin.storage.from(BUCKET).getPublicUrl(path);
+  const admin = requireAdmin();
+  const { data } = admin.storage.from(BUCKET).getPublicUrl(path);
   return data.publicUrl;
 }
 

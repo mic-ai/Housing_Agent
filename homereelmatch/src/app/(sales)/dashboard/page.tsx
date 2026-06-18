@@ -6,6 +6,7 @@ import Link from "next/link";
 export default async function DashboardPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
+  if (session.user.role === "ADMIN") redirect("/admin/dashboard");
 
   const salespersonId = session.user.id;
 
@@ -79,7 +80,7 @@ export default async function DashboardPage() {
         <nav className="grid grid-cols-2 gap-3">
           {[
             { href: "/dashboard/inquiries", label: "問い合わせ管理" },
-            { href: "/dashboard/videos", label: "動画管理" },
+            { href: "/dashboard/videos", label: "顔出し動画" },
             { href: "/dashboard/schedule", label: "スケジュール管理" },
           ].map((item) => (
             <Link

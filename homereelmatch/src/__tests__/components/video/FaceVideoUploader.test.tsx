@@ -103,14 +103,14 @@ describe("FaceVideoUploader", () => {
   it("サーバーエラー時にエラーメッセージを表示する", async () => {
     fetchMock.mockResolvedValueOnce({
       ok: false,
-      json: async () => ({ error: "Duration exceeds 6 seconds" }),
+      json: async () => ({ error: "Duration exceeds 10 seconds" }),
     });
     render(<FaceVideoUploader {...defaultProps} />);
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     const file = new File(["video"], "test.mp4", { type: "video/mp4" });
     await userEvent.upload(input, file);
 
-    expect(await screen.findByText(/Duration exceeds 6 seconds/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Duration exceeds 10 seconds/i)).toBeInTheDocument();
   });
 
   it("既存のpublicUrlがある場合はプレビューを表示する", () => {

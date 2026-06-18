@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { SearchBar } from "@/components/search/SearchBar";
 import { HashtagCloud } from "@/components/search/HashtagCloud";
@@ -44,30 +45,39 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   });
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      <header className="sticky top-0 z-10 bg-gray-950/90 backdrop-blur-sm border-b border-white/10 px-4 py-3">
+    <div className="min-h-screen bg-stone-950 text-white">
+      <header className="sticky top-0 z-10 bg-stone-950/90 backdrop-blur-sm border-b border-white/10 px-4 py-3">
         <div className="max-w-2xl mx-auto">
           <div className="flex items-center gap-3 mb-3">
-            <h1 className="text-xl font-bold text-white shrink-0">HomeReelMatch</h1>
+            {/* Brand logo */}
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-amber-600 flex items-center justify-center">
+                <svg
+                  className="w-5 h-5 text-white"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
+                </svg>
+              </div>
+              <h1 className="text-lg font-bold text-white tracking-tight">HomeReelMatch</h1>
+            </div>
           </div>
           <SearchBar defaultValue={params.q} />
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 py-4">
-        {!params.q && !params.tag && (
+      <main className="max-w-2xl mx-auto px-4 py-4 bg-stone-950">
+        {/* Hashtag cloud: always shown when not in free-text search mode */}
+        {!params.q && (
           <div className="mb-4">
             <Suspense fallback={null}>
-              <HashtagCloud />
+              <HashtagCloud activeTag={params.tag} />
             </Suspense>
           </div>
         )}
 
-        {params.tag && (
-          <p className="text-gray-400 text-sm mb-4">
-            #{params.tag} の動画
-          </p>
-        )}
         {params.q && (
           <p className="text-gray-400 text-sm mb-4">
             「{params.q}」の検索結果
@@ -80,6 +90,18 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           q={params.q}
         />
       </main>
+
+      <footer className="border-t border-stone-800 mt-12 py-6 text-center">
+        <p className="text-stone-500 text-xs mb-2">© HomeReelMatch</p>
+        <div className="flex items-center justify-center gap-4 text-xs text-stone-500">
+          <Link href="/embed-demo" className="hover:text-amber-400 transition-colors">
+            ウィジェット埋め込み
+          </Link>
+          <Link href="/dashboard/login" className="hover:text-amber-400 transition-colors">
+            営業マンログイン
+          </Link>
+        </div>
+      </footer>
     </div>
   );
 }

@@ -6,11 +6,14 @@ async function sendEmail(params: {
   subject: string;
   html: string;
 }): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return; // Email not configured — skip silently
+
   const res = await fetch(RESEND_API, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({ from: FROM, ...params }),
   });

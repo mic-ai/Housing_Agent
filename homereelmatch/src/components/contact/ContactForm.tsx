@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -18,12 +19,8 @@ const schema = z
     message: z.string().optional(),
   })
   .refine(
-    (d) =>
-      d.contactMethod === "LINE" ? !!d.lineId : !!d.email,
-    {
-      message: "連絡先を入力してください",
-      path: ["lineId"],
-    }
+    (d) => (d.contactMethod === "LINE" ? !!d.lineId : !!d.email),
+    { message: "連絡先を入力してください", path: ["lineId"] }
   );
 
 type FormData = z.infer<typeof schema>;
@@ -34,8 +31,16 @@ interface ContactFormProps {
   defaultMethod?: "LINE" | "EMAIL";
 }
 
+const inputClass =
+  "w-full px-3 py-3 bg-stone-800 border border-stone-700 rounded-lg text-white placeholder-stone-500 focus:outline-none focus:ring-2 focus:ring-amber-500";
+
+const selectClass =
+  "w-full px-3 py-2.5 bg-stone-800 border border-stone-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm";
+
 export function ContactForm({ salespersonId, videoId, defaultMethod = "LINE" }: ContactFormProps) {
   const router = useRouter();
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
   const {
     register,
     watch,
@@ -49,6 +54,7 @@ export function ContactForm({ salespersonId, videoId, defaultMethod = "LINE" }: 
   const contactMethod = watch("contactMethod");
 
   async function onSubmit(data: FormData) {
+    setSubmitError(null);
     const res = await fetch("/api/contact", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -66,7 +72,7 @@ export function ContactForm({ salespersonId, videoId, defaultMethod = "LINE" }: 
     });
 
     if (!res.ok) {
-      alert("送信に失敗しました。もう一度お試しください。");
+      setSubmitError("送信に失敗しました。しばらくしてから再度お試しください。");
       return;
     }
 
@@ -76,19 +82,26 @@ export function ContactForm({ salespersonId, videoId, defaultMethod = "LINE" }: 
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      {/* Submit error banner */}
+      {submitError && (
+        <div role="alert" className="flex items-start gap-2 bg-red-900/40 border border-red-700 text-red-300 text-sm rounded-lg px-4 py-3">
+          <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+          </svg>
+          {submitError}
+        </div>
+      )}
+
       <div>
-        <label className="block text-sm font-medium text-gray-300 mb-1">
+        <label className="block text-sm font-medium text-stone-300 mb-1">
           お名前 <span className="text-red-400">*</span>
         </label>
-        <input
-          {...register("name")}
-          className="w-full px-3 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+        <input {...register("name")} className={inputClass} />
         {errors.name && <p className="text-red-400 text-xs mt-1">{errors.name.message}</p>}
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-300 mb-1">
+        <label className="block text-sm font-medium text-stone-300 mb-1">
           連絡方法 <span className="text-red-400">*</span>
         </label>
         <div className="flex gap-3">
@@ -98,7 +111,7 @@ export function ContactForm({ salespersonId, videoId, defaultMethod = "LINE" }: 
                 type="radio"
                 value={m}
                 {...register("contactMethod")}
-                className="accent-blue-500 w-4 h-4"
+                className="accent-amber-500 w-4 h-4"
               />
               <span className="text-white text-sm">{m === "LINE" ? "LINE" : "メール"}</span>
             </label>
@@ -108,13 +121,13 @@ export function ContactForm({ salespersonId, videoId, defaultMethod = "LINE" }: 
 
       {contactMethod === "LINE" && (
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">
+          <label className="block text-sm font-medium text-stone-300 mb-1">
             LINE ID <span className="text-red-400">*</span>
           </label>
           <input
             {...register("lineId")}
             placeholder="@your-line-id"
-            className="w-full px-3 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className={inputClass}
           />
           {errors.lineId && <p className="text-red-400 text-xs mt-1">{errors.lineId.message}</p>}
         </div>
@@ -122,36 +135,25 @@ export function ContactForm({ salespersonId, videoId, defaultMethod = "LINE" }: 
 
       {contactMethod === "EMAIL" && (
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">
+          <label className="block text-sm font-medium text-stone-300 mb-1">
             メールアドレス <span className="text-red-400">*</span>
           </label>
-          <input
-            {...register("email")}
-            type="email"
-            className="w-full px-3 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+          <input {...register("email")} type="email" className={inputClass} />
           {errors.email && <p className="text-red-400 text-xs mt-1">{errors.email.message}</p>}
         </div>
       )}
 
       <div>
-        <label className="block text-sm font-medium text-gray-300 mb-1">電話番号</label>
-        <input
-          {...register("phone")}
-          type="tel"
-          className="w-full px-3 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+        <label className="block text-sm font-medium text-stone-300 mb-1">電話番号</label>
+        <input {...register("phone")} type="tel" className={inputClass} />
       </div>
 
-      <fieldset className="border border-gray-700 rounded-lg p-4 space-y-3">
-        <legend className="text-sm font-medium text-gray-300 px-2">アンケート（任意）</legend>
+      <fieldset className="border border-stone-700 rounded-lg p-4 space-y-3">
+        <legend className="text-sm font-medium text-stone-300 px-2">アンケート（任意）</legend>
 
         <div>
-          <label className="block text-xs text-gray-400 mb-1">購入検討時期</label>
-          <select
-            {...register("purchaseTiming")}
-            className="w-full px-3 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none text-sm"
-          >
+          <label className="block text-xs text-stone-400 mb-1">購入検討時期</label>
+          <select {...register("purchaseTiming")} className={selectClass}>
             <option value="">選択してください</option>
             <option value="3months">3ヶ月以内</option>
             <option value="6months">6ヶ月以内</option>
@@ -161,20 +163,17 @@ export function ContactForm({ salespersonId, videoId, defaultMethod = "LINE" }: 
         </div>
 
         <div>
-          <label className="block text-xs text-gray-400 mb-1">希望エリア</label>
+          <label className="block text-xs text-stone-400 mb-1">希望エリア</label>
           <input
             {...register("area")}
             placeholder="例: 名古屋市・中区"
-            className="w-full px-3 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none text-sm"
+            className={selectClass}
           />
         </div>
 
         <div>
-          <label className="block text-xs text-gray-400 mb-1">予算感</label>
-          <select
-            {...register("budget")}
-            className="w-full px-3 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none text-sm"
-          >
+          <label className="block text-xs text-stone-400 mb-1">予算感</label>
+          <select {...register("budget")} className={selectClass}>
             <option value="">選択してください</option>
             <option value="under3000">〜3,000万円</option>
             <option value="under4000">〜4,000万円</option>
@@ -184,11 +183,11 @@ export function ContactForm({ salespersonId, videoId, defaultMethod = "LINE" }: 
         </div>
 
         <div>
-          <label className="block text-xs text-gray-400 mb-1">メッセージ</label>
+          <label className="block text-xs text-stone-400 mb-1">メッセージ</label>
           <textarea
             {...register("message")}
             rows={3}
-            className="w-full px-3 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none text-sm resize-none"
+            className="w-full px-3 py-2.5 bg-stone-800 border border-stone-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm resize-none"
           />
         </div>
       </fieldset>
@@ -196,7 +195,7 @@ export function ContactForm({ salespersonId, videoId, defaultMethod = "LINE" }: 
       <button
         type="submit"
         disabled={isSubmitting}
-        className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 text-white font-medium rounded-lg transition-colors"
+        className="w-full py-3 bg-amber-600 hover:bg-amber-500 active:bg-amber-700 disabled:bg-stone-700 disabled:text-stone-400 text-white font-medium rounded-lg transition-colors"
       >
         {isSubmitting ? "送信中..." : "連絡を申請する"}
       </button>

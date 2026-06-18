@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { CompositePlayer } from "@/components/video/CompositePlayer";
 import { VideoFooter } from "@/components/video/VideoFooter";
+import { WatchOverlay } from "@/components/video/WatchOverlay";
 import { extractYouTubeId } from "@/lib/utils";
 import type { Metadata } from "next";
 
@@ -67,9 +68,17 @@ export default async function WatchPage({ params }: WatchPageProps) {
 
   const primarySalespersonVideo = video.salespersonVideos[0] ?? null;
 
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const canonicalUrl = `${appUrl}/watch/${video.id}`;
+
   return (
     <main className="min-h-screen bg-black flex items-center justify-center">
       <div className="relative w-full max-w-sm mx-auto aspect-[9/16] bg-black">
+        <WatchOverlay
+          videoId={video.id}
+          videoTitle={video.title}
+          videoUrl={canonicalUrl}
+        />
         <CompositePlayer
           platform={video.platform}
           url={video.url}

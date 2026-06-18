@@ -8,7 +8,7 @@ import { auth } from "@/lib/auth";
 
 const ALLOWED_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
 const MAX_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
-const MAX_DURATION_SEC = 6;
+const MAX_DURATION_SEC = 10;
 
 const BodySchema = z.object({
   salespersonId: z.string().min(1),

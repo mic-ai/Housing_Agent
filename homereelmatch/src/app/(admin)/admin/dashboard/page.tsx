@@ -4,19 +4,51 @@ import { prisma } from "@/lib/prisma";
 import { VideoManagerClient } from "@/components/admin/VideoManagerClient";
 import { HouseMakerManagerClient } from "@/components/admin/HouseMakerManagerClient";
 import { VenueManagerClient } from "@/components/admin/VenueManagerClient";
+import { AssignmentManagerClient } from "@/components/admin/AssignmentManagerClient";
+import { SalespersonManagerClient } from "@/components/admin/SalespersonManagerClient";
 
 export default async function AdminDashboardPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
   if (session.user.role !== "ADMIN") redirect("/dashboard");
 
-  const [videoCount, salespersonCount, pendingInquiries, houseMakerCount, venueCount] =
+  const [videoCount, salespersonCount, pendingInquiries, houseMakerCount, venueCount, assignments, salespersons, activeVideos, houseMakers, venues, companies] =
     await Promise.all([
       prisma.video.count(),
       prisma.salesperson.count(),
       prisma.contactRequest.count({ where: { status: "PENDING" } }),
       prisma.houseMaker.count(),
       prisma.venue.count(),
+      prisma.salespersonVideo.findMany({
+        include: {
+          salesperson: { select: { id: true, name: true, company: { select: { name: true } } } },
+          video: { select: { id: true, title: true, thumbnailUrl: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.salesperson.findMany({
+        select: { id: true, name: true, company: { select: { name: true } } },
+        orderBy: { name: "asc" },
+      }),
+      prisma.video.findMany({
+        where: { isActive: true },
+        select: { id: true, title: true, thumbnailUrl: true },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.houseMaker.findMany({
+        where: { isActive: true },
+        select: { id: true, name: true },
+        orderBy: { name: "asc" },
+      }),
+      prisma.venue.findMany({
+        where: { isActive: true },
+        select: { id: true, name: true },
+        orderBy: { name: "asc" },
+      }),
+      prisma.company.findMany({
+        select: { id: true, name: true },
+        orderBy: { name: "asc" },
+      }),
     ]);
 
   return (
@@ -43,6 +75,17 @@ export default async function AdminDashboardPage() {
           ))}
         </div>
 
+        {/* 営業マン管理 */}
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-base font-semibold text-gray-300">営業マン管理</h2>
+            <span className="text-xs text-gray-500">{salespersonCount}名登録済み</span>
+          </div>
+          <div className="bg-gray-900 rounded-xl p-5">
+            <SalespersonManagerClient initialCompanies={companies} />
+          </div>
+        </section>
+
         {/* ハウスメーカー管理 */}
         <section>
           <div className="flex items-center justify-between mb-3">
@@ -65,11 +108,26 @@ export default async function AdminDashboardPage() {
           </div>
         </section>
 
+        {/* 営業マン×動画 接続管理 */}
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-base font-semibold text-gray-300">営業マン×動画 接続設定</h2>
+            <span className="text-xs text-gray-500">{assignments.length}件</span>
+          </div>
+          <div className="bg-gray-900 rounded-xl p-5">
+            <AssignmentManagerClient
+              initialAssignments={assignments}
+              salespersons={salespersons}
+              videos={activeVideos}
+            />
+          </div>
+        </section>
+
         {/* 動画管理 */}
         <section>
           <h2 className="text-base font-semibold text-gray-300 mb-3">動画管理</h2>
           <div className="bg-gray-900 rounded-xl p-5">
-            <VideoManagerClient />
+            <VideoManagerClient houseMakers={houseMakers} venues={venues} />
           </div>
         </section>
       </main>

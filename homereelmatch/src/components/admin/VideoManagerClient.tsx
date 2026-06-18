@@ -20,12 +20,7 @@ interface AdminVideo {
 interface HouseMaker { id: string; name: string; }
 interface Venue { id: string; name: string; }
 
-interface Props {
-  houseMakers: HouseMaker[];
-  venues: Venue[];
-}
-
-export function VideoManagerClient({ houseMakers, venues }: Props) {
+export function VideoManagerClient() {
   const [videos, setVideos] = useState<AdminVideo[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -34,6 +29,8 @@ export function VideoManagerClient({ houseMakers, venues }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [platform, setPlatform] = useState<Platform>("YOUTUBE");
+  const [houseMakers, setHouseMakers] = useState<HouseMaker[]>([]);
+  const [venues, setVenues] = useState<Venue[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -46,6 +43,15 @@ export function VideoManagerClient({ houseMakers, venues }: Props) {
     }
     setLoading(false);
   }, [filterActive]);
+
+  const loadFormData = useCallback(async () => {
+    const [hmRes, vRes] = await Promise.all([
+      fetch("/api/house-makers"),
+      fetch("/api/venues"),
+    ]);
+    if (hmRes.ok) setHouseMakers((await hmRes.json()).data ?? []);
+    if (vRes.ok) setVenues((await vRes.json()).data ?? []);
+  }, []);
 
   useEffect(() => { load(); }, [load]);
 
@@ -143,7 +149,11 @@ export function VideoManagerClient({ houseMakers, venues }: Props) {
           )}
           <button
             type="button"
-            onClick={() => { setShowForm((v) => !v); setFormError(null); }}
+            onClick={() => {
+              if (!showForm) loadFormData();
+              setShowForm((v) => !v);
+              setFormError(null);
+            }}
             className="px-4 py-1.5 text-sm bg-amber-600 hover:bg-amber-700 text-white rounded transition-colors"
           >
             {showForm ? "閉じる" : "動画を登録"}

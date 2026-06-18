@@ -127,7 +127,7 @@ export default async function AdminDashboardPage() {
         <section>
           <h2 className="text-base font-semibold text-gray-300 mb-3">動画管理</h2>
           <div className="bg-gray-900 rounded-xl p-5">
-            <VideoManagerClient houseMakers={houseMakers} venues={venues} />
+            <VideoManagerClient />
           </div>
         </section>
       </main>

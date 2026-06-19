@@ -10,11 +10,10 @@ export default async function DashboardPage() {
 
   const salespersonId = session.user.id;
 
-  const [inquiryCount, videoCount, upcomingAppointments] = await Promise.all([
+  const [inquiryCount, upcomingAppointments] = await Promise.all([
     prisma.contactRequest.count({
       where: { salespersonId, status: "PENDING" },
     }),
-    prisma.salespersonVideo.count({ where: { salespersonId } }),
     prisma.appointment.findMany({
       where: {
         salespersonId,
@@ -38,20 +37,13 @@ export default async function DashboardPage() {
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-6">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           <Link
             href="/dashboard/inquiries"
             className="p-4 bg-gray-900 rounded-xl hover:bg-gray-800 transition-colors"
           >
             <p className="text-3xl font-bold text-blue-400">{inquiryCount}</p>
             <p className="text-gray-400 text-sm mt-1">未対応の問い合わせ</p>
-          </Link>
-          <Link
-            href="/dashboard/videos"
-            className="p-4 bg-gray-900 rounded-xl hover:bg-gray-800 transition-colors"
-          >
-            <p className="text-3xl font-bold text-green-400">{videoCount}</p>
-            <p className="text-gray-400 text-sm mt-1">登録動画数</p>
           </Link>
         </div>
 
@@ -79,9 +71,8 @@ export default async function DashboardPage() {
 
         <nav className="grid grid-cols-2 gap-3">
           {[
-            { href: "/dashboard/profile", label: "プロフィール編集" },
+            { href: "/dashboard/profile", label: "プロフィール・顔出し動画" },
             { href: "/dashboard/inquiries", label: "問い合わせ管理" },
-            { href: "/dashboard/videos", label: "顔出し動画" },
             { href: "/dashboard/schedule", label: "スケジュール管理" },
           ].map((item) => (
             <Link

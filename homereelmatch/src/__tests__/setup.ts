@@ -107,6 +107,9 @@ vi.mock("@/lib/storage", () => ({
   buildFaceVideoPath: vi.fn((spId: string, vId: string, type: string, ext: string) =>
     `${spId}/${vId}/${type}_123.${ext}`
   ),
+  buildSalespersonFaceVideoPath: vi.fn((spId: string, type: string, ext: string) =>
+    `${spId}/${type}_123.${ext}`
+  ),
 }));
 
 // next-auth mock

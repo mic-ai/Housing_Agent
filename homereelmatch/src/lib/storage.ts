@@ -66,3 +66,12 @@ export function buildFaceVideoPath(
   const timestamp = Date.now();
   return `${salespersonId}/${videoId}/${type}_${timestamp}.${ext}`;
 }
+
+export function buildSalespersonFaceVideoPath(
+  salespersonId: string,
+  type: "pre" | "post",
+  ext: string
+): string {
+  const timestamp = Date.now();
+  return `${salespersonId}/${type}_${timestamp}.${ext}`;
+}

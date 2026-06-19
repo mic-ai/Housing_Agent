@@ -11,7 +11,16 @@ export default async function ProfilePage() {
   const [salesperson, houseMakers, profileVideos] = await Promise.all([
     prisma.salesperson.findUnique({
       where: { id: session.user.id },
-      select: { name: true, bio: true, profileImage: true, houseMakerId: true },
+      select: {
+        name: true,
+        bio: true,
+        profileImage: true,
+        houseMakerId: true,
+        preRollPublicUrl: true,
+        preRollDurationSec: true,
+        postRollPublicUrl: true,
+        postRollDurationSec: true,
+      },
     }),
     prisma.houseMaker.findMany({
       where: { isActive: true },
@@ -31,7 +40,7 @@ export default async function ProfilePage() {
       <header className="border-b border-white/10 px-4 py-3">
         <div className="max-w-2xl mx-auto flex items-center gap-3">
           <Link href="/dashboard" className="text-gray-400 hover:text-white">←</Link>
-          <h1 className="text-xl font-bold">プロフィール編集</h1>
+          <h1 className="text-xl font-bold">プロフィール・顔出し動画</h1>
         </div>
       </header>
 
@@ -42,6 +51,14 @@ export default async function ProfilePage() {
           initialHouseMakerId={salesperson.houseMakerId}
           houseMakers={houseMakers}
           profileVideos={profileVideos}
+          initialPreRoll={{
+            publicUrl: salesperson.preRollPublicUrl,
+            durationSec: salesperson.preRollDurationSec,
+          }}
+          initialPostRoll={{
+            publicUrl: salesperson.postRollPublicUrl,
+            durationSec: salesperson.postRollDurationSec,
+          }}
         />
       </main>
     </div>

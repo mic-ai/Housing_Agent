@@ -58,7 +58,9 @@ export default async function WatchPage({ params }: WatchPageProps) {
       videoHashtags: { include: { hashtag: true } },
       salespersonVideos: {
         where: { isPrimary: true },
-        include: { salesperson: { include: { company: true } } },
+        include: {
+          salesperson: { include: { company: true } },
+        },
         take: 1,
       },
     },
@@ -66,7 +68,8 @@ export default async function WatchPage({ params }: WatchPageProps) {
 
   if (!video) notFound();
 
-  const primarySalespersonVideo = video.salespersonVideos[0] ?? null;
+  const primaryAssignment = video.salespersonVideos[0] ?? null;
+  const primarySalesperson = primaryAssignment?.salesperson ?? null;
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const canonicalUrl = `${appUrl}/watch/${video.id}`;
@@ -82,29 +85,29 @@ export default async function WatchPage({ params }: WatchPageProps) {
         <CompositePlayer
           platform={video.platform}
           url={video.url}
-          preRollUrl={primarySalespersonVideo?.preRollPublicUrl}
-          postRollUrl={primarySalespersonVideo?.postRollPublicUrl}
+          preRollUrl={primarySalesperson?.preRollPublicUrl ?? undefined}
+          postRollUrl={primarySalesperson?.postRollPublicUrl ?? undefined}
         />
         <VideoFooter
           videoId={video.id}
           title={video.title}
           hashtags={video.videoHashtags.map((vh) => vh.hashtag)}
           salespersonVideo={
-            primarySalespersonVideo
+            primaryAssignment && primarySalesperson
               ? {
-                  id: primarySalespersonVideo.id,
-                  salespersonId: primarySalespersonVideo.salespersonId,
-                  preRollPublicUrl: primarySalespersonVideo.preRollPublicUrl,
-                  preRollDurationSec: primarySalespersonVideo.preRollDurationSec,
-                  postRollPublicUrl: primarySalespersonVideo.postRollPublicUrl,
-                  postRollDurationSec: primarySalespersonVideo.postRollDurationSec,
-                  isPrimary: primarySalespersonVideo.isPrimary,
+                  id: primaryAssignment.id,
+                  salespersonId: primaryAssignment.salespersonId,
+                  preRollPublicUrl: primarySalesperson.preRollPublicUrl,
+                  preRollDurationSec: primarySalesperson.preRollDurationSec,
+                  postRollPublicUrl: primarySalesperson.postRollPublicUrl,
+                  postRollDurationSec: primarySalesperson.postRollDurationSec,
+                  isPrimary: primaryAssignment.isPrimary,
                   salesperson: {
-                    id: primarySalespersonVideo.salesperson.id,
-                    name: primarySalespersonVideo.salesperson.name,
-                    profileImage: primarySalespersonVideo.salesperson.profileImage,
-                    bio: primarySalespersonVideo.salesperson.bio,
-                    company: primarySalespersonVideo.salesperson.company,
+                    id: primarySalesperson.id,
+                    name: primarySalesperson.name,
+                    profileImage: primarySalesperson.profileImage,
+                    bio: primarySalesperson.bio,
+                    company: primarySalesperson.company,
                   },
                 }
               : null

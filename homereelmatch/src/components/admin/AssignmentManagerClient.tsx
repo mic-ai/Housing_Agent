@@ -2,10 +2,18 @@
 
 import { useState } from "react";
 
+interface FaceVideo {
+  id: string;
+  rollType: "pre" | "post";
+  publicUrl: string;
+  durationSec: number;
+}
+
 interface Salesperson {
   id: string;
   name: string;
   company: { name: string };
+  faceVideos: FaceVideo[];
 }
 
 interface Video {
@@ -19,19 +27,61 @@ interface Video {
 
 interface Assignment {
   id: string;
+  preRollPublicUrl: string | null;
+  postRollPublicUrl: string | null;
   salesperson: Salesperson;
   video: Video;
 }
 
 interface Props {
   initialAssignments: Assignment[];
-  salespersons: Salesperson[];
+  salespersons: Omit<Salesperson, "faceVideos">[];
   videos: Video[];
 }
 
 function extractYouTubeId(url: string): string | null {
   const m = url.match(/(?:v=|\/embed\/|\/shorts\/|youtu\.be\/)([A-Za-z0-9_-]{11})/);
   return m?.[1] ?? null;
+}
+
+function FaceVideoSelect({
+  label,
+  rollType,
+  options,
+  currentUrl,
+  onSelect,
+}: {
+  label: string;
+  rollType: "pre" | "post";
+  options: FaceVideo[];
+  currentUrl: string | null;
+  onSelect: (id: string | null) => void;
+}) {
+  const filtered = options.filter((v) => v.rollType === rollType);
+  const currentId = filtered.find((v) => v.publicUrl === currentUrl)?.id ?? "";
+
+  return (
+    <div>
+      <label className="block text-xs text-stone-400 mb-1">{label}</label>
+      <select
+        value={currentId}
+        onChange={(e) => onSelect(e.target.value || null)}
+        className="w-full bg-stone-700 border border-stone-600 rounded px-3 py-1.5 text-white text-sm"
+      >
+        <option value="">（設定しない）</option>
+        {filtered.map((fv) => (
+          <option key={fv.id} value={fv.id}>
+            {fv.durationSec}秒
+          </option>
+        ))}
+      </select>
+      {filtered.length === 0 && (
+        <p className="text-stone-500 text-xs mt-1">
+          この営業マンは{label.replace("選択", "")}をアップロードしていません
+        </p>
+      )}
+    </div>
+  );
 }
 
 function AssignmentRow({
@@ -45,12 +95,29 @@ function AssignmentRow({
   const [deleting, setDeleting] = useState(false);
   const [title, setTitle] = useState(assignment.video.title);
   const [hashtags, setHashtags] = useState(assignment.video.hashtags.join(", "));
+  const [preRollId, setPreRollId] = useState<string | null>(
+    assignment.salesperson.faceVideos.find(
+      (fv) => fv.rollType === "pre" && fv.publicUrl === assignment.preRollPublicUrl
+    )?.id ?? null
+  );
+  const [postRollId, setPostRollId] = useState<string | null>(
+    assignment.salesperson.faceVideos.find(
+      (fv) => fv.rollType === "post" && fv.publicUrl === assignment.postRollPublicUrl
+    )?.id ?? null
+  );
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   const v = assignment.video;
   const ytId = v.platform === "YOUTUBE" ? extractYouTubeId(v.url) : null;
   const thumbUrl = v.thumbnailUrl ?? (ytId ? `https://img.youtube.com/vi/${ytId}/mqdefault.jpg` : null);
+
+  const hasPreRoll = assignment.salesperson.faceVideos.some((fv) => fv.rollType === "pre");
+  const hasPostRoll = assignment.salesperson.faceVideos.some((fv) => fv.rollType === "post");
+  const currentPreRollUrl =
+    assignment.salesperson.faceVideos.find(
+      (fv) => fv.rollType === "pre" && fv.publicUrl === assignment.preRollPublicUrl
+    )?.publicUrl ?? assignment.preRollPublicUrl;
 
   async function handleDelete() {
     setDeleting(true);
@@ -62,15 +129,24 @@ function AssignmentRow({
   async function handleSave() {
     setSaving(true);
     setSaved(false);
-    const res = await fetch(`/api/admin/videos/${v.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title,
-        hashtags: hashtags.split(/[,、\s]+/).map((t) => t.replace(/^#/, "").trim()).filter(Boolean),
+
+    const [videoRes, faceRes] = await Promise.all([
+      fetch(`/api/admin/videos/${v.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          hashtags: hashtags.split(/[,、\s]+/).map((t) => t.replace(/^#/, "").trim()).filter(Boolean),
+        }),
       }),
-    });
-    if (res.ok) {
+      fetch(`/api/admin/assignments/${assignment.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ preRollFaceVideoId: preRollId, postRollFaceVideoId: postRollId }),
+      }),
+    ]);
+
+    if (videoRes.ok && faceRes.ok) {
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     }
@@ -97,14 +173,25 @@ function AssignmentRow({
               {hashtags.split(/[,、\s]+/).filter(Boolean).map((t) => `#${t.replace(/^#/, "")}`).join(" ")}
             </p>
           )}
+          <p className="text-stone-500 text-xs">
+            {hasPreRoll || hasPostRoll ? (
+              <>
+                {currentPreRollUrl ? "プリロール✓" : "プリロール未設定"}
+                {" / "}
+                {assignment.postRollPublicUrl ? "ポストロール✓" : "ポストロール未設定"}
+              </>
+            ) : (
+              "顔出し動画なし"
+            )}
+          </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
-            onClick={() => setExpanded((v) => !v)}
+            onClick={() => setExpanded((x) => !x)}
             className="text-xs px-3 py-1 rounded bg-blue-800 hover:bg-blue-700 text-white"
           >
-            {expanded ? "閉じる" : "編集・プレビュー"}
+            {expanded ? "閉じる" : "編集・設定"}
           </button>
           <button
             type="button"
@@ -164,6 +251,34 @@ function AssignmentRow({
               placeholder="新築, 注文住宅"
               className="w-full bg-stone-700 border border-stone-600 rounded px-3 py-1.5 text-white text-sm"
             />
+          </div>
+
+          {/* 顔出し動画設定 */}
+          <div className="border border-stone-600 rounded-lg p-3 space-y-3">
+            <p className="text-xs text-stone-300 font-medium">顔出し動画の接続</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <FaceVideoSelect
+                label="プリロール動画を選択"
+                rollType="pre"
+                options={assignment.salesperson.faceVideos}
+                currentUrl={assignment.preRollPublicUrl}
+                onSelect={setPreRollId}
+              />
+              <FaceVideoSelect
+                label="ポストロール動画を選択"
+                rollType="post"
+                options={assignment.salesperson.faceVideos}
+                currentUrl={assignment.postRollPublicUrl}
+                onSelect={setPostRollId}
+              />
+            </div>
+            {preRollId && (
+              <video
+                src={assignment.salesperson.faceVideos.find((fv) => fv.id === preRollId)?.publicUrl}
+                controls
+                className="w-32 h-20 rounded object-cover bg-black"
+              />
+            )}
           </div>
 
           <div className="flex gap-2 items-center">

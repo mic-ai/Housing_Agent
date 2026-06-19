@@ -20,8 +20,21 @@ export default async function AdminDashboardPage() {
       prisma.houseMaker.count(),
       prisma.venue.count(),
       prisma.salespersonVideo.findMany({
-        include: {
-          salesperson: { select: { id: true, name: true, company: { select: { name: true } } } },
+        select: {
+          id: true,
+          preRollPublicUrl: true,
+          postRollPublicUrl: true,
+          salesperson: {
+            select: {
+              id: true,
+              name: true,
+              company: { select: { name: true } },
+              faceVideos: {
+                select: { id: true, rollType: true, publicUrl: true, durationSec: true },
+                orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+              },
+            },
+          },
           video: {
             select: {
               id: true,
@@ -127,10 +140,18 @@ export default async function AdminDashboardPage() {
             <AssignmentManagerClient
               initialAssignments={assignments.map((a) => ({
                 id: a.id,
+                preRollPublicUrl: a.preRollPublicUrl,
+                postRollPublicUrl: a.postRollPublicUrl,
                 salesperson: {
                   id: a.salesperson.id,
                   name: a.salesperson.name,
                   company: { name: a.salesperson.company.name },
+                  faceVideos: a.salesperson.faceVideos.map((fv) => ({
+                    id: fv.id,
+                    rollType: fv.rollType as "pre" | "post",
+                    publicUrl: fv.publicUrl,
+                    durationSec: fv.durationSec,
+                  })),
                 },
                 video: {
                   id: a.video.id,

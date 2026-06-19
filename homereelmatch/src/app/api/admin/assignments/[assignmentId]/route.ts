@@ -1,11 +1,83 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin";
 import { deleteFaceVideo } from "@/lib/storage";
 
+type Params = { params: Promise<{ assignmentId: string }> };
+
+const PatchSchema = z.object({
+  preRollFaceVideoId: z.string().nullable().optional(),
+  postRollFaceVideoId: z.string().nullable().optional(),
+});
+
+export async function PATCH(request: NextRequest, { params }: Params): Promise<NextResponse> {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
+  const { assignmentId } = await params;
+
+  try {
+    const body = await request.json();
+    const { preRollFaceVideoId, postRollFaceVideoId } = PatchSchema.parse(body);
+
+    const updateData: Record<string, unknown> = {};
+
+    if (preRollFaceVideoId !== undefined) {
+      if (preRollFaceVideoId === null) {
+        updateData.preRollStoragePath = null;
+        updateData.preRollPublicUrl = null;
+        updateData.preRollDurationSec = null;
+      } else {
+        const fv = await prisma.salespersonFaceVideo.findUnique({ where: { id: preRollFaceVideoId } });
+        if (!fv) return NextResponse.json({ error: "Face video not found" }, { status: 404 });
+        updateData.preRollStoragePath = fv.storagePath;
+        updateData.preRollPublicUrl = fv.publicUrl;
+        updateData.preRollDurationSec = fv.durationSec;
+      }
+    }
+
+    if (postRollFaceVideoId !== undefined) {
+      if (postRollFaceVideoId === null) {
+        updateData.postRollStoragePath = null;
+        updateData.postRollPublicUrl = null;
+        updateData.postRollDurationSec = null;
+      } else {
+        const fv = await prisma.salespersonFaceVideo.findUnique({ where: { id: postRollFaceVideoId } });
+        if (!fv) return NextResponse.json({ error: "Face video not found" }, { status: 404 });
+        updateData.postRollStoragePath = fv.storagePath;
+        updateData.postRollPublicUrl = fv.publicUrl;
+        updateData.postRollDurationSec = fv.durationSec;
+      }
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json({ error: "At least one field required" }, { status: 400 });
+    }
+
+    const updated = await prisma.salespersonVideo.update({
+      where: { id: assignmentId },
+      data: updateData,
+    });
+
+    return NextResponse.json({
+      data: {
+        preRollPublicUrl: updated.preRollPublicUrl,
+        postRollPublicUrl: updated.postRollPublicUrl,
+      },
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.errors }, { status: 400 });
+    }
+    console.error("[admin/assignments PATCH]", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}
+
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: Promise<{ assignmentId: string }> }
+  { params }: Params
 ) {
   const denied = await requireAdmin();
   if (denied) return denied;
@@ -19,7 +91,6 @@ export async function DELETE(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  // Storage上の顔出し動画も削除
   const paths = [assignment.preRollStoragePath, assignment.postRollStoragePath].filter(Boolean) as string[];
   await Promise.allSettled(paths.map((p) => deleteFaceVideo(p)));
 

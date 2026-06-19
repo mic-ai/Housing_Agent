@@ -57,7 +57,6 @@ export default async function WatchPage({ params }: WatchPageProps) {
     include: {
       videoHashtags: { include: { hashtag: true } },
       salespersonVideos: {
-        where: { isPrimary: true },
         include: {
           salesperson: {
             include: {
@@ -66,6 +65,7 @@ export default async function WatchPage({ params }: WatchPageProps) {
             },
           },
         },
+        orderBy: { createdAt: "asc" },
         take: 1,
       },
     },
@@ -76,10 +76,21 @@ export default async function WatchPage({ params }: WatchPageProps) {
   const primaryAssignment = video.salespersonVideos[0] ?? null;
   const primarySalesperson = primaryAssignment?.salesperson ?? null;
 
-  const preRollUrl = primarySalesperson?.faceVideos.find((v) => v.rollType === "pre")?.publicUrl;
-  const postRollUrl = primarySalesperson?.faceVideos.find((v) => v.rollType === "post")?.publicUrl;
-  const preRollDurationSec = primarySalesperson?.faceVideos.find((v) => v.rollType === "pre")?.durationSec ?? null;
-  const postRollDurationSec = primarySalesperson?.faceVideos.find((v) => v.rollType === "post")?.durationSec ?? null;
+  // 接続設定で指定された顔出し動画を優先し、なければ営業マンのグローバル設定を使用
+  const preRollUrl =
+    primaryAssignment?.preRollPublicUrl ??
+    primarySalesperson?.faceVideos.find((v) => v.rollType === "pre")?.publicUrl;
+  const postRollUrl =
+    primaryAssignment?.postRollPublicUrl ??
+    primarySalesperson?.faceVideos.find((v) => v.rollType === "post")?.publicUrl;
+  const preRollDurationSec =
+    primaryAssignment?.preRollDurationSec ??
+    primarySalesperson?.faceVideos.find((v) => v.rollType === "pre")?.durationSec ??
+    null;
+  const postRollDurationSec =
+    primaryAssignment?.postRollDurationSec ??
+    primarySalesperson?.faceVideos.find((v) => v.rollType === "post")?.durationSec ??
+    null;
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const canonicalUrl = `${appUrl}/watch/${video.id}`;

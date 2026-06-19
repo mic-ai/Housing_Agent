@@ -12,6 +12,7 @@ interface AdminVideo {
   title: string;
   viewCount: number;
   isActive: boolean;
+  sortOrder: number;
   hashtags: string[];
   salespersonCount: number;
   createdAt: string;
@@ -62,6 +63,14 @@ export function VideoManagerClient() {
       body: JSON.stringify({ isActive: !current }),
     });
     await load();
+  }
+
+  async function updateSortOrder(videoId: string, sortOrder: number) {
+    await fetch(`/api/admin/videos/${videoId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sortOrder }),
+    });
   }
 
   async function bulkSetActive(isActive: boolean) {
@@ -277,6 +286,16 @@ export function VideoManagerClient() {
                   </span>
                 </div>
                 <p className="text-xs text-gray-500">{v.platform} · 視聴 {v.viewCount} · 営業 {v.salespersonCount}人</p>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <label className="text-xs text-gray-500">順序</label>
+                <input
+                  type="number"
+                  min={0}
+                  defaultValue={v.sortOrder}
+                  onBlur={(e) => updateSortOrder(v.id, Number(e.target.value))}
+                  className="w-14 bg-gray-800 border border-gray-600 rounded px-2 py-1 text-xs text-white text-center"
+                />
               </div>
               <button
                 type="button"

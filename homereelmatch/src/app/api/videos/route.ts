@@ -16,7 +16,9 @@ const QuerySchema = z.object({
   tag: z.string().optional(),
   venueId: z.string().optional(),
   houseMakerId: z.string().optional(),
+  salespersonId: z.string().optional(),
   q: z.string().optional(),
+  sortBy: z.enum(["sortOrder", "createdAt", "viewCount"]).default("sortOrder"),
   limit: z.coerce.number().min(1).max(50).default(20),
   cursor: z.string().optional(),
 });
@@ -35,6 +37,9 @@ export async function GET(request: NextRequest) {
     }
     if (query.venueId) where.venueId = query.venueId;
     if (query.houseMakerId) where.houseMakerId = query.houseMakerId;
+    if (query.salespersonId) {
+      where.salespersonVideos = { some: { salespersonId: query.salespersonId } };
+    }
     if (query.q) {
       where.OR = [
         { title: { contains: query.q, mode: "insensitive" } },
@@ -52,7 +57,11 @@ export async function GET(request: NextRequest) {
       where,
       take: query.limit + 1,
       ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
-      orderBy: { createdAt: "desc" },
+      orderBy: query.sortBy === "viewCount"
+        ? { viewCount: "desc" }
+        : query.sortBy === "sortOrder"
+          ? [{ sortOrder: "asc" }, { createdAt: "desc" }]
+          : { createdAt: "desc" },
       include: videoInclude,
     });
 

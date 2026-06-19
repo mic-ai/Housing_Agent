@@ -10,6 +10,8 @@ interface VideoFeedClientProps {
   initialVideos: VideoDTO[];
   tag?: string;
   q?: string;
+  houseMakerId?: string;
+  venueId?: string;
 }
 
 function EmptyState({ tag, q }: { tag?: string; q?: string }) {
@@ -51,6 +53,8 @@ export function VideoFeedClient({
   initialVideos,
   tag,
   q,
+  houseMakerId,
+  venueId,
 }: VideoFeedClientProps) {
   const [videos, setVideos] = useState<VideoDTO[]>(initialVideos);
   const [cursor, setCursor] = useState<string | null>(
@@ -66,6 +70,8 @@ export function VideoFeedClient({
       const params = new URLSearchParams({ cursor, limit: "20" });
       if (tag) params.set("tag", tag);
       if (q) params.set("q", q);
+      if (houseMakerId) params.set("houseMakerId", houseMakerId);
+      if (venueId) params.set("venueId", venueId);
       const res = await fetch(`/api/videos?${params}`);
       const json = await res.json();
       setVideos((prev) => [...prev, ...json.data]);
@@ -74,7 +80,7 @@ export function VideoFeedClient({
     } finally {
       setLoading(false);
     }
-  }, [loading, hasMore, cursor, tag, q]);
+  }, [loading, hasMore, cursor, tag, q, houseMakerId, venueId]);
 
   const sentinelRef = useIntersectionObserver(loadMore, { threshold: 0.1 });
 

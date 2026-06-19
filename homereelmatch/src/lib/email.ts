@@ -1,24 +1,30 @@
-const RESEND_API = "https://api.resend.com/emails";
-const FROM = process.env.FROM_EMAIL ?? "noreply@homereelmatch.example.com";
+import nodemailer from "nodemailer";
+
+function createTransporter() {
+  const user = process.env.GMAIL_USER;
+  const pass = process.env.GMAIL_APP_PASSWORD;
+  if (!user || !pass) return null;
+
+  return nodemailer.createTransport({
+    service: "gmail",
+    auth: { user, pass },
+  });
+}
 
 async function sendEmail(params: {
   to: string;
   subject: string;
   html: string;
 }): Promise<void> {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) return; // Email not configured — skip silently
+  const transporter = createTransporter();
+  if (!transporter) return;
 
-  const res = await fetch(RESEND_API, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({ from: FROM, ...params }),
+  const result = await transporter.sendMail({
+    from: `"HomeReelMatch" <${process.env.GMAIL_USER}>`,
+    ...params,
   });
-  if (!res.ok) {
-    console.error("Email send failed:", await res.text());
+  if (result.rejected.length > 0) {
+    console.error("Email rejected:", result.rejected);
   }
 }
 

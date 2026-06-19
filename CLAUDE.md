@@ -216,8 +216,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY="..."
 LINE_CHANNEL_SECRET="..."
 LINE_CHANNEL_ACCESS_TOKEN="..."
 
-RESEND_API_KEY="..."
-FROM_EMAIL="noreply@homereelmatch.example.com"
+GMAIL_USER="your-gmail@gmail.com"
+GMAIL_APP_PASSWORD="xxxx xxxx xxxx xxxx"  # Googleアカウント → セキュリティ → アプリパスワード
 
 NEXT_PUBLIC_APP_URL="https://homereelmatch.vercel.app"
 EMBED_ALLOWED_ORIGINS="https://portal.example.com"
@@ -430,7 +430,7 @@ npx vercel --prod
 
 ---
 
-## 現在の状態（2026-06-20）
+## 現在の状態（2026-06-19）
 
 全フェーズ実装・本番デプロイ済み。
 
@@ -446,13 +446,17 @@ npx vercel --prod
 | Vercel デプロイ | 完了（https://homereelmatch.vercel.app） |
 | Playwright E2E テスト | 完了（16件定義済み） |
 | Lighthouse（ホーム: Performance 94 / LCP 1.8s / Accessibility 100） | 計測済み |
+| Supabase RLS ポリシー | 完了（supabase/rls-policies.sql 適用済み・冪等化） |
+| ENCRYPTION_KEY（Vercel 環境変数） | 完了（homereelmatch プロジェクトに設定・再デプロイ済み） |
+| Node.js バージョン | 完了（package.json engines: 24.x） |
 
 ### 残課題
 
-```
-- Supabase RLS ポリシー適用（supabase/rls-policies.sql を Supabase Dashboard で実行）
-- LINE Webhook URL を https://homereelmatch.vercel.app/api/line/webhook に設定
-- Resend: 本番用 API Key・送信ドメイン設定
-- ENCRYPTION_KEY を Vercel 環境変数に設定
-- Vercel Dashboard → Node.js Version を 22.x に設定
-```
+なし（全設定完了）
+
+### 環境変数メモ
+
+- `ENCRYPTION_KEY`: 生成済み・Vercel homereelmatch に設定済み（`.env.local` にも追加済み）
+- `DATABASE_URL`: `.env` の `channel_binding=require` を除去済み（Prisma P1000 対策）
+- `LINE_CHANNEL_SECRET` / `LINE_CHANNEL_ACCESS_TOKEN`: Vercel 本番値設定済み・Webhook 検証 200 OK 確認済み（2026-06-19）
+- `GMAIL_USER` / `GMAIL_APP_PASSWORD`: Vercel 設定済み・デプロイ完了（2026-06-19）

@@ -9,6 +9,7 @@ const PatchSchema = z.object({
   description: z.string().optional(),
   houseMakerId: z.string().nullable().optional(),
   venueId: z.string().nullable().optional(),
+  sortOrder: z.number().int().min(0).optional(),
 }).refine((d) => Object.keys(d).length > 0, { message: "At least one field required" });
 
 type Params = { params: Promise<{ videoId: string }> };

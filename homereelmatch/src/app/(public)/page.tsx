@@ -3,11 +3,17 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { SearchBar } from "@/components/search/SearchBar";
 import { HashtagCloud } from "@/components/search/HashtagCloud";
+import { FilterBar } from "@/components/search/FilterBar";
 import { VideoFeedClient } from "@/components/video/VideoFeedClient";
 import { mapVideoToDTO } from "@/lib/utils";
 
 interface HomePageProps {
-  searchParams: Promise<{ q?: string; tag?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    tag?: string;
+    houseMakerId?: string;
+    venueId?: string;
+  }>;
 }
 
 export default async function HomePage({ searchParams }: HomePageProps) {
@@ -17,6 +23,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   if (params.tag) {
     where.videoHashtags = { some: { hashtag: { tagName: params.tag } } };
   }
+  if (params.houseMakerId) where.houseMakerId = params.houseMakerId;
+  if (params.venueId) where.venueId = params.venueId;
   if (params.q) {
     where.OR = [
       { title: { contains: params.q, mode: "insensitive" } },
@@ -30,34 +38,40 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     ];
   }
 
-  const initialVideos = await prisma.video.findMany({
-    where,
-    take: 20,
-    orderBy: { createdAt: "desc" },
-    include: {
-      videoHashtags: { include: { hashtag: true } },
-      salespersonVideos: {
-        include: { salesperson: { include: { company: true } } },
+  const [initialVideos, houseMakers, venues] = await Promise.all([
+    prisma.video.findMany({
+      where,
+      take: 20,
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
+      include: {
+        videoHashtags: { include: { hashtag: true } },
+        salespersonVideos: {
+          include: { salesperson: { include: { company: true } } },
+        },
+        houseMaker: true,
+        venue: true,
       },
-      houseMaker: true,
-      venue: true,
-    },
-  });
+    }),
+    prisma.houseMaker.findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+    prisma.venue.findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+  ]);
 
   return (
     <div className="min-h-screen bg-stone-950 text-white">
       <header className="sticky top-0 z-10 bg-stone-950/90 backdrop-blur-sm border-b border-white/10 px-4 py-3">
         <div className="max-w-2xl mx-auto">
           <div className="flex items-center gap-3 mb-3">
-            {/* Brand logo */}
             <div className="flex items-center gap-2 shrink-0">
               <div className="w-8 h-8 rounded-lg bg-amber-600 flex items-center justify-center">
-                <svg
-                  className="w-5 h-5 text-white"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
+                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
                 </svg>
               </div>
@@ -69,25 +83,32 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-4 bg-stone-950">
-        {/* Hashtag cloud: always shown when not in free-text search mode */}
         {!params.q && (
-          <div className="mb-4">
+          <div className="mb-3 space-y-2">
             <Suspense fallback={null}>
               <HashtagCloud activeTag={params.tag} />
+            </Suspense>
+            <Suspense fallback={null}>
+              <FilterBar
+                houseMakers={houseMakers}
+                venues={venues}
+                activeHouseMakerId={params.houseMakerId}
+                activeVenueId={params.venueId}
+              />
             </Suspense>
           </div>
         )}
 
         {params.q && (
-          <p className="text-gray-400 text-sm mb-4">
-            「{params.q}」の検索結果
-          </p>
+          <p className="text-gray-400 text-sm mb-4">「{params.q}」の検索結果</p>
         )}
 
         <VideoFeedClient
           initialVideos={initialVideos.map(mapVideoToDTO)}
           tag={params.tag}
           q={params.q}
+          houseMakerId={params.houseMakerId}
+          venueId={params.venueId}
         />
       </main>
 

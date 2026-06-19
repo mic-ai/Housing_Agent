@@ -79,6 +79,7 @@ export default async function DashboardPage() {
 
         <nav className="grid grid-cols-2 gap-3">
           {[
+            { href: "/dashboard/profile", label: "プロフィール編集" },
             { href: "/dashboard/inquiries", label: "問い合わせ管理" },
             { href: "/dashboard/videos", label: "顔出し動画" },
             { href: "/dashboard/schedule", label: "スケジュール管理" },

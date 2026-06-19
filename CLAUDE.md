@@ -82,9 +82,13 @@ homereelmatch/
 │   │       │   └── [videoId]/
 │   │       │       ├── route.ts                 ← GET, PATCH, DELETE
 │   │       │       └── view/route.ts            ← POST viewCount++
-│   │       ├── face-videos/
-│   │       │   ├── upload/route.ts              ← 顔出し動画アップロード（≤10秒検証）
-│   │       │   └── [salespersonVideoId]/route.ts
+│   │       ├── salesperson/
+│   │       │   └── profile/
+│   │       │       ├── route.ts                 ← GET/PATCH プロフィール
+│   │       │       ├── face-videos/
+│   │       │       │   ├── route.ts             ← GET一覧 / POST アップロード（≤10秒検証）
+│   │       │       │   └── [id]/route.ts        ← DELETE 顔出し動画
+│   │       │       └── face-video/route.ts      ← 廃止 (410 返す)
 │   │       ├── hashtags/route.ts
 │   │       ├── house-makers/route.ts            ← 公開: 有効なハウスメーカー一覧
 │   │       ├── venues/route.ts                  ← 公開: 有効な会場一覧
@@ -180,17 +184,23 @@ homereelmatch/
 実際のスキーマは `prisma/schema.prisma` を参照。主要モデルの概要：
 
 ```
-User           — 一般ユーザー（コンタクト申請者）
-Company        — 会社（モデルハウス情報含む）
-Salesperson    — 営業マン（email/password/role: SALESPERSON|ADMIN）
-HouseMaker     — ハウスメーカー（管理者が登録・管理）
-Venue          — 会場（管理者が登録・管理）
-Video          — 動画（houseMakerId/venueId FK、area/houseType/priceRange は廃止済み）
-SalespersonVideo — 営業マン×動画の顔出し動画設定（preRoll/postRoll ≤10秒）
+User                   — 一般ユーザー（コンタクト申請者）
+Company                — 会社（モデルハウス情報含む）
+Salesperson            — 営業マン（email/password/role: SALESPERSON|ADMIN）
+                         顔出し動画は faceVideos: SalespersonFaceVideo[] で管理
+HouseMaker             — ハウスメーカー（管理者が登録・管理）
+Venue                  — 会場（管理者が登録・管理）
+Video                  — 動画（houseMakerId/venueId FK）
+SalespersonVideo       — 営業マン×動画の接続設定
+                         preRollPublicUrl/postRollPublicUrl: 接続設定で選択した顔出し動画（nullable）
+                         isPrimary: 視聴ページで使用する主担当フラグ（現状未使用、取得は createdAt 昇順 take:1）
+SalespersonFaceVideo   — 顔出し動画ライブラリ（salesperson_face_videos テーブル）
+                         rollType: "pre" | "post", sortOrder: Int
+SalespersonProfileVideo — 営業マンのプロフィール動画（YouTube等のURL登録）
 Hashtag / VideoHashtag
-ContactRequest — コンタクト申請（questionnaireJson は AES-256-GCM 暗号化）
-Appointment    — 面談予約
-AvailableSlot  — 空き時間スロット
+ContactRequest         — コンタクト申請（questionnaireJson は AES-256-GCM 暗号化）
+Appointment            — 面談予約
+AvailableSlot          — 空き時間スロット
 ```
 
 ---
@@ -297,6 +307,16 @@ type PlaybackPhase = "PRE_ROLL" | "MAIN" | "POST_ROLL" | "ENDED";
 - ファイルサイズ: 50MB 以下
 - 尺の上限: **10秒**（ffprobe で server-side 検証）
 - Storage パス: `face-videos/{salespersonId}/{videoId}/{pre|post}_{timestamp}.mp4`
+- アップロード先: `POST /api/salesperson/profile/face-videos`（rollType: "pre" | "post"）
+- 削除: `DELETE /api/salesperson/profile/face-videos/[id]`
+
+#### 顔出し動画の再生優先順位（watch page）
+
+```
+SalespersonVideo.preRollPublicUrl（接続設定で指定）
+  ↓ null の場合フォールバック
+Salesperson.faceVideos.find(rollType="pre")（営業マングローバル設定・sortOrder昇順）
+```
 
 #### Instagram oEmbed
 
@@ -359,6 +379,24 @@ refactor: VideoPlayer をサーバー/クライアント分離
 
 - `src/proxy.ts` が middleware として機能する（Next.js の規約から外れた配置）
 - `src/middleware.ts` が**存在すると競合**してログインが壊れる — 絶対に作成しないこと
+
+### Server Component → Client Component への props 受け渡し
+
+- Prisma が返す `Date` オブジェクト（`createdAt`, `updatedAt`）は Client Component の props に含めると RSC シリアライズエラーになる
+- `...prismaRecord` のスプレッドは禁止。必要なフィールドのみ明示的に選択して渡すこと
+- Prisma クエリで `select` を使えば `Date` フィールドを除外できる
+
+```typescript
+// ❌ 危険: createdAt/updatedAt が混入する
+initialAssignments={assignments.map((a) => ({ ...a, extra: "foo" }))}
+
+// ✅ 安全: 必要なフィールドのみ
+initialAssignments={assignments.map((a) => ({
+  id: a.id,
+  salesperson: { id: a.salesperson.id, name: a.salesperson.name },
+  video: { id: a.video.id, title: a.video.title },
+}))}
+```
 
 ### テスト
 
@@ -449,6 +487,32 @@ npx vercel --prod
 | Supabase RLS ポリシー | 完了（supabase/rls-policies.sql 適用済み・冪等化） |
 | ENCRYPTION_KEY（Vercel 環境変数） | 完了（homereelmatch プロジェクトに設定・再デプロイ済み） |
 | Node.js バージョン | 完了（package.json engines: 24.x） |
+| 営業マンダッシュボード刷新（顔出し動画複数登録対応） | 完了（2026-06-19） |
+| 管理者「本編動画登録」登録後編集・プレビュー | 完了（2026-06-19） |
+| 接続設定：顔出し動画の個別接続・プレビュー・タグ編集 | 完了（2026-06-19） |
+
+### 直近の主要変更（2026-06-19）
+
+#### 営業マンダッシュボード
+- 自己紹介動画URLセクションを削除
+- 顔出し動画を `SalespersonFaceVideo` モデルで複数管理（プリ/ポスト別・sortOrder）
+- `Salesperson` から個別の preRoll/postRoll フィールドを削除（DB `db push --accept-data-loss` 適用済み）
+
+#### 管理者ダッシュボード
+- 「動画管理」→「本編動画登録」に改名
+- `VideoManagerClient`: 動画登録後に自動でインライン編集・プレビューパネルを開く
+- `AssignmentManagerClient`: 各接続行を展開して動画プレビュー・タイトル/タグ編集・顔出し動画選択が可能
+- `PATCH /api/admin/assignments/[id]`: `preRollFaceVideoId` / `postRollFaceVideoId` を受け取り `SalespersonVideo` の preRoll/postRoll フィールドを更新
+- `PATCH /api/admin/videos/[id]`: `hashtags` フィールドを追加対応（`$transaction` で VideoHashtag を再構築）
+
+#### 新規 API エンドポイント
+- `GET/POST /api/salesperson/profile/face-videos` — 顔出し動画一覧取得・アップロード
+- `DELETE /api/salesperson/profile/face-videos/[id]` — 顔出し動画削除
+- `PATCH /api/admin/assignments/[id]` — 顔出し動画の接続設定保存
+
+#### バグ修正
+- 接続設定ページクラッシュ: Prisma の `...record` スプレッドで `Date` が Client Component props に混入 → 明示的フィールド選択に変更
+- `isPrimary` フィルタ問題: watch page の `isPrimary: true` フィルタを削除し、`createdAt` 昇順 `take:1` に変更
 
 ### 残課題
 

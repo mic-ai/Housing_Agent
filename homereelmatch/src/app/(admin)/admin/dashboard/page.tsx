@@ -22,7 +22,16 @@ export default async function AdminDashboardPage() {
       prisma.salespersonVideo.findMany({
         include: {
           salesperson: { select: { id: true, name: true, company: { select: { name: true } } } },
-          video: { select: { id: true, title: true, thumbnailUrl: true } },
+          video: {
+            select: {
+              id: true,
+              platform: true,
+              url: true,
+              title: true,
+              thumbnailUrl: true,
+              videoHashtags: { select: { hashtag: { select: { tagName: true } } } },
+            },
+          },
         },
         orderBy: { createdAt: "desc" },
       }),
@@ -32,7 +41,7 @@ export default async function AdminDashboardPage() {
       }),
       prisma.video.findMany({
         where: { isActive: true },
-        select: { id: true, title: true, thumbnailUrl: true },
+        select: { id: true, platform: true, url: true, title: true, thumbnailUrl: true },
         orderBy: { createdAt: "desc" },
       }),
       prisma.houseMaker.findMany({
@@ -116,16 +125,22 @@ export default async function AdminDashboardPage() {
           </div>
           <div className="bg-gray-900 rounded-xl p-5">
             <AssignmentManagerClient
-              initialAssignments={assignments}
+              initialAssignments={assignments.map((a) => ({
+                ...a,
+                video: {
+                  ...a.video,
+                  hashtags: a.video.videoHashtags.map((vh) => vh.hashtag.tagName),
+                },
+              }))}
               salespersons={salespersons}
-              videos={activeVideos}
+              videos={activeVideos.map((v) => ({ ...v, hashtags: [] }))}
             />
           </div>
         </section>
 
-        {/* 動画管理 */}
+        {/* 本編動画登録 */}
         <section>
-          <h2 className="text-base font-semibold text-gray-300 mb-3">動画管理</h2>
+          <h2 className="text-base font-semibold text-gray-300 mb-3">本編動画登録</h2>
           <div className="bg-gray-900 rounded-xl p-5">
             <VideoManagerClient />
           </div>

@@ -59,7 +59,12 @@ export default async function WatchPage({ params }: WatchPageProps) {
       salespersonVideos: {
         where: { isPrimary: true },
         include: {
-          salesperson: { include: { company: true } },
+          salesperson: {
+            include: {
+              company: true,
+              faceVideos: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] },
+            },
+          },
         },
         take: 1,
       },
@@ -70,6 +75,11 @@ export default async function WatchPage({ params }: WatchPageProps) {
 
   const primaryAssignment = video.salespersonVideos[0] ?? null;
   const primarySalesperson = primaryAssignment?.salesperson ?? null;
+
+  const preRollUrl = primarySalesperson?.faceVideos.find((v) => v.rollType === "pre")?.publicUrl;
+  const postRollUrl = primarySalesperson?.faceVideos.find((v) => v.rollType === "post")?.publicUrl;
+  const preRollDurationSec = primarySalesperson?.faceVideos.find((v) => v.rollType === "pre")?.durationSec ?? null;
+  const postRollDurationSec = primarySalesperson?.faceVideos.find((v) => v.rollType === "post")?.durationSec ?? null;
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const canonicalUrl = `${appUrl}/watch/${video.id}`;
@@ -85,8 +95,8 @@ export default async function WatchPage({ params }: WatchPageProps) {
         <CompositePlayer
           platform={video.platform}
           url={video.url}
-          preRollUrl={primarySalesperson?.preRollPublicUrl ?? undefined}
-          postRollUrl={primarySalesperson?.postRollPublicUrl ?? undefined}
+          preRollUrl={preRollUrl}
+          postRollUrl={postRollUrl}
         />
         <VideoFooter
           videoId={video.id}
@@ -97,10 +107,10 @@ export default async function WatchPage({ params }: WatchPageProps) {
               ? {
                   id: primaryAssignment.id,
                   salespersonId: primaryAssignment.salespersonId,
-                  preRollPublicUrl: primarySalesperson.preRollPublicUrl,
-                  preRollDurationSec: primarySalesperson.preRollDurationSec,
-                  postRollPublicUrl: primarySalesperson.postRollPublicUrl,
-                  postRollDurationSec: primarySalesperson.postRollDurationSec,
+                  preRollPublicUrl: preRollUrl ?? null,
+                  preRollDurationSec,
+                  postRollPublicUrl: postRollUrl ?? null,
+                  postRollDurationSec,
                   isPrimary: primaryAssignment.isPrimary,
                   salesperson: {
                     id: primarySalesperson.id,

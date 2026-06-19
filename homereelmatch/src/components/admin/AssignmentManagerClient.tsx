@@ -10,22 +10,177 @@ interface Salesperson {
 
 interface Video {
   id: string;
+  platform: "YOUTUBE" | "INSTAGRAM";
+  url: string;
   title: string;
   thumbnailUrl: string | null;
+  hashtags: string[];
 }
 
 interface Assignment {
   id: string;
   salesperson: Salesperson;
   video: Video;
-  preRollPublicUrl: string | null;
-  postRollPublicUrl: string | null;
 }
 
 interface Props {
   initialAssignments: Assignment[];
   salespersons: Salesperson[];
   videos: Video[];
+}
+
+function extractYouTubeId(url: string): string | null {
+  const m = url.match(/(?:v=|\/embed\/|\/shorts\/|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+  return m?.[1] ?? null;
+}
+
+function AssignmentRow({
+  assignment,
+  onDelete,
+}: {
+  assignment: Assignment;
+  onDelete: (id: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [title, setTitle] = useState(assignment.video.title);
+  const [hashtags, setHashtags] = useState(assignment.video.hashtags.join(", "));
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const v = assignment.video;
+  const ytId = v.platform === "YOUTUBE" ? extractYouTubeId(v.url) : null;
+  const thumbUrl = v.thumbnailUrl ?? (ytId ? `https://img.youtube.com/vi/${ytId}/mqdefault.jpg` : null);
+
+  async function handleDelete() {
+    setDeleting(true);
+    const res = await fetch(`/api/admin/assignments/${assignment.id}`, { method: "DELETE" });
+    if (res.ok) onDelete(assignment.id);
+    else setDeleting(false);
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    setSaved(false);
+    const res = await fetch(`/api/admin/videos/${v.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title,
+        hashtags: hashtags.split(/[,、\s]+/).map((t) => t.replace(/^#/, "").trim()).filter(Boolean),
+      }),
+    });
+    if (res.ok) {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    }
+    setSaving(false);
+  }
+
+  return (
+    <div className="py-3">
+      {/* 行ヘッダー */}
+      <div className="flex items-center gap-4">
+        {thumbUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={thumbUrl} alt={v.title} className="w-20 h-12 object-cover rounded shrink-0" />
+        ) : (
+          <div className="w-20 h-12 bg-stone-700 rounded shrink-0" />
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="text-white text-sm font-medium truncate">{title}</p>
+          <p className="text-stone-400 text-xs">
+            {assignment.salesperson.name}（{assignment.salesperson.company.name}）
+          </p>
+          {hashtags && (
+            <p className="text-amber-400 text-xs truncate">
+              {hashtags.split(/[,、\s]+/).filter(Boolean).map((t) => `#${t.replace(/^#/, "")}`).join(" ")}
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="text-xs px-3 py-1 rounded bg-blue-800 hover:bg-blue-700 text-white"
+          >
+            {expanded ? "閉じる" : "編集・プレビュー"}
+          </button>
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={deleting}
+            className="text-red-400 hover:text-red-300 text-xs disabled:opacity-50"
+          >
+            {deleting ? "削除中..." : "削除"}
+          </button>
+        </div>
+      </div>
+
+      {/* 展開パネル */}
+      {expanded && (
+        <div className="mt-3 pt-3 border-t border-stone-700 space-y-4">
+          {/* プレビュー */}
+          {ytId ? (
+            <div className="aspect-video w-full max-w-sm">
+              <iframe
+                src={`https://www.youtube.com/embed/${ytId}`}
+                title={v.title}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="w-full h-full rounded-lg"
+              />
+            </div>
+          ) : thumbUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={thumbUrl} alt={v.title} className="w-full max-w-sm rounded-lg" />
+          ) : null}
+
+          <a
+            href={`/watch/${v.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-blue-400 hover:text-blue-300 underline block"
+          >
+            視聴ページで確認 ↗
+          </a>
+
+          {/* タイトル編集 */}
+          <div>
+            <label className="block text-xs text-stone-400 mb-1">タイトル</label>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full bg-stone-700 border border-stone-600 rounded px-3 py-1.5 text-white text-sm"
+            />
+          </div>
+
+          {/* タグ編集 */}
+          <div>
+            <label className="block text-xs text-stone-400 mb-1">ハッシュタグ（カンマ区切り）</label>
+            <input
+              value={hashtags}
+              onChange={(e) => setHashtags(e.target.value)}
+              placeholder="新築, 注文住宅"
+              className="w-full bg-stone-700 border border-stone-600 rounded px-3 py-1.5 text-white text-sm"
+            />
+          </div>
+
+          <div className="flex gap-2 items-center">
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+              className="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-xs font-medium rounded"
+            >
+              {saving ? "保存中..." : "保存する"}
+            </button>
+            {saved && <span className="text-green-400 text-xs">保存しました</span>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function AssignmentManagerClient({ initialAssignments, salespersons, videos }: Props) {
@@ -61,13 +216,6 @@ export function AssignmentManagerClient({ initialAssignments, salespersons, vide
     }
   }
 
-  async function handleDelete(id: string) {
-    const res = await fetch(`/api/admin/assignments/${id}`, { method: "DELETE" });
-    if (res.ok) {
-      setAssignments((prev) => prev.filter((a) => a.id !== id));
-    }
-  }
-
   return (
     <div className="space-y-5">
       {/* 新規接続フォーム */}
@@ -79,9 +227,7 @@ export function AssignmentManagerClient({ initialAssignments, salespersons, vide
         >
           <option value="">営業マンを選択</option>
           {salespersons.map((sp) => (
-            <option key={sp.id} value={sp.id}>
-              {sp.name}（{sp.company.name}）
-            </option>
+            <option key={sp.id} value={sp.id}>{sp.name}（{sp.company.name}）</option>
           ))}
         </select>
 
@@ -91,11 +237,7 @@ export function AssignmentManagerClient({ initialAssignments, salespersons, vide
           className="bg-stone-800 border border-stone-700 text-white rounded-lg px-3 py-2 text-sm"
         >
           <option value="">本編動画を選択</option>
-          {videos.map((v) => (
-            <option key={v.id} value={v.id}>
-              {v.title}
-            </option>
-          ))}
+          {videos.map((v) => <option key={v.id} value={v.id}>{v.title}</option>)}
         </select>
 
         <button
@@ -115,30 +257,11 @@ export function AssignmentManagerClient({ initialAssignments, salespersons, vide
       ) : (
         <div className="divide-y divide-stone-700">
           {assignments.map((a) => (
-            <div key={a.id} className="flex items-center gap-4 py-3">
-              {a.video.thumbnailUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={a.video.thumbnailUrl} alt={a.video.title} className="w-16 h-10 object-cover rounded" />
-              ) : (
-                <div className="w-16 h-10 bg-stone-700 rounded" />
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="text-white text-sm font-medium truncate">{a.video.title}</p>
-                <p className="text-stone-400 text-xs">
-                  {a.salesperson.name}（{a.salesperson.company.name}）
-                </p>
-              </div>
-              <div className="flex items-center gap-3 text-xs text-stone-500 flex-shrink-0">
-                <span>{a.preRollPublicUrl ? "プリ✓" : "プリ未"}</span>
-                <span>{a.postRollPublicUrl ? "ポスト✓" : "ポスト未"}</span>
-                <button
-                  onClick={() => handleDelete(a.id)}
-                  className="text-red-400 hover:text-red-300"
-                >
-                  削除
-                </button>
-              </div>
-            </div>
+            <AssignmentRow
+              key={a.id}
+              assignment={a}
+              onDelete={(id) => setAssignments((prev) => prev.filter((x) => x.id !== id))}
+            />
           ))}
         </div>
       )}

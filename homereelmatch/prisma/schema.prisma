@@ -39,31 +39,40 @@ enum SalespersonRole {
 }
 
 model Salesperson {
-  id                  String                   @id @default(cuid())
-  name                String
-  email               String                   @unique
-  password            String
-  role                SalespersonRole          @default(SALESPERSON)
-  lineId              String?
-  profileImage        String?
-  bio                 String?
-  company             Company                  @relation(fields: [companyId], references: [id])
-  companyId           String
-  houseMaker          HouseMaker?              @relation(fields: [houseMakerId], references: [id])
-  houseMakerId        String?
-  preRollStoragePath  String?
-  preRollPublicUrl    String?
-  preRollDurationSec  Int?
-  postRollStoragePath String?
-  postRollPublicUrl   String?
-  postRollDurationSec Int?
-  videoSegments       SalespersonVideo[]
-  profileVideos       SalespersonProfileVideo[]
-  slots               AvailableSlot[]
-  contactRequests     ContactRequest[]
-  createdAt           DateTime                 @default(now())
+  id              String                    @id @default(cuid())
+  name            String
+  email           String                    @unique
+  password        String
+  role            SalespersonRole           @default(SALESPERSON)
+  lineId          String?
+  profileImage    String?
+  bio             String?
+  company         Company                   @relation(fields: [companyId], references: [id])
+  companyId       String
+  houseMaker      HouseMaker?               @relation(fields: [houseMakerId], references: [id])
+  houseMakerId    String?
+  videoSegments   SalespersonVideo[]
+  profileVideos   SalespersonProfileVideo[]
+  faceVideos      SalespersonFaceVideo[]
+  slots           AvailableSlot[]
+  contactRequests ContactRequest[]
+  createdAt       DateTime                  @default(now())
 
   @@map("salespersons")
+}
+
+model SalespersonFaceVideo {
+  id            String      @id @default(cuid())
+  salesperson   Salesperson @relation(fields: [salespersonId], references: [id], onDelete: Cascade)
+  salespersonId String
+  rollType      String
+  storagePath   String
+  publicUrl     String
+  durationSec   Int
+  sortOrder     Int         @default(0)
+  createdAt     DateTime    @default(now())
+
+  @@map("salesperson_face_videos")
 }
 
 model HouseMaker {

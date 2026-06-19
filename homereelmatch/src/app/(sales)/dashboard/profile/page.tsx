@@ -2,34 +2,25 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
-import ProfileClient from "@/components/sales/ProfileClient";
+import ProfileClient, { type FaceVideo } from "@/components/sales/ProfileClient";
 
 export default async function ProfilePage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  const [salesperson, houseMakers, profileVideos] = await Promise.all([
+  const [salesperson, houseMakers, faceVideos] = await Promise.all([
     prisma.salesperson.findUnique({
       where: { id: session.user.id },
-      select: {
-        name: true,
-        bio: true,
-        profileImage: true,
-        houseMakerId: true,
-        preRollPublicUrl: true,
-        preRollDurationSec: true,
-        postRollPublicUrl: true,
-        postRollDurationSec: true,
-      },
+      select: { name: true, bio: true, profileImage: true, houseMakerId: true },
     }),
     prisma.houseMaker.findMany({
       where: { isActive: true },
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
-    prisma.salespersonProfileVideo.findMany({
+    prisma.salespersonFaceVideo.findMany({
       where: { salespersonId: session.user.id },
-      orderBy: { sortOrder: "asc" },
+      orderBy: [{ rollType: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
     }),
   ]);
 
@@ -50,15 +41,7 @@ export default async function ProfilePage() {
           initialBio={salesperson.bio}
           initialHouseMakerId={salesperson.houseMakerId}
           houseMakers={houseMakers}
-          profileVideos={profileVideos}
-          initialPreRoll={{
-            publicUrl: salesperson.preRollPublicUrl,
-            durationSec: salesperson.preRollDurationSec,
-          }}
-          initialPostRoll={{
-            publicUrl: salesperson.postRollPublicUrl,
-            durationSec: salesperson.postRollDurationSec,
-          }}
+          initialFaceVideos={faceVideos as FaceVideo[]}
         />
       </main>
     </div>

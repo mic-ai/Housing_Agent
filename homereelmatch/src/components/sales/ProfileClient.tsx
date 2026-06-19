@@ -10,21 +10,16 @@ const ProfileSchema = z.object({
   bio: z.string().max(500).optional(),
   houseMakerId: z.string().optional(),
 });
-
 type ProfileForm = z.infer<typeof ProfileSchema>;
 
 type HouseMaker = { id: string; name: string };
 
-type ProfileVideo = {
+export type FaceVideo = {
   id: string;
-  url: string;
-  platform: "YOUTUBE" | "INSTAGRAM";
-  title: string | null;
-};
-
-type FaceVideoState = {
-  publicUrl: string | null;
-  durationSec: number | null;
+  rollType: "pre" | "post";
+  publicUrl: string;
+  durationSec: number;
+  sortOrder: number;
 };
 
 type Props = {
@@ -32,36 +27,20 @@ type Props = {
   initialBio: string | null;
   initialHouseMakerId: string | null;
   houseMakers: HouseMaker[];
-  profileVideos: ProfileVideo[];
-  initialPreRoll: FaceVideoState;
-  initialPostRoll: FaceVideoState;
+  initialFaceVideos: FaceVideo[];
 };
-
-const VideoSchema = z.object({
-  url: z.string().url("有効なURLを入力してください"),
-  platform: z.enum(["YOUTUBE", "INSTAGRAM"]),
-  title: z.string().optional(),
-});
-type VideoForm = z.infer<typeof VideoSchema>;
 
 const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
 
-function FaceRollUploader({
-  label,
-  type,
-  current,
-  onUploaded,
-  onDeleted,
+function FaceVideoUploadButton({
+  rollType,
+  onAdded,
 }: {
-  label: string;
-  type: "pre" | "post";
-  current: FaceVideoState;
-  onUploaded: (publicUrl: string, durationSec: number) => void;
-  onDeleted: () => void;
+  rollType: "pre" | "post";
+  onAdded: (video: FaceVideo) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleFile(file: File) {
@@ -74,14 +53,14 @@ function FaceRollUploader({
     try {
       const fd = new FormData();
       fd.append("file", file);
-      fd.append("type", type);
-      const res = await fetch("/api/salesperson/profile/face-video", { method: "POST", body: fd });
-      const data = await res.json();
+      fd.append("type", rollType);
+      const res = await fetch("/api/salesperson/profile/face-videos", { method: "POST", body: fd });
+      const json = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "アップロードに失敗しました");
+        setError(json.error ?? "アップロードに失敗しました");
         return;
       }
-      onUploaded(data.publicUrl as string, data.durationSec as number);
+      onAdded(json.data as FaceVideo);
     } catch {
       setError("アップロードに失敗しました");
     } finally {
@@ -89,59 +68,16 @@ function FaceRollUploader({
     }
   }
 
-  async function handleDelete() {
-    setDeleting(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/salesperson/profile/face-video?type=${type}`, { method: "DELETE" });
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.error ?? "削除に失敗しました");
-        return;
-      }
-      onDeleted();
-    } catch {
-      setError("削除に失敗しました");
-    } finally {
-      setDeleting(false);
-    }
-  }
-
   return (
-    <div className="space-y-2">
-      <p className="text-sm font-medium text-gray-300">{label}</p>
-      {current.publicUrl ? (
-        <div className="space-y-2">
-          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-          <video src={current.publicUrl} controls className="w-full rounded-lg max-h-40" />
-          <p className="text-xs text-gray-400">尺: {current.durationSec}秒</p>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => inputRef.current?.click()}
-              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded text-xs font-medium transition-colors"
-            >
-              変更
-            </button>
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={deleting}
-              className="px-3 py-1.5 bg-red-700 hover:bg-red-600 disabled:opacity-50 rounded text-xs font-medium transition-colors"
-            >
-              {deleting ? "削除中..." : "削除"}
-            </button>
-          </div>
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          className="w-full border-2 border-dashed border-gray-600 rounded-lg py-4 text-sm text-gray-400 hover:border-gray-400 transition-colors"
-        >
-          {uploading ? "アップロード中..." : "クリックして動画を選択（最大10秒）"}
-        </button>
-      )}
+    <div>
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        disabled={uploading}
+        className="px-3 py-1.5 border border-dashed border-gray-500 hover:border-gray-300 rounded text-xs text-gray-400 hover:text-gray-200 disabled:opacity-50 transition-colors"
+      >
+        {uploading ? "アップロード中..." : `+ ${rollType === "pre" ? "プリロール" : "ポストロール"}を追加（最大10秒）`}
+      </button>
       <input
         ref={inputRef}
         type="file"
@@ -152,7 +88,63 @@ function FaceRollUploader({
           if (file) handleFile(file);
         }}
       />
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      {error && <p className="text-xs text-red-400 mt-1">{error}</p>}
+    </div>
+  );
+}
+
+function FaceVideoList({
+  label,
+  rollType,
+  videos,
+  onDelete,
+  onAdded,
+}: {
+  label: string;
+  rollType: "pre" | "post";
+  videos: FaceVideo[];
+  onDelete: (id: string) => void;
+  onAdded: (v: FaceVideo) => void;
+}) {
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  async function handleDelete(id: string) {
+    setDeleting(id);
+    try {
+      const res = await fetch(`/api/salesperson/profile/face-videos/${id}`, { method: "DELETE" });
+      if (res.ok) onDelete(id);
+    } finally {
+      setDeleting(null);
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-sm font-medium text-gray-300">{label}</p>
+      {videos.length === 0 ? (
+        <p className="text-xs text-gray-500">登録なし</p>
+      ) : (
+        <ul className="space-y-2">
+          {videos.map((v) => (
+            <li key={v.id} className="flex items-center gap-3 bg-gray-800 rounded-lg p-3">
+              {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+              <video src={v.publicUrl} className="w-24 h-14 object-cover rounded" muted />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-gray-300">{v.durationSec}秒</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleDelete(v.id)}
+                disabled={deleting === v.id}
+                className="text-red-400 hover:text-red-300 text-xs shrink-0 disabled:opacity-50"
+              >
+                {deleting === v.id ? "削除中..." : "削除"}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <FaceVideoUploadButton rollType={rollType} onAdded={onAdded} />
     </div>
   );
 }
@@ -162,24 +154,14 @@ export default function ProfileClient({
   initialBio,
   initialHouseMakerId,
   houseMakers,
-  profileVideos: initialVideos,
-  initialPreRoll,
-  initialPostRoll,
+  initialFaceVideos,
 }: Props) {
   const [saved, setSaved] = useState(false);
-  const [videos, setVideos] = useState<ProfileVideo[]>(initialVideos);
-  const [showVideoForm, setShowVideoForm] = useState(false);
-  const [preRoll, setPreRoll] = useState<FaceVideoState>(initialPreRoll);
-  const [postRoll, setPostRoll] = useState<FaceVideoState>(initialPostRoll);
+  const [faceVideos, setFaceVideos] = useState<FaceVideo[]>(initialFaceVideos);
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<ProfileForm>({
     resolver: zodResolver(ProfileSchema),
     defaultValues: { name: initialName, bio: initialBio ?? "", houseMakerId: initialHouseMakerId ?? "" },
-  });
-
-  const videoForm = useForm<VideoForm>({
-    resolver: zodResolver(VideoSchema),
-    defaultValues: { platform: "YOUTUBE" },
   });
 
   const onSubmit = async (data: ProfileForm) => {
@@ -194,24 +176,8 @@ export default function ProfileClient({
     }
   };
 
-  const onAddVideo = async (data: VideoForm) => {
-    const res = await fetch("/api/salesperson/profile/videos", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    if (res.ok) {
-      const json = await res.json();
-      setVideos((prev) => [...prev, json.data]);
-      videoForm.reset({ platform: "YOUTUBE" });
-      setShowVideoForm(false);
-    }
-  };
-
-  const onDeleteVideo = async (id: string) => {
-    const res = await fetch(`/api/salesperson/profile/videos/${id}`, { method: "DELETE" });
-    if (res.ok) setVideos((prev) => prev.filter((v) => v.id !== id));
-  };
+  const preVideos = faceVideos.filter((v) => v.rollType === "pre");
+  const postVideos = faceVideos.filter((v) => v.rollType === "post");
 
   return (
     <div className="space-y-8">
@@ -267,99 +233,23 @@ export default function ProfileClient({
       {/* 顔出し動画 */}
       <section className="bg-gray-900 rounded-xl p-6">
         <h2 className="text-base font-semibold mb-1">顔出し動画</h2>
-        <p className="text-xs text-gray-400 mb-4">動画再生前後に表示される自己紹介動画（各最大10秒）</p>
+        <p className="text-xs text-gray-400 mb-5">動画再生前後に表示される顔出し動画。複数登録可（各最大10秒）</p>
         <div className="space-y-6">
-          <FaceRollUploader
+          <FaceVideoList
             label="プリロール（動画再生前）"
-            type="pre"
-            current={preRoll}
-            onUploaded={(url, sec) => setPreRoll({ publicUrl: url, durationSec: sec })}
-            onDeleted={() => setPreRoll({ publicUrl: null, durationSec: null })}
+            rollType="pre"
+            videos={preVideos}
+            onDelete={(id) => setFaceVideos((prev) => prev.filter((v) => v.id !== id))}
+            onAdded={(v) => setFaceVideos((prev) => [...prev, v])}
           />
-          <FaceRollUploader
+          <FaceVideoList
             label="ポストロール（動画再生後）"
-            type="post"
-            current={postRoll}
-            onUploaded={(url, sec) => setPostRoll({ publicUrl: url, durationSec: sec })}
-            onDeleted={() => setPostRoll({ publicUrl: null, durationSec: null })}
+            rollType="post"
+            videos={postVideos}
+            onDelete={(id) => setFaceVideos((prev) => prev.filter((v) => v.id !== id))}
+            onAdded={(v) => setFaceVideos((prev) => [...prev, v])}
           />
         </div>
-      </section>
-
-      {/* 自己紹介動画 */}
-      <section className="bg-gray-900 rounded-xl p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-base font-semibold">自己紹介動画</h2>
-            <p className="text-xs text-gray-400 mt-0.5">プロフィールに表示するYouTube/Instagram動画のURL</p>
-          </div>
-          <button
-            onClick={() => setShowVideoForm((v) => !v)}
-            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-lg text-xs font-medium transition-colors"
-          >
-            + 追加
-          </button>
-        </div>
-
-        {showVideoForm && (
-          <form onSubmit={videoForm.handleSubmit(onAddVideo)} className="mb-4 p-4 bg-gray-800 rounded-lg space-y-3">
-            <div>
-              <label className="block text-xs text-gray-400 mb-1">プラットフォーム</label>
-              <select
-                {...videoForm.register("platform")}
-                className="bg-gray-700 rounded px-3 py-1.5 text-sm text-white focus:outline-none"
-              >
-                <option value="YOUTUBE">YouTube</option>
-                <option value="INSTAGRAM">Instagram</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-gray-400 mb-1">動画URL</label>
-              <input
-                {...videoForm.register("url")}
-                placeholder="https://www.youtube.com/watch?v=..."
-                className="w-full bg-gray-700 rounded px-3 py-1.5 text-sm text-white focus:outline-none"
-              />
-              {videoForm.formState.errors.url && (
-                <p className="text-red-400 text-xs mt-1">{videoForm.formState.errors.url.message}</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-xs text-gray-400 mb-1">タイトル（任意）</label>
-              <input
-                {...videoForm.register("title")}
-                className="w-full bg-gray-700 rounded px-3 py-1.5 text-sm text-white focus:outline-none"
-              />
-            </div>
-            <div className="flex gap-2">
-              <button type="submit" className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 rounded text-sm font-medium transition-colors">
-                追加
-              </button>
-              <button type="button" onClick={() => setShowVideoForm(false)} className="px-4 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-sm transition-colors">
-                キャンセル
-              </button>
-            </div>
-          </form>
-        )}
-
-        {videos.length === 0 ? (
-          <p className="text-gray-500 text-sm">動画が登録されていません</p>
-        ) : (
-          <ul className="space-y-2">
-            {videos.map((v) => (
-              <li key={v.id} className="flex items-center gap-3 p-3 bg-gray-800 rounded-lg">
-                <span className="text-xs text-gray-400 w-20 shrink-0">{v.platform}</span>
-                <span className="text-sm text-white truncate flex-1">{v.title ?? v.url}</span>
-                <button
-                  onClick={() => onDeleteVideo(v.id)}
-                  className="text-red-400 hover:text-red-300 text-xs shrink-0"
-                >
-                  削除
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
       </section>
     </div>
   );

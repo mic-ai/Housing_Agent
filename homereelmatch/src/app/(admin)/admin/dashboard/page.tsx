@@ -126,9 +126,18 @@ export default async function AdminDashboardPage() {
           <div className="bg-gray-900 rounded-xl p-5">
             <AssignmentManagerClient
               initialAssignments={assignments.map((a) => ({
-                ...a,
+                id: a.id,
+                salesperson: {
+                  id: a.salesperson.id,
+                  name: a.salesperson.name,
+                  company: { name: a.salesperson.company.name },
+                },
                 video: {
-                  ...a.video,
+                  id: a.video.id,
+                  platform: a.video.platform,
+                  url: a.video.url,
+                  title: a.video.title,
+                  thumbnailUrl: a.video.thumbnailUrl,
                   hashtags: a.video.videoHashtags.map((vh) => vh.hashtag.tagName),
                 },
               }))}

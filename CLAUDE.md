@@ -21,7 +21,7 @@
 ## 技術スタック
 
 ```
-フロントエンド : Next.js 15 (App Router), TypeScript, Tailwind CSS
+フロントエンド : Next.js (App Router), TypeScript, Tailwind CSS v4
 バックエンド   : Next.js Route Handlers (API)
 ORM           : Prisma
 DB            : PostgreSQL (Neon)
@@ -29,10 +29,12 @@ DB            : PostgreSQL (Neon)
 本編動画      : YouTube IFrame API, Instagram oEmbed（外部配置）
 顔出し動画    : Supabase Storage（本システム配置・直接配信）
 動画アップロード: Supabase Storage（営業マンがダッシュボードからアップロード）
+動画尺検証    : @ffprobe-installer/ffprobe（Vercel サーバーレス対応バイナリ）
 LINE連携      : LINE Messaging API (@line/bot-sdk)
 メール        : Resend
-デプロイ      : Vercel
-Embed JS      : Vanilla TypeScript (独立バンドル)
+デプロイ      : Vercel（https://homereelmatch.vercel.app）
+Embed JS      : Vanilla TypeScript (独立バンドル, Shadow DOM)
+テスト        : Vitest + @testing-library/react + happy-dom / Playwright (E2E)
 ```
 
 ---
@@ -41,96 +43,133 @@ Embed JS      : Vanilla TypeScript (独立バンドル)
 
 ```
 homereelmatch/
-├── CLAUDE.md                    ← このファイル
-├── requirements.md              ← 要求定義書
 ├── prisma/
 │   ├── schema.prisma
+│   ├── seed.ts
 │   └── migrations/
+│       ├── 20260611000000_init/
+│       ├── 20260616000000_add_salesperson_role/
+│       └── 20260619000000_add_salesperson_password/
 ├── src/
-│   ├── app/                     ← Next.js App Router
-│   │   ├── (public)/            ← 一般ユーザー向けルート
-│   │   │   ├── page.tsx         ← ポータルホーム（P-01）
-│   │   │   ├── watch/
-│   │   │   │   └── [videoId]/
-│   │   │   │       └── page.tsx ← 動画視聴（P-02）
-│   │   │   ├── contact/
-│   │   │   │   └── [salespersonId]/
-│   │   │   │       └── page.tsx ← コンタクト申請（P-03）
-│   │   │   ├── booking/
-│   │   │   │   └── [contactRequestId]/
-│   │   │   │       └── page.tsx ← 面談予約（P-04）
-│   │   │   └── tag/
-│   │   │       └── [tagName]/
-│   │   │           └── page.tsx ← タグ検索結果（P-06）
-│   │   ├── (sales)/             ← 営業マン向けルート
+│   ├── proxy.ts                     ← Next.js middleware（src/middleware.ts は使用しない）
+│   ├── app/
+│   │   ├── layout.tsx
+│   │   ├── (public)/
+│   │   │   ├── page.tsx             ← P-01 ポータルホーム
+│   │   │   ├── watch/[videoId]/page.tsx       ← P-02 動画視聴
+│   │   │   ├── contact/[salespersonId]/page.tsx ← P-03 コンタクト申請
+│   │   │   ├── booking/[contactRequestId]/
+│   │   │   │   ├── page.tsx         ← P-04 面談予約
+│   │   │   │   └── complete/page.tsx ← P-05 予約完了
+│   │   │   ├── tag/[tagName]/page.tsx ← P-06 タグ検索結果
+│   │   │   └── embed-demo/page.tsx  ← W-01 Embedウィジェットデモ
+│   │   ├── (sales)/
 │   │   │   ├── login/page.tsx
-│   │   │   ├── dashboard/page.tsx
-│   │   │   ├── videos/
-│   │   │   │   ├── page.tsx     ← 動画管理一覧
-│   │   │   │   ├── new/page.tsx ← 動画新規登録
-│   │   │   │   └── [videoId]/
-│   │   │   │       └── edit/page.tsx ← 顔出し差し替え
-│   │   │   ├── inquiries/page.tsx ← 問い合わせ管理
-│   │   │   └── schedule/page.tsx  ← スケジュール管理
-│   │   ├── (admin)/             ← 管理者ルート
-│   │   │   └── dashboard/page.tsx
+│   │   │   └── dashboard/
+│   │   │       ├── page.tsx
+│   │   │       ├── videos/
+│   │   │       │   ├── page.tsx
+│   │   │       │   ├── new/page.tsx  ← ADMIN のみアクセス可
+│   │   │       │   └── [videoId]/edit/page.tsx
+│   │   │       ├── inquiries/page.tsx
+│   │   │       └── schedule/page.tsx
+│   │   ├── (admin)/
+│   │   │   └── admin/dashboard/page.tsx
 │   │   └── api/
+│   │       ├── auth/[...nextauth]/route.ts
 │   │       ├── videos/
-│   │       │   ├── route.ts               ← GET一覧, POST登録
+│   │       │   ├── route.ts                     ← GET一覧, POST登録
 │   │       │   └── [videoId]/
-│   │       │       └── route.ts           ← GET詳細, PATCH, DELETE
+│   │       │       ├── route.ts                 ← GET, PATCH, DELETE
+│   │       │       └── view/route.ts            ← POST viewCount++
 │   │       ├── face-videos/
-│   │       │   ├── upload/route.ts        ← 顔出し動画アップロード（Supabase Storage）
-│   │       │   └── [salespersonVideoId]/
-│   │       │       └── route.ts           ← GET, DELETE
-│   │       ├── hashtags/route.ts     ← タグ検索
-│   │       ├── contact/route.ts      ← コンタクト申請受付
+│   │       │   ├── upload/route.ts              ← 顔出し動画アップロード（≤10秒検証）
+│   │       │   └── [salespersonVideoId]/route.ts
+│   │       ├── hashtags/route.ts
+│   │       ├── house-makers/route.ts            ← 公開: 有効なハウスメーカー一覧
+│   │       ├── venues/route.ts                  ← 公開: 有効な会場一覧
+│   │       ├── contact/
+│   │       │   ├── route.ts
+│   │       │   └── [contactRequestId]/route.ts
 │   │       ├── booking/
-│   │       │   ├── slots/route.ts    ← 空き時間取得
-│   │       │   └── confirm/route.ts  ← 予約確定
-│   │       ├── line/
-│   │       │   └── webhook/route.ts  ← LINE Webhook
-│   │       └── embed/
-│   │           └── videos/route.ts  ← Embedウィジェット用API
+│   │       │   ├── slots/route.ts
+│   │       │   ├── slots/[slotId]/route.ts
+│   │       │   └── confirm/route.ts
+│   │       ├── instagram/oembed/route.ts        ← oEmbedプロキシ（24hキャッシュ）
+│   │       ├── line/webhook/route.ts
+│   │       ├── embed/videos/route.ts            ← CORS対応
+│   │       └── admin/
+│   │           ├── videos/route.ts
+│   │           ├── videos/[videoId]/route.ts
+│   │           ├── house-makers/route.ts
+│   │           ├── house-makers/[id]/route.ts
+│   │           ├── venues/route.ts
+│   │           ├── venues/[id]/route.ts
+│   │           ├── companies/route.ts
+│   │           ├── companies/[companyId]/route.ts
+│   │           ├── salespersons/route.ts
+│   │           ├── salespersons/[salespersonId]/route.ts
+│   │           ├── assignments/route.ts
+│   │           └── assignments/[assignmentId]/route.ts
 │   ├── components/
 │   │   ├── video/
-│   │   │   ├── CompositePlayer.tsx    ← 顔出し+本編の統合プレーヤー（再生シーケンス制御）
-│   │   │   ├── FaceRollPlayer.tsx     ← 顔出し動画プレーヤー（本システム配信 <video>タグ）
-│   │   │   ├── MainVideoPlayer.tsx    ← 本編プレーヤー（YouTube/Instagram切り替え）
-│   │   │   ├── VideoFeed.tsx          ← スワイプフィード
-│   │   │   ├── VideoCard.tsx          ← サムネイルカード
-│   │   │   ├── VideoFooter.tsx        ← 営業マン情報・CTAボタン
-│   │   │   └── FaceVideoUploader.tsx  ← 顔出し動画アップロードUI（営業マン用）
+│   │   │   ├── CompositePlayer.tsx    ← PRE_ROLL→MAIN→POST_ROLL→ENDED 状態機械
+│   │   │   ├── FaceRollPlayer.tsx     ← <video>タグ、スキップ禁止
+│   │   │   ├── MainVideoPlayer.tsx    ← YouTube/Instagram切り替え
+│   │   │   ├── VideoFeedClient.tsx    ← 無限スクロールフィード
+│   │   │   ├── VideoCard.tsx          ← サムネイルカード（モバイル対応、Client Component）
+│   │   │   ├── VideoCardSkeleton.tsx
+│   │   │   ├── VideoFooter.tsx
+│   │   │   ├── FaceVideoUploader.tsx
+│   │   │   └── WatchOverlay.tsx       ← 戻る・シェアボタン・viewCount送信
 │   │   ├── search/
 │   │   │   ├── SearchBar.tsx
-│   │   │   ├── FilterPanel.tsx
 │   │   │   └── HashtagCloud.tsx
 │   │   ├── contact/
 │   │   │   ├── ContactForm.tsx
 │   │   │   └── BookingCalendar.tsx
-│   │   ├── salesperson/
-│   │   │   └── SalespersonCard.tsx
-│   │   └── ui/                      ← shadcn/ui コンポーネント
+│   │   ├── embed/
+│   │   │   └── EmbedDemoClient.tsx
+│   │   ├── sales/
+│   │   │   ├── VideoListClient.tsx
+│   │   │   ├── VideoNewForm.tsx
+│   │   │   ├── VideoEditClient.tsx
+│   │   │   ├── InquiriesClient.tsx
+│   │   │   └── ScheduleClient.tsx
+│   │   └── admin/
+│   │       ├── VideoManagerClient.tsx
+│   │       ├── HouseMakerManagerClient.tsx
+│   │       ├── VenueManagerClient.tsx
+│   │       ├── SalespersonManagerClient.tsx
+│   │       └── AssignmentManagerClient.tsx
 │   ├── lib/
-│   │   ├── prisma.ts                ← Prismaクライアントシングルトン
-│   │   ├── auth.ts                  ← NextAuth設定
-│   │   ├── youtube.ts               ← YouTube API ユーティリティ
-│   │   ├── instagram.ts             ← Instagram oEmbed ユーティリティ
-│   │   ├── storage.ts               ← Supabase Storage（顔出し動画アップロード・URL取得）
-│   │   ├── line.ts                  ← LINE Messaging API
-│   │   ├── email.ts                 ← Resend メール送信
+│   │   ├── prisma.ts          ← Prismaクライアントシングルトン
+│   │   ├── auth.ts            ← NextAuth v5設定
+│   │   ├── admin.ts           ← requireAdmin() / requireSalesperson() ヘルパー
+│   │   ├── storage.ts         ← Supabase Storage操作
+│   │   ├── video-duration.ts  ← ffprobe による尺検証
+│   │   ├── encrypt.ts         ← AES-256-GCM暗号化（questionnaireJson用）
+│   │   ├── cors.ts            ← CORS ロジック
+│   │   ├── instagram.ts       ← Instagram oEmbed（24hキャッシュ）
+│   │   ├── youtube.ts
+│   │   ├── line.ts            ← LINE Messaging API
+│   │   ├── email.ts           ← Resend
 │   │   └── utils.ts
 │   ├── types/
-│   │   └── index.ts                 ← 共通型定義
+│   │   ├── index.ts           ← 全DTO型定義
+│   │   └── next-auth.d.ts
 │   └── hooks/
-│       ├── useVideoFeed.ts          ← 無限スクロール・スワイプ管理
+│       ├── useVideoFeed.ts
 │       └── useIntersectionObserver.ts
-├── embed/                           ← Embedウィジェット（独立バンドル）
-│   ├── src/
-│   │   └── widget.ts
-│   └── dist/
-│       └── embed.js                 ← CDN配信用
-├── .env.local.example
+├── embed/
+│   ├── src/widget.ts
+│   ├── dist/embed.js
+│   └── vite.config.ts
+├── public/
+│   └── embed.js               ← embed:build で自動コピー
+├── e2e/
+│   └── contact-flow.spec.ts
+├── vercel.json
 └── package.json
 ```
 
@@ -138,228 +177,58 @@ homereelmatch/
 
 ## データベーススキーマ（Prisma）
 
-```prisma
-// prisma/schema.prisma
+実際のスキーマは `prisma/schema.prisma` を参照。主要モデルの概要：
 
-generator client {
-  provider = "prisma-client-js"
-}
-
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-
-model User {
-  id             String           @id @default(cuid())
-  name           String
-  email          String?
-  phone          String?
-  lineId         String?
-  createdAt      DateTime         @default(now())
-  contactRequests ContactRequest[]
-
-  @@map("users")
-}
-
-model Company {
-  id                 String        @id @default(cuid())
-  name               String
-  address            String?
-  modelHouseName     String?
-  modelHouseAddress  String?
-  lat                Float?
-  lng                Float?
-  salespersons       Salesperson[]
-  createdAt          DateTime      @default(now())
-
-  @@map("companies")
-}
-
-model Salesperson {
-  id             String              @id @default(cuid())
-  name           String
-  email          String              @unique
-  lineId         String?
-  profileImage   String?
-  bio            String?
-  company        Company             @relation(fields: [companyId], references: [id])
-  companyId      String
-  videoSegments  SalespersonVideo[]
-  slots          AvailableSlot[]
-  contactRequests ContactRequest[]
-  createdAt      DateTime            @default(now())
-
-  @@map("salespersons")
-}
-
-model Video {
-  id             String              @id @default(cuid())
-  platform       Platform
-  url            String
-  thumbnailUrl   String?
-  title          String
-  description    String?
-  area           String?
-  houseType      String?
-  priceRange     String?
-  viewCount      Int                 @default(0)
-  isActive       Boolean             @default(true)
-  salespersonVideos SalespersonVideo[]
-  videoHashtags  VideoHashtag[]
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
-
-  @@map("videos")
-}
-
-enum Platform {
-  YOUTUBE
-  INSTAGRAM
-}
-
-// 営業マン×動画の顔出し動画設定テーブル
-model SalespersonVideo {
-  id                   String      @id @default(cuid())
-  video                Video       @relation(fields: [videoId], references: [id])
-  videoId              String
-  salesperson          Salesperson @relation(fields: [salespersonId], references: [id])
-  salespersonId        String
-
-  // プリロール（本編前）: 本システムStorageに配置した顔出し動画
-  preRollStoragePath   String?     // Supabase Storage パス（例: face-videos/xxx.mp4）
-  preRollPublicUrl     String?     // 配信URL（Supabase Storage public URL）
-  preRollDurationSec   Int?        // 実際の尺（≤6秒、アップロード時に検証）
-
-  // ポストロール（本編後）: 同上
-  postRollStoragePath  String?
-  postRollPublicUrl    String?
-  postRollDurationSec  Int?
-
-  isPrimary            Boolean     @default(false)
-  createdAt            DateTime    @default(now())
-  updatedAt            DateTime    @updatedAt
-
-  @@unique([videoId, salespersonId])
-  @@map("salesperson_videos")
-}
-
-model Hashtag {
-  id            String         @id @default(cuid())
-  tagName       String         @unique
-  usageCount    Int            @default(0)
-  videoHashtags VideoHashtag[]
-
-  @@map("hashtags")
-}
-
-model VideoHashtag {
-  id        String  @id @default(cuid())
-  video     Video   @relation(fields: [videoId], references: [id])
-  videoId   String
-  hashtag   Hashtag @relation(fields: [hashtagId], references: [id])
-  hashtagId String
-
-  @@unique([videoId, hashtagId])
-  @@map("video_hashtags")
-}
-
-model ContactRequest {
-  id              String      @id @default(cuid())
-  user            User        @relation(fields: [userId], references: [id])
-  userId          String
-  salesperson     Salesperson @relation(fields: [salespersonId], references: [id])
-  salespersonId   String
-  videoId         String?
-  contactMethod   ContactMethod
-  questionnaireJson Json?
-  status          ContactStatus @default(PENDING)
-  appointment     Appointment?
-  createdAt       DateTime    @default(now())
-
-  @@map("contact_requests")
-}
-
-enum ContactMethod {
-  LINE
-  EMAIL
-}
-
-enum ContactStatus {
-  PENDING
-  RESPONDED
-  APPOINTED
-  CLOSED
-}
-
-model Appointment {
-  id               String         @id @default(cuid())
-  contactRequest   ContactRequest @relation(fields: [contactRequestId], references: [id])
-  contactRequestId String         @unique
-  salespersonId    String
-  userId           String
-  scheduledAt      DateTime
-  modelHouseId     String?
-  status           AppointmentStatus @default(CONFIRMED)
-  createdAt        DateTime       @default(now())
-
-  @@map("appointments")
-}
-
-enum AppointmentStatus {
-  CONFIRMED
-  CANCELLED
-  COMPLETED
-}
-
-model AvailableSlot {
-  id            String      @id @default(cuid())
-  salesperson   Salesperson @relation(fields: [salespersonId], references: [id])
-  salespersonId String
-  startAt       DateTime
-  endAt         DateTime
-  isBooked      Boolean     @default(false)
-  createdAt     DateTime    @default(now())
-
-  @@map("available_slots")
-}
+```
+User           — 一般ユーザー（コンタクト申請者）
+Company        — 会社（モデルハウス情報含む）
+Salesperson    — 営業マン（email/password/role: SALESPERSON|ADMIN）
+HouseMaker     — ハウスメーカー（管理者が登録・管理）
+Venue          — 会場（管理者が登録・管理）
+Video          — 動画（houseMakerId/venueId FK、area/houseType/priceRange は廃止済み）
+SalespersonVideo — 営業マン×動画の顔出し動画設定（preRoll/postRoll ≤10秒）
+Hashtag / VideoHashtag
+ContactRequest — コンタクト申請（questionnaireJson は AES-256-GCM 暗号化）
+Appointment    — 面談予約
+AvailableSlot  — 空き時間スロット
 ```
 
 ---
 
 ## 環境変数
 
+`.env.local.example` を参照。主要項目：
+
 ```bash
-# .env.local
+DATABASE_URL="postgresql://...neon.tech/neondb?sslmode=require"
+# ⚠️ channel_binding=require は除去すること（Prisma P1000エラーの原因）
 
-# Database
-DATABASE_URL="postgresql://..."
-
-# NextAuth
-NEXTAUTH_SECRET="..."
+AUTH_SECRET="..."                    # NextAuth必須（NEXTAUTH_SECRET ではない）
 NEXTAUTH_URL="http://localhost:3000"
 
-# YouTube
 YOUTUBE_API_KEY="..."
 
-# Supabase Storage（顔出し動画配置）
 SUPABASE_URL="https://xxxx.supabase.co"
-SUPABASE_SERVICE_ROLE_KEY="..."         # サーバーサイドのみ使用
+SUPABASE_SERVICE_ROLE_KEY="..."
 NEXT_PUBLIC_SUPABASE_URL="https://xxxx.supabase.co"
-NEXT_PUBLIC_SUPABASE_ANON_KEY="..."     # 公開URL生成用
+NEXT_PUBLIC_SUPABASE_ANON_KEY="..."
 
-# LINE Messaging API
 LINE_CHANNEL_SECRET="..."
 LINE_CHANNEL_ACCESS_TOKEN="..."
 
-# Resend（メール送信）
 RESEND_API_KEY="..."
 FROM_EMAIL="noreply@homereelmatch.example.com"
 
-# Embed Widget
-NEXT_PUBLIC_APP_URL="https://homereelmatch.example.com"
-EMBED_ALLOWED_ORIGINS="https://portal.example.com,https://another.example.com"
+NEXT_PUBLIC_APP_URL="https://homereelmatch.vercel.app"
+EMBED_ALLOWED_ORIGINS="https://portal.example.com"
+
+ENCRYPTION_KEY="<64文字のhex>"      # AES-256-GCM鍵（本番必須）
+# 生成: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+
+INSTAGRAM_ACCESS_TOKEN="..."         # Instagram oEmbed用（任意）
 ```
+
+**重要**: Prisma は `.env.local` を読まない。`prisma migrate deploy` / `prisma db push` には `.env` か環境変数を直接渡す。
 
 ---
 
@@ -379,26 +248,11 @@ EMBED_ALLOWED_ORIGINS="https://portal.example.com,https://another.example.com"
 
 ### API Routes
 
-すべてのRoute Handlerは以下のパターンに従うこと：
-
 ```typescript
-// src/app/api/videos/route.ts の例
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { z } from "zod";
-
-const QuerySchema = z.object({
-  tag: z.string().optional(),
-  area: z.string().optional(),
-  limit: z.coerce.number().default(20),
-  cursor: z.string().optional(),
-});
-
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = request.nextUrl;
-    const query = QuerySchema.parse(Object.fromEntries(searchParams));
-    // ... 処理
+    const query = QuerySchema.parse(Object.fromEntries(request.nextUrl.searchParams));
+    // ...
     return NextResponse.json({ data, nextCursor });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -410,101 +264,62 @@ export async function GET(request: NextRequest) {
 }
 ```
 
+### 認証・認可
+
+- `src/lib/admin.ts` の `requireAdmin()` / `requireSalesperson()` を使用すること
+- API Routes では必ず認証チェック → 所有権チェック（ADMIN は所有権チェック除外）
+- 管理者のみ: 動画登録・会社/営業マン/接続設定の管理
+- 営業マンのみ: 自分の顔出し動画アップロード・問い合わせ・スケジュール管理
+
+### ロール分離
+
+| ロール | アクセス可能なページ |
+|--------|------------------|
+| SALESPERSON | `/dashboard`（割り当て済み動画のみ）, `/dashboard/videos/[id]/edit`, `/dashboard/inquiries`, `/dashboard/schedule` |
+| ADMIN | `/admin/dashboard`（全管理機能）, 上記全て |
+
 ### 動画プレーヤー実装方針
 
 #### 再生シーケンス（CompositePlayer）
 
 ```
 [プリロール顔出し動画] → [本編動画] → [ポストロール顔出し動画]
-        ↑                    ↑                   ↑
-  <video>タグで再生    YouTube/Instagram     <video>タグで再生
-  本システム配信          IFrame埋め込み       本システム配信
-  スキップ不可           通常再生             スキップ不可
+  <video>タグ/スキップ不可   YouTube/Instagram IFrame   <video>タグ/スキップ不可
 ```
-
-CompositePlayer の状態機械：
 
 ```typescript
-type PlaybackPhase =
-  | "PRE_ROLL"   // プリロール再生中（preRollPublicUrl が存在する場合）
-  | "MAIN"       // 本編再生中
-  | "POST_ROLL"  // ポストロール再生中（postRollPublicUrl が存在する場合）
-  | "ENDED";     // 全フェーズ完了
-
-// フェーズ遷移:
-// PRE_ROLL終了 → MAIN開始
-// MAIN終了     → POST_ROLL開始（なければENDED）
-// POST_ROLL終了 → ENDED
+type PlaybackPhase = "PRE_ROLL" | "MAIN" | "POST_ROLL" | "ENDED";
 ```
 
-#### FaceRollPlayer（顔出し動画）
+#### 顔出し動画アップロード検証
 
-```typescript
-// HTML5 <video> タグを使用（本システム配信URL）
-// controls={false} でUI非表示（スキップ・シーク禁止）
-// autoPlay, playsInline, muted={false}
-// onEnded で親コンポーネントに次フェーズ遷移を通知
-// 尺の上限: 6秒（アップロードAPIで server-side 検証）
-```
+- ファイル形式: `video/mp4`, `video/webm`, `video/quicktime`
+- ファイルサイズ: 50MB 以下
+- 尺の上限: **10秒**（ffprobe で server-side 検証）
+- Storage パス: `face-videos/{salespersonId}/{videoId}/{pre|post}_{timestamp}.mp4`
 
-#### MainVideoPlayer（本編動画）
+#### Instagram oEmbed
 
-```typescript
-// YouTube: IFrame API を使用
-//   - onStateChange(YT.PlayerState.ENDED) で次フェーズへ遷移
-// Instagram: oEmbed HTMLを dangerouslySetInnerHTML で挿入
-//   - Instagram は ended イベント取得不可のため、
-//     動画の estimated_duration をDBに保存しタイマーで代替
-```
-
-#### 顔出し動画アップロード検証（サーバーサイド）
-
-```typescript
-// src/app/api/face-videos/upload/route.ts
-// 1. ファイル形式: video/mp4, video/webm, video/quicktime のみ許可
-// 2. ファイルサイズ: 50MB 以下
-// 3. 尺の検証: ffprobe（または動画メタデータ解析）で duration ≤ 6秒を確認
-//    → 超過した場合は 400 エラーで拒否
-// 4. 検証通過後に Supabase Storage の face-videos/ バケットへアップロード
-// 5. StorageパスとpublicUrlをDBの SalespersonVideo に保存
-```
-
-#### Supabase Storage バケット設計
-
-```
-バケット名: face-videos
-アクセス: Public（動画URLを直接 <video src> に渡すため）
-パス構造: face-videos/{salespersonId}/{videoId}/{pre|post}_{timestamp}.mp4
-RLS: アップロードは認証済み営業マン本人のみ
-     閲覧は全員可（Public）
-```
+- `src/lib/instagram.ts` — `unstable_cache` + 24hキャッシュ
+- `GET /api/instagram/oembed` プロキシ経由でブラウザキャッシュも付与
+- ended イベント取得不可 → 30秒タイマーで代替
 
 ### Embedウィジェット
 
-```typescript
-// embed/src/widget.ts
-// - Shadow DOMで外部サイトのCSSと競合させない
-// - 依存ライブラリなし（Vanilla TS のみ）
-// - APIエンドポイント: GET /api/embed/videos?count=5&tag=新着
-// - CORS: EMBED_ALLOWED_ORIGINS に登録されたオリジンのみ許可
-// - クリック時は本アプリの動画URLへwindow.openまたはlocation.href
-```
+- Shadow DOM でホストサイト CSS と隔離
+- `npm run embed:build` で `public/embed.js` まで自動コピー
+- CORS: `EMBED_ALLOWED_ORIGINS` 未設定 = 全許可（開発）、設定時 = 指定 Origin のみ
 
-### LINE通知テンプレート
+### 個人情報の取り扱い
 
-```typescript
-// lib/line.ts に集約
-// コンタクト申請受信時（営業マン宛）:
-//   「【新規問い合わせ】{ユーザー名}様から連絡希望が届きました。
-//    動画: {動画タイトル} / 希望連絡: {LINE|メール}
-//    ダッシュボードを確認してください: {url}」
+- `ContactRequest.questionnaireJson` は `src/lib/encrypt.ts` の `encryptJson()` で暗号化してDBに保存
+- レスポンス時のみ `decryptJson()` で復号
+- `ENCRYPTION_KEY` 未設定時は plaintext 保存（開発モード、本番では警告ログ）
 
-// 予約確定時（ユーザー宛）:
-//   「ご予約が確定しました！
-//    担当: {営業マン名}（{会社名}）
-//    日時: {scheduledAt}
-//    場所: {modelHouseName} {modelHouseAddress}」
-```
+### LINE Webhook
+
+- `X-Line-Signature` ヘッダーを HMAC-SHA256 で検証（`lib/line.ts` の `validateSignature()` を使用）
+- Webhook URL: `https://homereelmatch.vercel.app/api/line/webhook`
 
 ---
 
@@ -525,7 +340,6 @@ RLS: アップロードは認証済み営業マン本人のみ
 ```
 feat: 動画フィード無限スクロール実装
 fix: 顔出しセグメントのタイムスタンプズレ修正
-docs: CLAUDE.md に LINE通知テンプレート追記
 chore: Prismaマイグレーション追加
 refactor: VideoPlayer をサーバー/クライアント分離
 ```
@@ -539,877 +353,106 @@ refactor: VideoPlayer をサーバー/クライアント分離
 
 ---
 
-## フェーズ別実装順序
-
-### Phase 1: 基盤（最初に実装）
-
-```
-1. prisma/schema.prisma 全モデル定義
-2. prisma migrate dev
-3. src/lib/prisma.ts（シングルトン）
-4. src/lib/storage.ts（Supabase Storageクライアント・アップロード・URL取得）
-5. NextAuth設定（営業マンのメール/パスワード認証）
-6. P-01: ポータルホーム（動画カード一覧、サムネイル表示）
-7. P-02: 動画視聴ページ（CompositePlayer基本版: 本編のみ再生）
-8. VideoFeed（スワイプUI）
-```
-
-### Phase 2: コア機能
-
-```
-1. FaceRollPlayer（<video>タグ、スキップ禁止）
-2. CompositePlayer 状態機械（PRE_ROLL→MAIN→POST_ROLL→ENDED）
-3. POST /api/face-videos/upload（尺検証 ≤6秒・Storageアップロード）
-4. S-03: 顔出し動画アップロードUI（FaceVideoUploader）
-5. ハッシュタグ検索・絞り込み（SearchBar, FilterPanel）
-6. P-06: タグ検索結果ページ
-7. P-03: コンタクト申請フォーム（個人情報 + アンケート）
-8. LINE通知（lib/line.ts）
-9. メール通知（lib/email.ts）
-10. VideoFooter: CTAボタン（LINE/メール）
-```
-
-### Phase 3: マッチング
-
-```
-1. P-04: 面談予約（BookingCalendar）
-2. S-02: 営業マンダッシュボード
-3. S-03: 動画管理（登録・顔出し差し替え）
-4. S-04: 問い合わせ管理
-5. S-05: スケジュール管理
-```
-
-### Phase 4: Embed
-
-```
-1. GET /api/embed/videos（CORS設定込み）
-2. embed/src/widget.ts（Shadow DOM実装）
-3. embed/dist/embed.js ビルド設定
-4. W-01: ウィジェットデモページ
-```
-
-### Phase 5: 品質
-
-```
-1. E2Eテスト（Playwright）: コンタクト申請フロー
-2. Lighthouse スコア確認（LCP < 2.5s）
-3. モバイルUI調整
-4. セキュリティ: RLS（Row Level Security）設定確認
-```
-
----
-
 ## よくある実装上の注意点
 
-### Instagram oEmbed
+### middleware
 
-```typescript
-// Access Token が必要（Facebook Developer App登録）
-// レートリミットに注意: キャッシュ必須（Redis or DB）
-// 縦型動画かどうかはoEmbedのメタデータから判定不可 → 手動設定
-```
+- `src/proxy.ts` が middleware として機能する（Next.js の規約から外れた配置）
+- `src/middleware.ts` が**存在すると競合**してログインが壊れる — 絶対に作成しないこと
 
-### 顔出し動画アップロード（営業マンダッシュボード）
+### テスト
 
-```typescript
-// 設定手順:
-// 1. 本編動画（管理者承認済み）を選択
-// 2. プリロール動画ファイルを選択してアップロード（任意）
-// 3. ポストロール動画ファイルを選択してアップロード（任意）
-// 4. プレビュー: CompositePlayer で実際の再生順を確認
-// 5. 保存
+- `NextRequest` コンストラクタは Fetch 仕様の forbidden-header により `origin` を除去する → `vi.spyOn(req.headers, "get").mockImplementation(...)` でモック
+- `vi.mock()` はルートモジュールに効かないケースがある → `src/__tests__/setup.ts` でグローバルモックを使用
+- happy-dom で `toLocaleString("ja-JP")` が "2026/6/20" 形式になる → 日付テキストではなくUI要素で確認
+- LINE Webhook: `X-Line-Signature` は HMAC-SHA256 base64
 
-// FaceVideoUploader コンポーネントの責務:
-// - ファイル選択UI（ドラッグ&ドロップ対応）
-// - POST /api/face-videos/upload へmultipart/form-dataで送信
-// - アップロード進捗表示
-// - 既存動画の置き換え（同salespersonId×videoId×pre/postの上書き）
-// - 古いStorageファイルの削除（PUT時にサーバーサイドで実施）
-```
+### DB接続
 
-### LINE Webhook検証
+- Neon の `DATABASE_URL` に `channel_binding=require` が含まれると Prisma P1000 エラー → 除去すること
+- Prisma は `.env.local` を読まない → `npx prisma db push` 実行時は `.env` か環境変数を直接設定
 
-```typescript
-// X-Line-Signature ヘッダーの検証を必ず行うこと
-// lib/line.ts の validateSignature() を使用
-// Next.js Route HandlerではbodyをRaw Bufferで取得する必要あり
-```
+### デプロイ
 
-### 個人情報の取り扱い
+- `package.json` の `build`: `"prisma generate && next build"`
+- `package.json` の `db:migrate`: `"prisma migrate deploy"`（本番用）
+- `package-lock.json` は `.gitignore` に含める（Linux 生成ファイルが Vercel と不整合になる）
 
-```typescript
-// ContactRequest.questionnaireJson は暗号化してDBに保存
-// 表示時のみ復号
-// データ保持期間: 2年（ポリシー文書と合わせて設定）
-```
+### Tailwind v4
+
+- `green-600` は `#00a63e`（v3比で明るい）→ white との contrast 比 3.21:1 で WCAG AA 不合格 → `green-700` を使用
 
 ---
 
 ## 禁止事項
 
 - `console.log` を本番コードに残さない（`console.error` は可）
-- `prisma.$queryRaw` で生SQL記述は原則禁止（パフォーマンス要件がある場合のみ許可・コメント必須）
+- `prisma.$queryRaw` で生SQL記述は原則禁止
 - クライアントコンポーネントで直接DBアクセス禁止（必ずAPIを経由）
 - 環境変数を `src/` 配下のコードにハードコード禁止
 - `NEXT_PUBLIC_` プレフィックスをシークレットキーに使用禁止
+- `src/middleware.ts` を作成しないこと（proxy.ts と競合）
 
 ---
 
-## 実装進捗ログ
-
-### Phase 1 完了（2026-06-11）
-
-#### 環境・設定
-- パッケージマネージャーは **yarn** を使用（`npm install` はDockerオーバーレイfsのENOTEMPTYエラーで失敗するため）
-- Next.js 16 では `middleware.ts` が非推奨 → `src/proxy.ts` に変更
-- `homereelmatch/.env.local.example` 作成済み（実際の認証情報は別途設定が必要）
-- `prisma/schema.prisma` 全モデル定義済み（DBへの `prisma migrate dev` は未実施）
-
-#### 実装済みファイル一覧
-
-**lib/**
-- `src/lib/prisma.ts` — Prismaクライアントシングルトン
-- `src/lib/storage.ts` — Supabase Storage（uploadFaceVideo / deleteFaceVideo / getFaceVideoPublicUrl）
-- `src/lib/auth.ts` — NextAuth v5 Credentialsプロバイダー（Salespersonのメール/パスワード認証）
-- `src/lib/line.ts` — LINE Messaging API通知（新規問い合わせ・予約確定）
-- `src/lib/email.ts` — Resendメール送信（新規問い合わせ・予約確定）
-- `src/lib/utils.ts` — cn(), mapVideoToDTO(), formatDate(), formatDateTime(), extractYouTubeId()
-
-**types/**
-- `src/types/index.ts` — 全DTO型定義（VideoDTO, SalespersonDTO, ContactRequestDTO 等）
-
-**API Routes**
-- `GET/POST /api/videos` — 動画一覧（カーソルページネーション）・登録
-- `GET/PATCH/DELETE /api/videos/[videoId]` — 動画詳細・更新・論理削除
-- `GET /api/hashtags` — ハッシュタグ一覧（usageCount降順）
-- `POST /api/contact` — コンタクト申請（LINE/メール通知付き）
-- `GET /api/booking/slots` — 営業マンの空き時間取得
-- `POST /api/booking/confirm` — 面談予約確定（スロット更新・通知付き）
-- `GET /api/embed/videos` — Embedウィジェット用（CORS対応）
-- `GET/POST /api/auth/[...nextauth]` — NextAuth認証ハンドラー
-
-**コンポーネント**
-- `VideoCard` — 9:16サムネイルカード
-- `VideoFooter` — 営業マン情報・LINE/メールCTAボタン・ハッシュタグリンク
-- `FaceRollPlayer` — `<video>`タグ、controls非表示（スキップ禁止）
-- `MainVideoPlayer` — YouTube IFrame API / Instagram oEmbed切り替え
-- `CompositePlayer` — PRE_ROLL → MAIN → POST_ROLL → ENDED 状態機械
-- `VideoFeedClient` — IntersectionObserverによる無限スクロールフィード
-- `SearchBar` — 検索フォーム（クライアントコンポーネント）
-- `HashtagCloud` — 人気タグ一覧（サーバーコンポーネント）
-- `ContactForm` — react-hook-form + zodバリデーション
-- `BookingCalendar` — 面談予約日時選択UI
-
-**Pages**
-- `(public)/page.tsx` — P-01 ポータルホーム（サムネイルグリッド・検索・ハッシュタグ）
-- `(public)/watch/[videoId]/page.tsx` — P-02 動画視聴（CompositePlayer）
-- `(public)/contact/[salespersonId]/page.tsx` — P-03 コンタクト申請
-- `(public)/booking/[contactRequestId]/page.tsx` — P-04 面談予約
-- `(public)/tag/[tagName]/page.tsx` — P-06 タグ検索結果
-- `(sales)/login/page.tsx` — S-01 営業マンログイン
-- `(sales)/dashboard/page.tsx` — S-02 ダッシュボード（問い合わせ数・動画数・直近予約）
-
-#### 技術的注意点（実装中に判明）
-- Prismaの`queryRaw`ではなく通常のORMクエリのみ使用
-- `mapVideoToDTO()` でPrismaの`videoHashtags`フィールドをDTOの`hashtags`に変換している（VideoCardなどのコンポーネントが`hashtags`を参照するため）
-- Prisma JsonフィールドへのnullセットはPrisma.JsonNullではなく`undefined`を渡す（型エラー回避）
-- YouTubeプレーヤーの`onEnded`イベントで次フェーズへ遷移、InstagramはoEmbed埋め込み（ended取得不可）
-
----
-
-### Phase 2 完了（2026-06-15）
-
-#### テスト環境
-- **Vitest + @testing-library/react + happy-dom** 導入（`npm run test`）
-- `src/__tests__/setup.ts` に Prisma / Supabase Storage / NextAuth のグローバルモック設定
-- fetch モックは `vi.stubGlobal("fetch", vi.fn())` + `afterEach(() => vi.unstubAllGlobals())` パターンを使用
-- 合計 **54テスト** 全通過、型エラーなし
-
-#### 実装済みファイル一覧（Phase 2）
-
-**API Routes**
-- `POST /api/face-videos/upload` — ファイル形式・サイズ(50MB)・尺(≤6s)検証 + Supabase Storage アップロード
-- `GET/DELETE /api/face-videos/[salespersonVideoId]` — 取得・削除（Storageファイルも連動削除）
-
-**lib/**
-- `src/lib/video-duration.ts` — ffprobe による動画尺検証（一時ファイル経由）
-
-**コンポーネント**
-- `FaceVideoUploader` — ドラッグ&ドロップ・進捗バー・クライアントバリデーション（src/components/video/）
-- `FilterPanel` — エリア/建物タイプ/価格帯フィルター + リセット（src/components/search/）
-- `VideoListClient` — 営業マン動画管理一覧（非公開バッジ・顔出し設定リンク）（src/components/sales/）
-- `ScheduleClient` — 空き時間スロット管理（追加・削除・予約済バッジ）（src/components/sales/）
-
-**修正**
-- `extractYouTubeId` — 生ID（11文字）のパススルー対応
-
-#### 技術的注意点（Phase 2 実装中に判明）
-- yarn は Docker overlay fs の EIO エラーで `.bin` rmdir が失敗するため **npm** を使用（devDependencies の追加は npm）
-- happy-dom では `toLocaleString("ja-JP")` が "2026/6/20" 形式になる（"2026年6月20日" にならない）→ テストは日付テキストではなく UI 要素（削除ボタン等）の出現で状態を確認
-- happy-dom の `<input accept="...">` は `userEvent.upload` で MIME タイプフィルタをかける → 非対応ファイルのテストには `fireEvent.change` + `Object.defineProperty(input, "files", ...)` を使用
-- `expect.anything()` は `undefined` に一致しない → 引数なしの fetch 呼び出しに使う場合は `mock.calls[0][0]` で直接確認
-
-### Phase 3 完了（2026-06-15）
-
-#### 実装済みファイル一覧（Phase 3）
-
-**API Routes**
-- `POST /api/booking/slots` — 空き時間スロット作成（営業マン存在確認・時刻バリデーション）
-- `DELETE /api/booking/slots/[slotId]` — スロット削除（予約済みは409で拒否）
-- `GET /api/contact?salespersonId` — 問い合わせ一覧（ステータスフィルター付き）
-- `PATCH /api/contact/[contactRequestId]` — 問い合わせステータス更新
-- `POST /api/line/webhook` — LINE Webhook（HMAC-SHA256署名検証）
-
-**Pages（営業マンダッシュボード）**
-- `/dashboard/videos` — 設定済み・未設定動画一覧
-- `/dashboard/videos/new` — 動画新規登録フォーム（VideoNewForm）
-- `/dashboard/videos/[videoId]/edit` — 顔出し動画設定（VideoEditClient + CompositePlayerプレビュー）
-- `/dashboard/inquiries` — 問い合わせ管理（InquiriesClient統合）
-- `/dashboard/schedule` — スケジュール管理（ScheduleClient統合）
-
-**Components**
-- `InquiriesClient` — 問い合わせ一覧・ステータス変更・絞り込み（src/components/sales/）
-- `VideoNewForm` — 動画登録フォーム（URL/タイトル/エリア/ハッシュタグ）（src/components/sales/）
-- `VideoEditClient` — 顔出し動画設定 + CompositePlayer プレビュー（src/components/sales/）
-
-### Phase 4 完了（2026-06-15）
-
-#### 実装済みファイル一覧（Phase 4）
-
-**lib/**
-- `src/lib/cors.ts` — CORS ロジック（`isOriginAllowed`, `buildCorsHeaders`）
-  - 未設定 = 全許可（開発モード）、設定時 = 指定 Origin のみ許可
-
-**更新**
-- `src/app/api/embed/videos/route.ts` — `@/lib/cors` をインポートするよう分離
-
-#### 技術的知見（Phase 3/4 実装中に判明）
-- `NextRequest` コンストラクタは Fetch 仕様の forbidden-header により `origin` を除去する → テストでは `vi.spyOn(req.headers, "get")` でモックする
-- Node.js の Undici も happy-dom も同様に `origin` を除去する
-- Vitest のテストファイル内の `vi.mock()` はルートモジュールに効かないケースがある → setup.ts でグローバルモックすること
-- happy-dom の `process.env` はテストコードと route が別スコープになることがある → 直接関数をインポートして unit test する設計が堅牢
-- LINE Webhook: `X-Line-Signature` は HMAC-SHA256 base64 → `crypto.createHmac("sha256", secret).update(body).digest("base64")`
-
-### Phase 5 完了（2026-06-15）
-
-#### 実装済みファイル一覧（Phase 5）
-
-**管理者 API**
-- `GET /api/admin/videos` — 全動画一覧（非公開含む・salespersonCount付き・isActiveフィルター）
-- `PATCH /api/admin/videos` — 複数動画の一括公開/非公開切り替え
-- `PATCH /api/admin/videos/[videoId]` — 個別動画更新（isActive/title/description等）
-
-**管理者ページ**
-- `(admin)/dashboard/page.tsx` — 統計サマリー（動画数・営業マン数・未対応問い合わせ）
-- `VideoManagerClient` — 動画一覧・公開切り替え・一括操作（src/components/admin/）
-
-**Embedウィジェット**
-- `embed/src/widget.ts` — Vanilla TypeScript, Shadow DOM 実装
-  - `createWidget(options)` / `HomeReelMatchWidget` クラス
-  - auto-init: `[data-homereelmatch]` 属性で自動初期化
-  - Shadow DOM でホストサイト CSS と完全隔離
-- `embed/vite.config.ts` — IIFE 形式でビルド（`npm run embed:build`）
-- `embed/dist/embed.js` — CDN 配信用ミニファイ済み
-
-#### 全フェーズ完了サマリー
-
-| フェーズ | 内容 | テスト |
-|---|---|---|
-| Phase 1 | 基盤（DB設計・Auth・API基本・コンポーネント） | - |
-| Phase 2 | 顔出し動画アップロード・フィルター・ScheduleClient | 34件 |
-| Phase 3 | 営業マンダッシュボード全ページ・LINE Webhook | 79件 |
-| Phase 4 | Embed CORS ロジック分離 | 89件 |
-| Phase 5 | 管理者ダッシュボード・Embedウィジェット | **105件** |
-| Phase 6 | 管理者ロール実装・Playwright E2E テスト | **114件 + E2E 13件** |
-
-### 残課題
-
-```
-- prisma migrate dev（本番DB接続後に実行）
-  → prisma/migrations/20260616000000_add_salesperson_role/migration.sql 作成済み
-- セキュリティ: Supabase RLS（Row Level Security）設定確認
-```
-
-### Lighthouse スコア（dev モード計測 / 2026-06-16 更新）
-
-#### ホームページ（/）
-
-| 指標 | スコア | 備考 |
-|---|---|---|
-| Performance | 94 | TBT 270ms、dev モードとして良好 |
-| Accessibility | 100 | コントラスト比修正済み |
-| Best Practices | 100 | |
-| SEO | 100 | |
-| LCP | 1.8s | **目標 < 2.5s 達成** |
-| Speed Index | 0.9s | |
-| CLS | 0.014 | 許容範囲内 |
-
-#### 動画視聴ページ（/watch/[videoId]）
-
-| 指標 | スコア | 備考 |
-|---|---|---|
-| Performance | 89 | |
-| Accessibility | 100 | color-contrast + landmark-one-main 修正済み |
-| Best Practices | 96 | |
-| SEO | 100 | |
-| LCP | 1.2s | 優秀 |
-
----
-
-## セッション終了ノート（2026-06-15）
-
-### このセッションで実施した作業
-
-**開始時の状態**: Phase 1 基盤実装済み（テスト環境なし）
-
-**実施内容**:
-1. **Vitest テスト環境セットアップ** — vitest + @testing-library/react + happy-dom 導入、グローバルモック設定
-2. **Phase 2〜5 を TDD（Red→Green→Refactor）で実装** — 計 105 テスト、ソースファイル 59 本
-
-### 実装した主要機能
-
-| カテゴリ | 機能 |
-|---|---|
-| 顔出し動画 | アップロード API（ffprobe 尺検証）・FaceVideoUploader コンポーネント |
-| 検索・フィルター | FilterPanel（エリア/建物タイプ/価格帯） |
-| 営業マン DB | スロット CRUD、問い合わせ一覧＋ステータス更新 |
-| LINE | Webhook（HMAC-SHA256 署名検証） |
-| ダッシュボード | videos・inquiries・schedule の 5 ページ＋各クライアントコンポーネント |
-| 管理者 | 動画管理（一括公開/非公開）・統計サマリーページ |
-| Embed | Vanilla TS + Shadow DOM ウィジェット（auto-init 対応） |
-| CORS | `src/lib/cors.ts` に分離、未設定=全許可（開発モード） |
-
-### テストの重要な知見（次セッションで役立つ）
-
-1. **`NextRequest` の `origin` ヘッダー問題**
-   - Fetch 仕様の forbidden-header のため、コンストラクタで設定しても除去される
-   - 解決策: `vi.spyOn(req.headers, "get").mockImplementation(...)` でモック
-
-2. **Vitest テストファイル内の `vi.mock()` がルートモジュールに効かない**
-   - `setup.ts` でグローバルモックとして登録すること
-   - テストファイルの `vi.mock()` はそのテストの直接インポートには効くが、インポートするモジュールが更にインポートするモジュールには効かないことがある
-
-3. **happy-dom の `process.env` スコープ分離**
-   - テストコード側の `process.env` 変更がルートモジュール側に伝わらないことがある
-   - 解決策: 対象関数を直接インポートして unit test する設計（`cors.test.ts` パターン）
-
-4. **Node.js 環境（`environmentMatchGlobs: node`）も `origin` を除去する**
-   - Undici（Node.js の fetch 実装）も forbidden-header を除去する
-   - happy-dom に戻して `vi.spyOn` で対処する方が正しい
-
-### コマンドリファレンス
+## コマンドリファレンス
 
 ```bash
-# テスト実行
-npm run test              # 全テスト
-npx vitest run src/__tests__/api/  # API テストのみ
-
-# 型チェック
-npx tsc --noEmit
-
-# Embed ウィジェットビルド
-npm run embed:build
-```
-
-### 次のセッションで始めるべき作業
-
-優先度高:
-1. `.env.local` の実値設定 → `prisma migrate dev` 実行
-2. 管理者ロール実装（`session.user.role === "ADMIN"` チェック）
-
-優先度中:
-3. Playwright E2E テスト（コンタクト申請フロー）
-4. モバイル UI 調整（縦型動画フィードの最適化）
-
-優先度低:
-5. Lighthouse パフォーマンス測定
-6. Supabase RLS ポリシー設定
-
----
-
-## セッション終了ノート（2026-06-16）
-
-### このセッションで実施した作業
-
-**開始時の状態**: Phase 5（管理者ダッシュボード・Embed）実装済み、セキュリティ未実装
-
-**実施内容**:
-1. **API セキュリティ強化** — `requireSalesperson()` ヘルパー追加、9本のAPIルートに認証 + 所有権チェック
-2. **Playwright E2E テスト実行** — Docker PostgreSQL + seed データで 13/13 全通過確認
-3. **Lighthouse 計測** — ホームページ Performance 94、LCP 1.8s、Accessibility 100
-4. **アクセシビリティ修正** — ウォッチページの color-contrast（Tailwind v4 green-600 対応）・landmark-one-main
-
-### 全フェーズ完了サマリー
-
-| フェーズ | 内容 | テスト |
-|---|---|---|
-| Phase 1 | 基盤（DB設計・Auth・API基本・コンポーネント） | — |
-| Phase 2 | 顔出し動画アップロード・フィルター・ScheduleClient | 34件 |
-| Phase 3 | 営業マンダッシュボード全ページ・LINE Webhook | 79件 |
-| Phase 4 | Embed CORS ロジック分離 | 89件 |
-| Phase 5 | 管理者ダッシュボード・Embedウィジェット | 105件 |
-| Phase 6 | 管理者ロール実装・Playwright E2E テスト | 114件 + E2E 13件 |
-| Security | API 認証・所有権チェック・Lighthouse 最適化 | **141件 + E2E 13件** |
-
-### 重要技術ノート
-
-- **Tailwind v4 の green-600 は `#00a63e`（Tailwind v3 比で明るい）** → white との contrast 3.21:1で WCAG AA 不合格 → `bg-green-700` に変更
-- **`landmark-one-main`**: `<div>` → `<main>` に変更で解決
-- **Playwright `reuseExistingServer`**: dev サーバーが起動済みなら再利用、なければ自動起動
-- **API 所有権チェックパターン**: `requireSalesperson()` (401) → `auth()` で session 取得 → `session.user.id !== resource.salespersonId` (403) → ADMIN は除外
-
-### コマンドリファレンス
-
-```bash
-# 単体テスト
-npm run test
-
-# E2E テスト（要 Docker PostgreSQL + seed 実行済み）
-npm run test:e2e
-
-# Lighthouse 計測（要 dev server 起動）
-CHROME_PATH=/home/agent/.cache/ms-playwright/chromium-1228/chrome-linux64/chrome \
-  npx lighthouse http://localhost:3000 \
-  --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage --disable-gpu" \
-  --output=json --output-path=/tmp/lh.json --quiet
-
-# DB セットアップ（Docker PostgreSQL）
-DATABASE_URL="postgresql://hrmuser:hrmpass@localhost:5432/homereelmatch" npx prisma db push
-DATABASE_URL="postgresql://hrmuser:hrmpass@localhost:5432/homereelmatch" npx tsx prisma/seed.ts
-```
-
-### 追加実装（2026-06-16 続き）
-
-- **P-05 予約完了ページ** — `src/app/(public)/booking/[contactRequestId]/complete/page.tsx` 追加
-  - 予約日時・担当営業マン・モデルハウス情報を表示
-  - `ContactRequest.appointment` リレーション経由でデータ取得
-  - seed に `cr_test_002` + Appointment を追加（E2E テスト用）
-  - E2E テスト 13→14 件
-- **OGP 強化**（`/watch/[videoId]`）
-  - `og:type: "video.other"`, `og:video` (YouTube embed URL), Twitter Card "player" 追加
-  - `og:url` に正規 URL を設定
-- **アクセシビリティ修正**（前セッション）
-  - `bg-green-600` → `bg-green-700`（Tailwind v4 で #00a63e はコントラスト比 3.21:1 → 不合格）
-  - watch ページを `<div>` → `<main>` に変更（landmark-one-main）
-
-### 残課題
-
-```
-- prisma migrate dev（本番DB接続後に実行）
-  → prisma/migrations/20260616000000_add_salesperson_role/migration.sql 作成済み
-- Supabase RLS ポリシー適用: supabase/rls-policies.sql を Supabase Dashboard で実行
-- 本番環境変数の設定（.env.local.example 参照）
-- Vercel デプロイ
-```
-
----
-
-## セッション終了ノート（2026-06-17）
-
-### このセッションで実施した作業
-
-**開始時の状態**: 全フェーズ完了・セキュリティ強化済み。ユーザーがWindowsローカル環境でのテストを試みていた。
-
-**実施内容**:
-1. **ローカル環境セットアップ支援** — `.env.local` 作成・`prisma db push`・`npx tsx prisma/seed.ts` の手順案内
-2. **ハウスメーカー・会場名管理機能の実装** — 要件変更対応（展示場専用のため エリア/建物タイプ/価格帯 を廃止）
-
-### ローカル環境セットアップ（Windows）
-
-```powershell
-# homereelmatch フォルダで実行
-cd D:\claude-test\Housing_Agent\homereelmatch
-
-# スキーマ適用（初回）
-npx prisma db push
-
-# スキーマ変更時（カラム削除を伴う場合）
-npx prisma db push --accept-data-loss
-
-# シードデータ投入
-npx tsx prisma/seed.ts
-
-# 開発サーバー起動
+# 開発サーバー
 npm run dev
+
+# テスト
+npm run test                         # 全ユニットテスト（154件）
+npx vitest run src/__tests__/api/    # API テストのみ
+npm run test:e2e                     # E2Eテスト（要DB接続・16件）
+
+# 型チェック
+npx tsc --noEmit
+
+# DB操作
+npx prisma db push                   # スキーマ同期（開発）
+npx prisma migrate deploy            # マイグレーション適用（本番）
+npx tsx prisma/seed.ts               # シードデータ投入
+
+# Embed ウィジェット
+npm run embed:build                  # ビルド + public/embed.js へコピー
+
+# デプロイ
+npx vercel --prod
 ```
 
-**テスト認証情報**:
-- 営業マン: `sales@test.example.com` / `password123`
-- 管理者: `admin@test.example.com` / `password123`
-
-**重要**: Prisma は `.env.local` を読まない（Next.js 専用）。`.env` ファイルに `DATABASE_URL` を書くか、PowerShell で `$env:DATABASE_URL="..."` で渡す。
-
-### ハウスメーカー・会場名管理機能（2026-06-17 実装）
-
-#### 要件変更
-- **削除**: `Video.area`、`Video.houseType`、`Video.priceRange`（展示場専用のため不要）
-- **追加**: `Video.houseMakerId`（FK → `HouseMaker`）、`Video.venueId`（FK → `Venue`）
-
-#### 新規 Prisma モデル
-```prisma
-model HouseMaker {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  logoUrl   String?
-  isActive  Boolean  @default(true)
-  videos    Video[]
-  createdAt DateTime @default(now())
-  @@map("house_makers")
-}
-
-model Venue {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  address   String?
-  isActive  Boolean  @default(true)
-  videos    Video[]
-  createdAt DateTime @default(now())
-  @@map("venues")
-}
-```
-
-#### 実装済みファイル一覧
-
-**API Routes（管理者用）**
-- `GET/POST /api/admin/house-makers` — ハウスメーカー一覧取得・新規登録（requireAdmin）
-- `PATCH/DELETE /api/admin/house-makers/[id]` — 名前変更・有効化/無効化・削除
-- `GET/POST /api/admin/venues` — 会場名一覧取得・新規登録（requireAdmin）
-- `PATCH/DELETE /api/admin/venues/[id]` — 更新・削除
-
-**API Routes（公開・ドロップダウン用）**
-- `GET /api/house-makers` — 有効なハウスメーカー一覧（営業マン動画登録フォーム用）
-- `GET /api/venues` — 有効な会場一覧（同上）
-
-**コンポーネント**
-- `HouseMakerManagerClient` — 追加・有効化/無効化・削除 UI（src/components/admin/）
-- `VenueManagerClient` — 追加（名前＋住所）・有効化/無効化・削除 UI（src/components/admin/）
-
-**更新ファイル**
-- `prisma/schema.prisma` — HouseMaker・Venue モデル追加、Video モデル更新
-- `src/types/index.ts` — `HouseMakerDTO`・`VenueDTO` 追加、`VideoDTO` 更新（area/houseType/priceRange 削除）
-- `src/lib/utils.ts` — `mapVideoToDTO` 更新（houseMaker・venue を include）
-- `src/app/api/videos/route.ts` — QuerySchema・CreateVideoSchema 更新、include に houseMaker/venue 追加
-- `src/app/api/videos/[videoId]/route.ts` — PatchVideoSchema 更新、GET の include 追加
-- `src/app/api/admin/videos/[videoId]/route.ts` — PatchSchema 更新
-- `src/components/sales/VideoNewForm.tsx` — エリア/建物タイプ/価格帯 → ハウスメーカー・会場名ドロップダウン（props で受け取り）
-- `src/app/(sales)/dashboard/videos/new/page.tsx` — サーバーサイドで HouseMaker・Venue を取得して VideoNewForm に渡す
-- `src/app/(admin)/admin/dashboard/page.tsx` — ハウスメーカー管理・会場名管理セクション追加
-- `src/app/(public)/page.tsx` — area 削除、include に houseMaker/venue 追加
-- `src/components/video/VideoFeedClient.tsx` — area prop 削除
-- `src/hooks/useVideoFeed.ts` — area オプション削除
-- `prisma/seed.ts` — サンプル HouseMaker（サンプルハウス）・Venue（テスト展示場）追加、Video の area/houseType/priceRange を houseMakerId/venueId に置き換え
-
-#### 操作フロー
-1. 管理者（`admin@test.example.com`）で `/admin/dashboard` にアクセス
-2. 「ハウスメーカー管理」セクションで登録
-3. 「会場名管理」セクションで登録
-4. 営業マンが `/dashboard/videos/new` で動画登録時にドロップダウンから選択
-
-### 残課題（2026-06-17 時点で引き継ぎ → 次セッションで解消済み）
+## テスト認証情報（seed データ）
 
 ```
-- prisma migrate dev（本番DB接続後に実行）
-- Supabase RLS ポリシー適用: supabase/rls-policies.sql を Supabase Dashboard で実行
-- 本番環境変数の設定（.env.local.example 参照）
-- Vercel デプロイ
+管理者:   admin@test.example.com / password123
+営業マン: sales@test.example.com / password123
 ```
 
 ---
 
-## セッション終了ノート（2026-06-18）
+## 現在の状態（2026-06-20）
 
-### このセッションで実施した作業
+全フェーズ実装・本番デプロイ済み。
 
-**開始時の状態**: 全フェーズ・セキュリティ・ハウスメーカー/会場名管理 実装済み。デプロイ未実施。
-
-**実施内容**:
-1. **動画フィード UI 改善** — VideoCard・VideoFeedClient・VideoCardSkeleton・HashtagCloud・page.tsx
-2. **営業マン連絡カードオーバーレイ** — VideoCard にホバー時スライドアップ型プロフィールカード実装
-3. **暖色系トーン統一** — グレー/ブルー系 → ストーン/アンバー系に全体配色変更
-4. **FilterPanel 整理** — 未使用・壊れたコンポーネントとテストを削除、`area` prop を全箇所から除去
-5. **デプロイ前準備** — ffprobe 問題修正・Prisma ビルド設定・マイグレーション整備・vercel.json 作成
-
-### 動画フィード UI 改善の詳細
-
-#### VideoCard（`src/components/video/VideoCard.tsx`）再構成
-
-ネストした `<a>` タグを避けるため構造を変更:
-- 背景サムネイル + 視聴用 Link（`absolute inset-0 z-10`）+ 営業マンオーバーレイ（`z-30`）を分離
-- **サムネイルなし時**: ハウスメーカー名または動画タイトル頭2文字のイニシャルバッジ表示
-- **ホバー時**: 中央に再生ボタン（`z-10` の Link 内）
-- **ハウスメーカーバッジ**: 左上に `bg-stone-950/70 backdrop-blur-sm` のピル型バッジ
-- **営業マン連絡カード**: ホバーで `translate-y-3 → 0` スライドアップ
-  - 丸アバター（`ring-2 ring-amber-400/40`）+ 名前 + 会社名 + bio（最大2行）
-  - LINE ボタン（緑）+ メールボタン（アンバー）
-  - `pointer-events-none group-hover:pointer-events-auto` で非ホバー時はクリック透過
-
-#### VideoFeedClient（`src/components/video/VideoFeedClient.tsx`）
-- グリッド: `grid-cols-2 sm:grid-cols-3` → `grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3`
-- 空状態: テキストのみ → カメラ SVG アイコン + コンテキスト別メッセージ
-- ローディング: スピナー → `VideoCardSkeleton` × 6枚
-- `area` prop 完全削除
-
-#### VideoCardSkeleton（`src/components/video/VideoCardSkeleton.tsx`）
-- 既存ファイルをストーン系カラーに更新（`bg-stone-900`、`bg-amber-300/20`）
-
-#### HashtagCloud（`src/components/search/HashtagCloud.tsx`）
-- アクティブタグのハイライト: `bg-blue-500` → `bg-amber-500 border-amber-400`
-
-#### page.tsx（`src/app/(public)/page.tsx`）
-- ロゴ背景: `bg-blue-600` → `bg-amber-600`
-- 背景: `bg-gray-950` → `bg-stone-950`
-- HashtagCloud を tag フィルター中も常時表示（`activeTag={params.tag}` を渡す）
-
-#### VideoFooter（`src/components/video/VideoFooter.tsx`）
-- グラデーション: `from-black/80` → `from-stone-950/90`
-- メールボタン: `bg-blue-600` → `bg-amber-600`
-- ハッシュタグ: `text-blue-300` → `text-amber-300`
-- 営業マンアバター: `ring-2 ring-amber-400/30` 追加
-
-#### SearchBar（`src/components/search/SearchBar.tsx`）
-- 検索ボタン: `bg-blue-600` → `bg-amber-600`
-- フォーカスリング: `ring-blue-400` → `ring-amber-400`
-
-### FilterPanel 整理
-
-| 操作 | 対象 | 理由 |
-|------|------|------|
-| 削除 | `src/components/search/FilterPanel.tsx` | Phase 2 実装時は area/houseType/priceRange を持っていたが Phase 3 でこれらフィールドを Video モデルから削除。以降どのページからも使用されていない |
-| 削除 | `src/__tests__/components/search/FilterPanel.test.tsx` | コンポーネント削除に合わせて整理 |
-| 修正 | `VideoFeedClient.tsx` | `area` props・クエリ送信・deps 配列を除去 |
-| 修正 | `page.tsx` | `searchParams` 型・`VideoFeedClient` への `area` 渡しを除去 |
-
-### デプロイ前準備
-
-#### 修正した問題
-
-**① ffprobe が Vercel サーバーレス環境にない**
-- `@ffprobe-installer/ffprobe` を `dependencies` にインストール
-- `src/lib/video-duration.ts` を `execFile("ffprobe", ...)` → `execFile(ffprobePath, ...)` に変更（`ffprobePath` はパッケージ内バイナリのパス）
-
-**② `prisma generate` がビルドに含まれていなかった**
-- `package.json` の `build` スクリプトを `"next build"` → `"prisma generate && next build"` に変更
-
-**③ マイグレーションコマンドが開発用だった**
-- `db:migrate` スクリプトを `prisma migrate dev` → `prisma migrate deploy` に変更（本番用）
-
-**④ 初期マイグレーションファイルが存在しなかった**
-- 開発中は `prisma db push` でスキーマを同期していたため、`migrate deploy` で適用できるマイグレーションが `add_salesperson_role` しかなかった
-- `prisma/migrations/20260611000000_init/migration.sql` を新規作成（全テーブル・Enum・インデックス・FK 定義）
-- タイムスタンプを `add_salesperson_role`（`20260616`）より前の `20260611` にすることで正しい適用順序を保証
-
-#### 新規追加ファイル
-
-- `vercel.json` — Vercel 向け設定（`framework: "nextjs"`, `buildCommand`, `nodeVersion: "22.x"`）
-- `prisma/migrations/20260611000000_init/migration.sql` — 全テーブル作成の初期マイグレーション
-
-### コマンドリファレンス
-
-```bash
-# 型チェック
-npx tsc --noEmit
-
-# 本番マイグレーション（DATABASE_URL に Neon 接続文字列を設定して実行）
-npx prisma migrate deploy
-
-# シードデータ投入
-npx tsx prisma/seed.ts
-```
-
-### 本番デプロイ手順（概要）
-
-1. **Neon** で PostgreSQL DB 作成 → `DATABASE_URL` 取得
-2. **Supabase** で `face-videos` バケット（Public）作成 → `supabase/rls-policies.sql` を SQL Editor で実行
-3. **LINE Developers** で Messaging API チャネル作成 → Channel Secret / Access Token 取得
-4. **Resend** で API Key 取得・送信ドメイン設定
-5. **Google Cloud** で YouTube Data API v3 有効化 → API Key 取得
-6. **Vercel** に GitHub リポジトリをインポート、Environment Variables を全項目設定してデプロイ
-7. ローカルから `npx prisma migrate deploy` を実行してテーブル作成
-8. LINE Developers Console で Webhook URL を `https://ドメイン/api/line/webhook` に設定
+| 内容 | 状態 |
+|------|------|
+| 基盤（DB・Auth・API・コンポーネント） | 完了 |
+| 顔出し動画アップロード・CompositePlayer | 完了 |
+| 営業マンダッシュボード全ページ | 完了 |
+| 管理者ダッシュボード（動画・HM・会場・会社・営業マン・接続設定） | 完了 |
+| Embed ウィジェット（Shadow DOM） | 完了 |
+| API認証・所有権チェック | 完了 |
+| 個人情報暗号化（AES-256-GCM） | 完了 |
+| Vercel デプロイ | 完了（https://homereelmatch.vercel.app） |
+| Playwright E2E テスト | 完了（16件定義済み） |
+| Lighthouse（ホーム: Performance 94 / LCP 1.8s / Accessibility 100） | 計測済み |
 
 ### 残課題
 
 ```
-- Vercel へのデプロイ実施（環境変数の実値設定が必要）
-- Neon DB への prisma migrate deploy 実行
-- Supabase RLS ポリシー適用（supabase/rls-policies.sql）
-- LINE Webhook URL 設定（デプロイ後に確定するURLで設定）
-```
-
----
-
-## セッション終了ノート（2026-06-19）
-
-### このセッションで実施した作業
-
-**開始時の状態**: 前セッション（2026-06-18）の変更がコミット未済。残課題4件（すべてローカル実装可能）。
-
-**実施内容**:
-1. **モバイル向け営業マンカードオーバーレイ代替UI** — VideoCard をクライアントコンポーネントに変換
-2. **Embed ウィジェットデモページ（W-01）** — `/embed-demo` ページ新規作成
-3. **個人情報暗号化** — `questionnaireJson` を AES-256-GCM で暗号化
-4. **Instagram oEmbed キャッシュ** — `unstable_cache` + プロキシ API ルート
-
-### 実装詳細
-
-#### VideoCard モバイル対応（`src/components/video/VideoCard.tsx`）
-
-- `"use client"` + `useState<boolean>(false)` でモバイルオーバーレイ状態を管理
-- **デスクトップ (md+)**: 既存の `group-hover:` CSS ホバー動作を維持（`hidden md:block`）
-- **モバイル (md未満)**: カード下部に常時表示のミニバー（アバター＋名前＋シェブロン）
-  - タップで詳細パネルをスライド展開（`max-h-0 → max-h-40` アニメーション）
-  - LINE/メール CTA ボタンを展開後に表示
-  - カード上部タップ（Watch リンク）は引き続き機能
-  - バックドロップ（`z-[25]`）でパネル外タップ時に閉じる
-- `CtaButtons` を共通コンポーネントとして抽出（デスクトップ・モバイル両方で使用）
-- 静的情報（タイトル＋ハッシュタグ）: モバイルでは `bottom-12` にオフセットしてミニバーと重ならないよう調整
-
-#### Embed デモページ（`/embed-demo`）
-
-- `src/app/(public)/embed-demo/page.tsx` — Server Component（メタデータ・ヒーロー・特徴カード）
-- `src/components/embed/EmbedDemoClient.tsx` — Client Component
-  - フェイクブラウザクローム付き「外部サイト風」ライブデモ
-  - `Next.js <Script strategy="lazyOnload">` で `/embed.js` を読み込み
-  - `onLoad` コールバックで `window.HomeReelMatchWidget` を手動 init（auto-init は ref マウント前に発火するため）
-  - コードスニペット（基本設置・タグ絞り込み）＋コピーボタン
-  - オプション一覧テーブル
-- `embed/dist/embed.js` を `public/embed.js` にコピー（`/embed.js` として配信）
-
-#### 個人情報暗号化（`src/lib/encrypt.ts`）
-
-- `encryptJson(data)` / `decryptJson(raw)` を実装
-- AES-256-GCM: IV 12bytes(ランダム) + AuthTag 16bytes + 暗号文
-- 保存形式: `{ "_encrypted": "<24-hex-iv><32-hex-authTag><hex-ciphertext>" }`
-- レガシー行（`_encrypted` キーなし）はそのまま返す（移行安全）
-- `ENCRYPTION_KEY` 未設定時は plaintext 保存（開発モード）、本番では警告ログ
-- `POST /api/contact`: `encryptJson()` 適用後に Prisma へ保存
-- `GET /api/contact`: `decryptJson()` でレスポンス時に復号
-
-#### Instagram oEmbed キャッシュ（`src/lib/instagram.ts`）
-
-- `unstable_cache` + `fetch({ next: { revalidate: 86400 } })` で24hキャッシュ
-- `INSTAGRAM_ACCESS_TOKEN` 未設定時は `null` を返す
-- `GET /api/instagram/oembed?url=...` プロキシルート
-  - キャッシュHIT時はブラウザにも `Cache-Control: s-maxage=86400` を付与
-- `MainVideoPlayer` 更新: Instagram の場合は `InstagramEmbed` コンポーネントを使用
-  - プロキシ成功時: oEmbed HTML を `dangerouslySetInnerHTML` で挿入、`instagram.com/embed.js` を遅延ロード
-  - プロキシ失敗/未設定時: 直 iframe フォールバック（既存動作と同等）
-  - Instagram の ended イベント取得不可のため、30秒タイマーで `onEnded` を発火
-
-### 環境変数追加（`.env.local.example`）
-
-```
-ENCRYPTION_KEY="your-64-hex-char-key-here"   # AES-256 鍵（必須 in 本番）
-INSTAGRAM_ACCESS_TOKEN="..."                   # Instagram oEmbed 用（任意）
-```
-
-**鍵生成コマンド**:
-```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
-
-### テスト結果
-
-- 全 19 ファイル・152 テスト通過（encrypt: 14件、instagram: 5件追加）
-- `npx tsc --noEmit` エラーなし
-
----
-
-## セッション継続ノート（2026-06-19 後半）
-
-### 追加実装
-
-#### テスト拡充（`src/__tests__/lib/`）
-
-**`encrypt.test.ts`** — 14テスト
-- round-trip（暗号化→復号で元データ復元）
-- IV ランダム性（同一入力で異なる暗号文）
-- 空オブジェクト・ネスト構造の保持
-- ENCRYPTION_KEY 未設定時の平文 passthrough
-- レガシー行（`_encrypted` キーなし）の passthrough
-- null / undefined / 配列 / 文字列への null 返却
-- 鍵未設定で暗号化済みデータを受け取った場合の null 返却
-- 短すぎるペイロードの null 返却
-- GCM 認証失敗（改ざん検知）の null 返却
-
-**`instagram.test.ts`** — 5テスト
-- `unstable_cache` をモックして関数を直接テスト
-- token 未設定 → null
-- 正常レスポンス → oEmbed データ返却 + URL パラメータ検証
-- 非200レスポンス → null
-- ネットワークエラー → null
-
-#### ビルドパイプライン改善
-
-- `package.json` の `embed:build` スクリプトに `&& cp embed/dist/embed.js public/embed.js` を追加
-  - `npm run embed:build` 一発で `public/embed.js` が更新される
-
-#### ホームページフッター
-
-- `src/app/(public)/page.tsx` に `<footer>` 追加
-  - 「ウィジェット埋め込み」→ `/embed-demo`
-  - 「営業マンログイン」→ `/dashboard/login`
-
-#### E2Eテスト追加（`e2e/contact-flow.spec.ts`）
-
-- "Embedウィジェットデモ" テストスイート（2件追加）
-  - P-01: ホームフッターに `/embed-demo` リンクが存在する
-  - W-01: `/embed-demo` ページが表示され特徴カード・オプション一覧・コードスニペットが含まれる
-
-### 最終テスト結果
-
-```
-ユニットテスト: 19 ファイル / 152 テスト（全通過）
-E2Eテスト定義: 16件（DB接続時に実行可能）
-型エラー: 0
-```
-
----
-
-## セッション継続ノート（2026-06-19 第3ラウンド）
-
-### 追加実装
-
-#### UI 配色統一（ContactForm + BookingCalendar）
-
-`src/components/contact/ContactForm.tsx`:
-- `bg-gray-800/border-gray-700/ring-blue-500` → `bg-stone-800/border-stone-700/ring-amber-500`
-- `accent-blue-500` → `accent-amber-500`
-- 送信ボタン: `bg-blue-600` → `bg-amber-600`
-- **`alert()` を廃止** → `submitError` state でインラインエラーバナーを表示（`role="alert"`）
-
-`src/components/contact/BookingCalendar.tsx`:
-- `border-blue-500 bg-blue-500/10` → `border-amber-500 bg-amber-500/10`
-- 送信ボタン: `bg-blue-600` → `bg-amber-600`
-- **`alert()` を廃止** → `submitError` state でインラインエラーバナーを表示
-- 空スロット時: テキストのみ → カレンダーアイコン + 説明文
-- 選択済みスロットにチェックマークアイコン追加
-
-#### 動画視聴ページ（WatchPage）改善
-
-**`src/components/video/WatchOverlay.tsx`**（新規、Client Component）:
-- **戻るボタン**: 左上に `←` 丸ボタン → `/` へリンク
-- **シェアボタン**: 右上に共有アイコン丸ボタン
-  - Web Share API 対応デバイス: `navigator.share()` でネイティブシェート
-  - 非対応時: `navigator.clipboard.writeText()` で URL コピー
-  - コピー後 2秒間、右上に「URLをコピーしました」トースト表示
-- **viewCount 増加**: `useEffect` でマウント時に `POST /api/videos/[videoId]/view` を fire-and-forget
-
-**`src/app/api/videos/[videoId]/view/route.ts`**（新規）:
-- `POST /api/videos/:id/view` — 認証不要、`viewCount: { increment: 1 }`
-- 動画なし（Prisma エラー）→ 404、正常 → 204
-
-**`src/app/(public)/watch/[videoId]/page.tsx`** 更新:
-- `WatchOverlay` を import して動画コンテナに追加
-- `canonicalUrl` を `NEXT_PUBLIC_APP_URL` から生成して `WatchOverlay` に渡す
-
-#### テスト
-
-`src/__tests__/api/videos/view.test.ts`（新規、2件）:
-- 204 + `increment: 1` 呼び出し確認
-- Prisma エラー時の 404 確認
-
-```
-ユニットテスト: 20 ファイル / 154 テスト（全通過）
-型エラー: 0
+- Supabase RLS ポリシー適用（supabase/rls-policies.sql を Supabase Dashboard で実行）
+- LINE Webhook URL を https://homereelmatch.vercel.app/api/line/webhook に設定
+- Resend: 本番用 API Key・送信ドメイン設定
+- ENCRYPTION_KEY を Vercel 環境変数に設定
+- Vercel Dashboard → Node.js Version を 22.x に設定
 ```

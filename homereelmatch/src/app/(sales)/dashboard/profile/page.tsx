@@ -27,11 +27,15 @@ export default async function ProfilePage() {
   if (!salesperson) redirect("/login");
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      <header className="border-b border-white/10 px-4 py-3">
+    <div className="min-h-screen bg-stone-950 text-white">
+      <header className="border-b border-stone-800 px-4 py-4">
         <div className="max-w-2xl mx-auto flex items-center gap-3">
-          <Link href="/dashboard" className="text-gray-400 hover:text-white">←</Link>
-          <h1 className="text-xl font-bold">プロフィール・顔出し動画</h1>
+          <Link href="/dashboard" className="w-9 h-9 flex items-center justify-center rounded-lg text-stone-400 hover:text-white hover:bg-stone-800 transition-colors" aria-label="ダッシュボードへ戻る">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </Link>
+          <h1 className="text-lg font-bold tracking-tight">プロフィール・顔出し動画</h1>
         </div>
       </header>
 

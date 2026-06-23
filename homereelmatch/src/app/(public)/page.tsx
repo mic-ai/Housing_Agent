@@ -100,7 +100,10 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         )}
 
         {params.q && (
-          <p className="text-gray-400 text-sm mb-4">「{params.q}」の検索結果</p>
+          <p className="text-stone-400 text-sm mb-4">
+            <span className="text-stone-500">検索:</span>{" "}
+            <span className="text-amber-400 font-medium">「{params.q}」</span>
+          </p>
         )}
 
         <VideoFeedClient

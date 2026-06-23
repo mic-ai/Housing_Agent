@@ -53,7 +53,7 @@ export function FilterBar({ houseMakers, venues, activeHouseMakerId, activeVenue
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
           <button
             onClick={() => navigate("venueId", null)}
-            className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors ${!activeVenueId ? "bg-blue-700 text-white" : "bg-stone-800 text-stone-300 hover:bg-stone-700"}`}
+            className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors ${!activeVenueId ? "bg-stone-600 text-white" : "bg-stone-800 text-stone-300 hover:bg-stone-700"}`}
           >
             全会場
           </button>
@@ -61,7 +61,7 @@ export function FilterBar({ houseMakers, venues, activeHouseMakerId, activeVenue
             <button
               key={v.id}
               onClick={() => navigate("venueId", activeVenueId === v.id ? null : v.id)}
-              className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors ${activeVenueId === v.id ? "bg-blue-700 text-white" : "bg-stone-800 text-stone-300 hover:bg-stone-700"}`}
+              className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors ${activeVenueId === v.id ? "bg-stone-600 text-white" : "bg-stone-800 text-stone-300 hover:bg-stone-700"}`}
             >
               {v.name}
             </button>

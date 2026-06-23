@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { CompositePlayer } from "@/components/video/CompositePlayer";
-import { VideoFooter } from "@/components/video/VideoFooter";
+import { WatchClientShell } from "@/components/video/WatchClientShell";
 import { WatchOverlay } from "@/components/video/WatchOverlay";
 import { extractYouTubeId } from "@/lib/utils";
 import type { Metadata } from "next";
@@ -95,6 +94,33 @@ export default async function WatchPage({ params }: WatchPageProps) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const canonicalUrl = `${appUrl}/watch/${video.id}`;
 
+  const salespersonVideo =
+    primaryAssignment && primarySalesperson
+      ? {
+          id: primaryAssignment.id,
+          salespersonId: primaryAssignment.salespersonId,
+          preRollPublicUrl: preRollUrl ?? null,
+          preRollDurationSec,
+          postRollPublicUrl: postRollUrl ?? null,
+          postRollDurationSec,
+          isPrimary: primaryAssignment.isPrimary,
+          salesperson: {
+            id: primarySalesperson.id,
+            name: primarySalesperson.name,
+            profileImage: primarySalesperson.profileImage,
+            bio: primarySalesperson.bio,
+            company: primarySalesperson.company
+              ? {
+                  id: primarySalesperson.company.id,
+                  name: primarySalesperson.company.name,
+                  modelHouseName: primarySalesperson.company.modelHouseName,
+                  modelHouseAddress: primarySalesperson.company.modelHouseAddress,
+                }
+              : null,
+          },
+        }
+      : null;
+
   return (
     <main className="min-h-screen bg-black flex items-center justify-center">
       <div className="relative w-full max-w-sm mx-auto aspect-[9/16] bg-black">
@@ -103,36 +129,15 @@ export default async function WatchPage({ params }: WatchPageProps) {
           videoTitle={video.title}
           videoUrl={canonicalUrl}
         />
-        <CompositePlayer
+        <WatchClientShell
           platform={video.platform}
           url={video.url}
           preRollUrl={preRollUrl}
           postRollUrl={postRollUrl}
-        />
-        <VideoFooter
           videoId={video.id}
           title={video.title}
           hashtags={video.videoHashtags.map((vh) => vh.hashtag)}
-          salespersonVideo={
-            primaryAssignment && primarySalesperson
-              ? {
-                  id: primaryAssignment.id,
-                  salespersonId: primaryAssignment.salespersonId,
-                  preRollPublicUrl: preRollUrl ?? null,
-                  preRollDurationSec,
-                  postRollPublicUrl: postRollUrl ?? null,
-                  postRollDurationSec,
-                  isPrimary: primaryAssignment.isPrimary,
-                  salesperson: {
-                    id: primarySalesperson.id,
-                    name: primarySalesperson.name,
-                    profileImage: primarySalesperson.profileImage,
-                    bio: primarySalesperson.bio,
-                    company: primarySalesperson.company,
-                  },
-                }
-              : null
-          }
+          salespersonVideo={salespersonVideo}
         />
       </div>
     </main>

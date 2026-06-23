@@ -13,6 +13,7 @@ interface CompositePlayerProps {
   preRollUrl?: string | null;
   postRollUrl?: string | null;
   onEnded?: () => void;
+  onShowContact?: () => void;
 }
 
 export function CompositePlayer({
@@ -21,6 +22,7 @@ export function CompositePlayer({
   preRollUrl,
   postRollUrl,
   onEnded,
+  onShowContact,
 }: CompositePlayerProps) {
   const initialPhase: PlaybackPhase = preRollUrl ? "PRE_ROLL" : "MAIN";
   const [phase, setPhase] = useState<PlaybackPhase>(initialPhase);
@@ -30,13 +32,14 @@ export function CompositePlayer({
   }, []);
 
   const handleMainEnded = useCallback(() => {
+    onShowContact?.();
     if (postRollUrl) {
       setPhase("POST_ROLL");
     } else {
       setPhase("ENDED");
       onEnded?.();
     }
-  }, [postRollUrl, onEnded]);
+  }, [postRollUrl, onEnded, onShowContact]);
 
   const handlePostRollEnded = useCallback(() => {
     setPhase("ENDED");
@@ -53,6 +56,7 @@ export function CompositePlayer({
           platform={platform}
           url={url}
           onEnded={handleMainEnded}
+          onNearEnd={onShowContact}
           autoPlay
         />
       )}
@@ -67,7 +71,7 @@ export function CompositePlayer({
 
       {(phase === "PRE_ROLL" || phase === "POST_ROLL") && (
         <div className="absolute top-3 left-3 bg-black/50 text-white text-xs px-2 py-1 rounded">
-          {phase === "PRE_ROLL" ? "担当者より" : "担当者より"}
+          担当者より
         </div>
       )}
     </div>

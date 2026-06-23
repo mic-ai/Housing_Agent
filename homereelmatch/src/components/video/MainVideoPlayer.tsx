@@ -17,7 +17,11 @@ declare global {
             onReady?: () => void;
           };
         }
-      ) => { destroy: () => void };
+      ) => {
+        destroy: () => void;
+        getCurrentTime: () => number;
+        getDuration: () => number;
+      };
       PlayerState: { ENDED: number };
     };
     onYouTubeIframeAPIReady?: () => void;
@@ -28,6 +32,7 @@ interface MainVideoPlayerProps {
   platform: Platform;
   url: string;
   onEnded: () => void;
+  onNearEnd?: () => void;
   autoPlay?: boolean;
 }
 
@@ -35,14 +40,23 @@ export function MainVideoPlayer({
   platform,
   url,
   onEnded,
+  onNearEnd,
   autoPlay = true,
 }: MainVideoPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const playerRef = useRef<{ destroy: () => void } | null>(null);
+  const playerRef = useRef<{
+    destroy: () => void;
+    getCurrentTime: () => number;
+    getDuration: () => number;
+  } | null>(null);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const nearEndFiredRef = useRef(false);
 
   const initYouTube = useCallback(() => {
     const videoId = extractYouTubeId(url);
     if (!videoId || !containerRef.current) return;
+
+    nearEndFiredRef.current = false;
 
     const el = document.createElement("div");
     containerRef.current.appendChild(el);
@@ -56,12 +70,25 @@ export function MainVideoPlayer({
         rel: 0,
       },
       events: {
+        onReady: () => {
+          if (onNearEnd) {
+            pollIntervalRef.current = setInterval(() => {
+              if (nearEndFiredRef.current || !playerRef.current) return;
+              const duration = playerRef.current.getDuration();
+              const current = playerRef.current.getCurrentTime();
+              if (duration > 0 && duration - current <= 20) {
+                nearEndFiredRef.current = true;
+                onNearEnd();
+              }
+            }, 1000);
+          }
+        },
         onStateChange: (e) => {
           if (e.data === window.YT.PlayerState.ENDED) onEnded();
         },
       },
     });
-  }, [url, autoPlay, onEnded]);
+  }, [url, autoPlay, onEnded, onNearEnd]);
 
   useEffect(() => {
     if (platform !== "YOUTUBE") return;
@@ -78,13 +105,17 @@ export function MainVideoPlayer({
     }
 
     return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
       playerRef.current?.destroy();
       playerRef.current = null;
     };
   }, [platform, initYouTube]);
 
   if (platform === "INSTAGRAM") {
-    return <InstagramEmbed url={url} onEnded={onEnded} />;
+    return <InstagramEmbed url={url} onEnded={onEnded} onNearEnd={onNearEnd} />;
   }
 
   return (
@@ -97,10 +128,20 @@ export function MainVideoPlayer({
 
 // Instagram embed: tries the oEmbed proxy first; falls back to an "open on Instagram" link.
 // Instagram blocks cross-origin iframes, so we never use a direct iframe fallback.
-function InstagramEmbed({ url, onEnded }: { url: string; onEnded: () => void }) {
+// onNearEnd fires at 10 s into playback (= 20 s before the estimated 30 s end).
+function InstagramEmbed({
+  url,
+  onEnded,
+  onNearEnd,
+}: {
+  url: string;
+  onEnded: () => void;
+  onNearEnd?: () => void;
+}) {
   const [html, setHtml] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const nearEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const proxyUrl = `/api/instagram/oembed?url=${encodeURIComponent(url)}`;
@@ -119,14 +160,18 @@ function InstagramEmbed({ url, onEnded }: { url: string; onEnded: () => void }) 
         } else {
           (window as Window & { instgrm?: { Embeds?: { process(): void } } }).instgrm?.Embeds?.process();
         }
+        if (onNearEnd) {
+          nearEndTimerRef.current = setTimeout(onNearEnd, 10_000);
+        }
         timerRef.current = setTimeout(onEnded, 30_000);
       })
       .catch(() => setFailed(true));
 
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
+      if (nearEndTimerRef.current) clearTimeout(nearEndTimerRef.current);
     };
-  }, [url, onEnded]);
+  }, [url, onEnded, onNearEnd]);
 
   if (failed) {
     return (

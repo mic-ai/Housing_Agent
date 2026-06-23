@@ -9,6 +9,7 @@ interface VideoFooterProps {
   title: string;
   hashtags: HashtagDTO[];
   salespersonVideo: SalespersonVideoDTO | null;
+  showContact?: boolean;
 }
 
 function LineIcon() {
@@ -29,7 +30,7 @@ function MailIcon() {
 
 function PersonIcon() {
   return (
-    <svg className="w-5 h-5 text-stone-400" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <svg className="w-10 h-10 text-stone-400" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
       <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z" />
     </svg>
   );
@@ -40,6 +41,7 @@ export function VideoFooter({
   title,
   hashtags,
   salespersonVideo,
+  showContact = false,
 }: VideoFooterProps) {
   const sp = salespersonVideo?.salesperson;
 
@@ -62,43 +64,49 @@ export function VideoFooter({
       )}
 
       {sp && (
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 rounded-full overflow-hidden bg-stone-700 flex-shrink-0 flex items-center justify-center ring-2 ring-amber-400/30">
-            {sp.profileImage ? (
-              <Image
-                src={sp.profileImage}
-                alt={sp.name}
-                width={40}
-                height={40}
-                className="object-cover w-full h-full"
-              />
-            ) : (
-              <PersonIcon />
-            )}
+        <div
+          className={`transition-all duration-500 ease-out ${
+            showContact
+              ? "opacity-100 translate-y-0 pointer-events-auto"
+              : "opacity-0 translate-y-4 pointer-events-none"
+          }`}
+        >
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-20 h-20 rounded-full overflow-hidden bg-stone-700 flex-shrink-0 flex items-center justify-center ring-2 ring-amber-400/50">
+              {sp.profileImage ? (
+                <Image
+                  src={sp.profileImage}
+                  alt={sp.name}
+                  width={80}
+                  height={80}
+                  className="object-cover w-full h-full"
+                />
+              ) : (
+                <PersonIcon />
+              )}
+            </div>
+            <div className="min-w-0">
+              <p className="text-white text-sm font-medium truncate">{sp.name}</p>
+              <p className="text-stone-300 text-xs truncate">{sp.company?.name}</p>
+            </div>
           </div>
-          <div className="min-w-0">
-            <p className="text-white text-sm font-medium truncate">{sp.name}</p>
-            <p className="text-stone-300 text-xs truncate">{sp.company?.name}</p>
-          </div>
-        </div>
-      )}
 
-      {sp && (
-        <div className="flex gap-2">
-          <Link
-            href={`/contact/${sp.id}?videoId=${videoId}&method=LINE`}
-            className="flex-1 flex items-center justify-center gap-1.5 bg-green-700 hover:bg-green-600 text-white text-sm font-medium py-3 px-3 rounded-lg transition-colors min-h-[44px]"
-          >
-            <LineIcon />
-            LINEで連絡
-          </Link>
-          <Link
-            href={`/contact/${sp.id}?videoId=${videoId}&method=EMAIL`}
-            className="flex-1 flex items-center justify-center gap-1.5 bg-amber-600 hover:bg-amber-500 text-white text-sm font-medium py-3 px-3 rounded-lg transition-colors min-h-[44px]"
-          >
-            <MailIcon />
-            メールで連絡
-          </Link>
+          <div className="flex gap-2">
+            <Link
+              href={`/contact/${sp.id}?videoId=${videoId}&method=LINE`}
+              className="flex-1 flex items-center justify-center gap-1.5 bg-green-700 hover:bg-green-600 text-white text-sm font-medium py-3 px-3 rounded-lg transition-colors min-h-[44px]"
+            >
+              <LineIcon />
+              LINEで連絡
+            </Link>
+            <Link
+              href={`/contact/${sp.id}?videoId=${videoId}&method=EMAIL`}
+              className="flex-1 flex items-center justify-center gap-1.5 bg-amber-600 hover:bg-amber-500 text-white text-sm font-medium py-3 px-3 rounded-lg transition-colors min-h-[44px]"
+            >
+              <MailIcon />
+              メールで連絡
+            </Link>
+          </div>
         </div>
       )}
     </div>

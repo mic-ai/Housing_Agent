@@ -8,6 +8,12 @@
 -- Enable RLS on the storage.objects table (if not already enabled)
 -- ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies before recreating (idempotent)
+DROP POLICY IF EXISTS "face-videos: public read" ON storage.objects;
+DROP POLICY IF EXISTS "face-videos: salesperson upload own folder" ON storage.objects;
+DROP POLICY IF EXISTS "face-videos: salesperson update own folder" ON storage.objects;
+DROP POLICY IF EXISTS "face-videos: salesperson delete own folder" ON storage.objects;
+
 -- Policy: Public read access (face videos are served publicly via <video src>)
 CREATE POLICY "face-videos: public read"
   ON storage.objects

@@ -468,7 +468,7 @@ npx vercel --prod
 
 ---
 
-## 現在の状態（2026-06-19）
+## 現在の状態（2026-06-23）
 
 全フェーズ実装・本番デプロイ済み。
 
@@ -490,33 +490,65 @@ npx vercel --prod
 | 営業マンダッシュボード刷新（顔出し動画複数登録対応） | 完了（2026-06-19） |
 | 管理者「本編動画登録」登録後編集・プレビュー | 完了（2026-06-19） |
 | 接続設定：顔出し動画の個別接続・プレビュー・タグ編集 | 完了（2026-06-19） |
+| 本編動画削除機能（インライン確認） | 完了（2026-06-23） |
+| Instagram oEmbed 修正（iframe 直接埋め込み廃止） | 完了（2026-06-23） |
+| 接続設定プレビュー 404 修正（isActive フィルタ除去） | 完了（2026-06-23） |
+| YouTube Shorts URL 対応（extractYouTubeId） | 完了（2026-06-23） |
+| 連絡オーバーレイのタイミング改善（残り20秒前〜終了後） | 完了（2026-06-23） |
+| 営業マンアイコン2倍化（w-20 h-20） | 完了（2026-06-23） |
+| 管理画面5タブ化（AdminDashboardClient） | 完了（2026-06-23） |
+| フロントエンドUI全体改善（stone系・アイコン・カード） | 完了（2026-06-23） |
 
-### 直近の主要変更（2026-06-19）
+### 直近の主要変更（2026-06-23）
 
-#### 営業マンダッシュボード
-- 自己紹介動画URLセクションを削除
-- 顔出し動画を `SalespersonFaceVideo` モデルで複数管理（プリ/ポスト別・sortOrder）
-- `Salesperson` から個別の preRoll/postRoll フィールドを削除（DB `db push --accept-data-loss` 適用済み）
+#### 本編動画削除機能
+- `DELETE /api/admin/videos/[videoId]`: `$transaction` で VideoHashtag → SalespersonVideo → Video の順に削除（FK制約対策）
+- `VideoManagerClient`: `pendingDeleteId` / `deleting` 状態 + インライン2段階確認UI
 
-#### 管理者ダッシュボード
-- 「動画管理」→「本編動画登録」に改名
-- `VideoManagerClient`: 動画登録後に自動でインライン編集・プレビューパネルを開く
-- `AssignmentManagerClient`: 各接続行を展開して動画プレビュー・タイトル/タグ編集・顔出し動画選択が可能
-- `PATCH /api/admin/assignments/[id]`: `preRollFaceVideoId` / `postRollFaceVideoId` を受け取り `SalespersonVideo` の preRoll/postRoll フィールドを更新
-- `PATCH /api/admin/videos/[id]`: `hashtags` フィールドを追加対応（`$transaction` で VideoHashtag を再構築）
+#### バグ修正（2026-06-23）
+- Instagram 表示不可: `${url}embed/` iframe は X-Frame-Options でブロックされる → oEmbed プロキシ＋ローディング＋フォールバックリンクに変更
+- 接続設定プレビュー 404: watch page で `isActive: true` フィルタを除去（直接URLアクセスは isActive に関係なく表示）
+- YouTube Shorts 黒画面: `extractYouTubeId` に `youtube\.com\/shorts\/` パターンを追加
+- YouTube player 再作成バグ: `handleMainEnded` を `useCallback` に変更して `initYouTube` の依存変化を防止
 
-#### 新規 API エンドポイント
-- `GET/POST /api/salesperson/profile/face-videos` — 顔出し動画一覧取得・アップロード
-- `DELETE /api/salesperson/profile/face-videos/[id]` — 顔出し動画削除
-- `PATCH /api/admin/assignments/[id]` — 顔出し動画の接続設定保存
+#### 連絡オーバーレイ改修
+- `WatchClientShell`（新規・Client Component）: `showContact` 状態を一元管理
+- `CompositePlayer`: `onShowContact?: () => void` prop 追加、`handleMainEnded` で呼び出し
+- `MainVideoPlayer`: `onNearEnd?: () => void` prop 追加
+  - YouTube: `onReady` 後に 1 秒ポーリング → 残り 20 秒以下で発火（`nearEndFiredRef` で重複防止）
+  - Instagram: oEmbed 取得後 10 秒タイマーで発火（推定 30 秒動画の残り 20 秒相当）
+- `VideoFooter`: `showContact` prop 追加 → `opacity-0 translate-y-4` → `opacity-100 translate-y-0` トランジション
+- 営業マンアイコン: `w-10 h-10 / 40px` → `w-20 h-20 / 80px`
+- watch page: `CompositePlayer` + `VideoFooter` を `WatchClientShell` に置き換え（company の Date フィールドも明示的選択に変更）
 
-#### バグ修正
-- 接続設定ページクラッシュ: Prisma の `...record` スプレッドで `Date` が Client Component props に混入 → 明示的フィールド選択に変更
-- `isPrimary` フィルタ問題: watch page の `isPrimary: true` フィルタを削除し、`createdAt` 昇順 `take:1` に変更
+#### 管理画面タブ化
+- `AdminDashboardClient`（新規・Client Component）: 5 タブ管理
+  - 営業マン管理 / ハウスメーカー / 会場管理 / 接続設定 / 動画登録
+  - amber アクティブインジケーター、`hidden` 切り替えで状態保持
+- `admin/dashboard/page.tsx`: 統計グリッドを 3+3 の 6 項目に拡充し、`AdminDashboardClient` に集約
 
-### 残課題
+#### フロントエンドUI全体改善
+- `gray-*` → `stone-*` カラーに全面統一
+- ログイン: ブランドロゴ（家アイコン/amber-600）・amber フォーカスリング・角丸カード
+- 営業ダッシュボード: KPI カード（amber アクセント）・アイコン付きナビ・予約リスト改善
+- InquiriesClient / ScheduleClient: 空状態イラスト・ローディングスピナー・ステータスバッジ刷新
+- コンタクト・予約フロー: SVG 戻るボタン（44px タッチターゲット）・セクションラベル改善
+- FilterBar: `bg-blue-700` → `bg-stone-600`
 
-なし（全設定完了）
+### 実装上の重要な知見（2026-06-23 追加）
+
+#### Instagram oEmbed
+- `${url}embed/` iframe は Instagram の X-Frame-Options ヘッダーによりブロックされる（2022年以降）
+- 表示方法: `GET /api/instagram/oembed` プロキシ経由で HTML を取得 → `dangerouslySetInnerHTML` + `embed.js` で描画
+- 取得失敗時は「Instagramで見る」リンクにフォールバック（`failed` 状態）
+
+#### YouTube URL パターン
+- `extractYouTubeId` は通常 URL・短縮 URL・Shorts URL に対応済み
+- Shorts: `youtube.com/shorts/{11文字ID}`
+
+#### watch page の isActive フィルタ
+- `isActive: false` の動画は公開フィード（`/`）に表示しないが、直接 URL（`/watch/[id]`）では表示する
+- 管理者プレビュー目的のため `where: { id: videoId }` のみとし `isActive: true` は付けない
 
 ### 環境変数メモ
 

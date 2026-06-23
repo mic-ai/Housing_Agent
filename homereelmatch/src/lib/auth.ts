@@ -22,7 +22,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const salesperson = await prisma.salesperson.findUnique({
           where: { email: parsed.data.email },
-          include: { company: true },
         });
         if (!salesperson) return null;
 
@@ -54,7 +53,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     session({ session, token }) {
       if (token) {
         session.user.id = token.id as string;
-        session.user.companyId = token.companyId as string;
+        session.user.companyId = (token.companyId as string | null) ?? null;
         session.user.role = token.role as "SALESPERSON" | "ADMIN";
       }
       return session;

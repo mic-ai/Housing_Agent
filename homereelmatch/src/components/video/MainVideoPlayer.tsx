@@ -95,11 +95,11 @@ export function MainVideoPlayer({
   );
 }
 
-// Instagram embed: tries the oEmbed proxy first; falls back to direct iframe.
-// Duration-based onEnded timer fires after 30s (estimated) when oEmbed is active.
+// Instagram embed: tries the oEmbed proxy first; falls back to an "open on Instagram" link.
+// Instagram blocks cross-origin iframes, so we never use a direct iframe fallback.
 function InstagramEmbed({ url, onEnded }: { url: string; onEnded: () => void }) {
   const [html, setHtml] = useState<string | null>(null);
-  const [useFallback, setUseFallback] = useState(false);
+  const [failed, setFailed] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -111,37 +111,49 @@ function InstagramEmbed({ url, onEnded }: { url: string; onEnded: () => void }) 
       })
       .then((data) => {
         setHtml(data.html);
-        // Load Instagram embed.js once to process the blockquote
         if (!document.querySelector('script[src*="instagram.com/embed.js"]')) {
           const s = document.createElement("script");
           s.src = "https://www.instagram.com/embed.js";
           s.async = true;
           document.body.appendChild(s);
         } else {
-          // Already loaded — trigger re-process
           (window as Window & { instgrm?: { Embeds?: { process(): void } } }).instgrm?.Embeds?.process();
         }
-        // Instagram ended event is unavailable; fire after 30s as best-effort
         timerRef.current = setTimeout(onEnded, 30_000);
       })
-      .catch(() => setUseFallback(true));
+      .catch(() => setFailed(true));
 
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, [url, onEnded]);
 
-  if (useFallback || (html === null && !useFallback)) {
-    // Direct iframe while loading or when oEmbed unavailable
+  if (failed) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center bg-stone-900 gap-4 p-6">
+        <svg className="w-12 h-12 text-stone-500" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+        </svg>
+        <p className="text-stone-400 text-sm text-center">
+          Instagramの動画は<br />このページでは表示できません
+        </p>
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-pink-500 text-white text-sm font-medium rounded-full hover:opacity-90 transition-opacity"
+          onClick={onEnded}
+        >
+          Instagramで見る
+        </a>
+      </div>
+    );
+  }
+
+  if (html === null) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-stone-900">
-        <iframe
-          src={`${url}embed/`}
-          className="w-full h-full"
-          allowFullScreen
-          allow="autoplay; clipboard-write; encrypted-media; picture-in-picture"
-          title="Instagram 動画"
-        />
+        <div className="w-8 h-8 border-2 border-stone-500 border-t-white rounded-full animate-spin" />
       </div>
     );
   }
@@ -150,7 +162,7 @@ function InstagramEmbed({ url, onEnded }: { url: string; onEnded: () => void }) 
     <div
       className="w-full h-full overflow-auto bg-stone-900 flex items-start justify-center"
       // eslint-disable-next-line @typescript-eslint/naming-convention
-      dangerouslySetInnerHTML={{ __html: html! }}
+      dangerouslySetInnerHTML={{ __html: html }}
     />
   );
 }

@@ -15,6 +15,24 @@ const PatchSchema = z.object({
 
 type Params = { params: Promise<{ videoId: string }> };
 
+export async function DELETE(_request: NextRequest, { params }: Params): Promise<NextResponse> {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
+  try {
+    const { videoId } = await params;
+    await prisma.$transaction([
+      prisma.videoHashtag.deleteMany({ where: { videoId } }),
+      prisma.salespersonVideo.deleteMany({ where: { videoId } }),
+      prisma.video.delete({ where: { id: videoId } }),
+    ]);
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}
+
 export async function PATCH(request: NextRequest, { params }: Params): Promise<NextResponse> {
   const denied = await requireAdmin();
   if (denied) return denied;

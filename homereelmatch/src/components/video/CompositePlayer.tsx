@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { FaceRollPlayer } from "./FaceRollPlayer";
 import { MainVideoPlayer } from "./MainVideoPlayer";
 import type { Platform } from "@/types";
@@ -25,23 +25,23 @@ export function CompositePlayer({
   const initialPhase: PlaybackPhase = preRollUrl ? "PRE_ROLL" : "MAIN";
   const [phase, setPhase] = useState<PlaybackPhase>(initialPhase);
 
-  function handlePreRollEnded() {
+  const handlePreRollEnded = useCallback(() => {
     setPhase("MAIN");
-  }
+  }, []);
 
-  function handleMainEnded() {
+  const handleMainEnded = useCallback(() => {
     if (postRollUrl) {
       setPhase("POST_ROLL");
     } else {
       setPhase("ENDED");
       onEnded?.();
     }
-  }
+  }, [postRollUrl, onEnded]);
 
-  function handlePostRollEnded() {
+  const handlePostRollEnded = useCallback(() => {
     setPhase("ENDED");
     onEnded?.();
-  }
+  }, [onEnded]);
 
   return (
     <div className="relative w-full h-full bg-black">

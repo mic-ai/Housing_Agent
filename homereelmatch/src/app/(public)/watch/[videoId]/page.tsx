@@ -53,7 +53,7 @@ export default async function WatchPage({ params }: WatchPageProps) {
   const { videoId } = await params;
 
   const video = await prisma.video.findUnique({
-    where: { id: videoId, isActive: true },
+    where: { id: videoId },
     include: {
       videoHashtags: { include: { hashtag: true } },
       salespersonVideos: {

@@ -164,6 +164,8 @@ export function VideoManagerClient() {
   const [houseMakers, setHouseMakers] = useState<HouseMaker[]>([]);
   const [venues, setVenues] = useState<Venue[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -211,6 +213,17 @@ export function VideoManagerClient() {
     });
     setSelected(new Set());
     await load();
+  }
+
+  async function deleteVideo(videoId: string) {
+    setDeleting(true);
+    const res = await fetch(`/api/admin/videos/${videoId}`, { method: "DELETE" });
+    if (res.ok) {
+      setVideos((prev) => prev.filter((v) => v.id !== videoId));
+      if (editingId === videoId) setEditingId(null);
+    }
+    setPendingDeleteId(null);
+    setDeleting(false);
   }
 
   function toggleSelect(id: string) {
@@ -433,6 +446,34 @@ export function VideoManagerClient() {
                   >
                     {v.isActive ? "非公開" : "公開"}
                   </button>
+                  {pendingDeleteId === v.id ? (
+                    <>
+                      <span className="text-xs text-red-400">削除しますか？</span>
+                      <button
+                        type="button"
+                        onClick={() => deleteVideo(v.id)}
+                        disabled={deleting}
+                        className="text-xs px-2 py-1 rounded bg-red-700 hover:bg-red-600 text-white disabled:opacity-50"
+                      >
+                        {deleting ? "削除中..." : "はい"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPendingDeleteId(null)}
+                        className="text-xs px-2 py-1 rounded border border-gray-600 text-gray-300 hover:bg-gray-800"
+                      >
+                        いいえ
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setPendingDeleteId(v.id)}
+                      className="text-xs px-3 py-1 rounded border border-red-800 text-red-400 hover:bg-red-900/30"
+                    >
+                      削除
+                    </button>
+                  )}
                 </div>
               </div>
 

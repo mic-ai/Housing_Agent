@@ -64,10 +64,9 @@ export function mapVideoToDTO(video: {
 }
 
 export function extractYouTubeId(url: string): string | null {
-  // 11文字のIDそのもの
   if (/^[a-zA-Z0-9_-]{11}$/.test(url)) return url;
   const match = url.match(
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/
   );
   return match ? match[1] : null;
 }

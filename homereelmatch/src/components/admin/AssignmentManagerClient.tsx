@@ -46,19 +46,16 @@ function extractYouTubeId(url: string): string | null {
 
 function FaceVideoSelect({
   label,
-  rollType,
   options,
   currentUrl,
   onSelect,
 }: {
   label: string;
-  rollType: "pre" | "post";
   options: FaceVideo[];
   currentUrl: string | null;
   onSelect: (id: string | null) => void;
 }) {
-  const filtered = options.filter((v) => v.rollType === rollType);
-  const currentId = filtered.find((v) => v.publicUrl === currentUrl)?.id ?? "";
+  const currentId = options.find((v) => v.publicUrl === currentUrl)?.id ?? "";
 
   return (
     <div>
@@ -69,16 +66,14 @@ function FaceVideoSelect({
         className="w-full bg-stone-700 border border-stone-600 rounded px-3 py-1.5 text-white text-sm"
       >
         <option value="">（設定しない）</option>
-        {filtered.map((fv) => (
+        {options.map((fv, i) => (
           <option key={fv.id} value={fv.id}>
-            {fv.durationSec}秒
+            {fv.rollType === "pre" ? "プリ" : "ポスト"}ロール動画{i + 1}（{fv.durationSec}秒）
           </option>
         ))}
       </select>
-      {filtered.length === 0 && (
-        <p className="text-stone-500 text-xs mt-1">
-          この営業マンは{label.replace("選択", "")}をアップロードしていません
-        </p>
+      {options.length === 0 && (
+        <p className="text-stone-500 text-xs mt-1">顔出し動画がアップロードされていません</p>
       )}
     </div>
   );
@@ -97,12 +92,12 @@ function AssignmentRow({
   const [hashtags, setHashtags] = useState(assignment.video.hashtags.join(", "));
   const [preRollId, setPreRollId] = useState<string | null>(
     assignment.salesperson.faceVideos.find(
-      (fv) => fv.rollType === "pre" && fv.publicUrl === assignment.preRollPublicUrl
+      (fv) => fv.publicUrl === assignment.preRollPublicUrl
     )?.id ?? null
   );
   const [postRollId, setPostRollId] = useState<string | null>(
     assignment.salesperson.faceVideos.find(
-      (fv) => fv.rollType === "post" && fv.publicUrl === assignment.postRollPublicUrl
+      (fv) => fv.publicUrl === assignment.postRollPublicUrl
     )?.id ?? null
   );
   const [saving, setSaving] = useState(false);
@@ -112,12 +107,7 @@ function AssignmentRow({
   const ytId = v.platform === "YOUTUBE" ? extractYouTubeId(v.url) : null;
   const thumbUrl = v.thumbnailUrl ?? (ytId ? `https://img.youtube.com/vi/${ytId}/mqdefault.jpg` : null);
 
-  const hasPreRoll = assignment.salesperson.faceVideos.some((fv) => fv.rollType === "pre");
-  const hasPostRoll = assignment.salesperson.faceVideos.some((fv) => fv.rollType === "post");
-  const currentPreRollUrl =
-    assignment.salesperson.faceVideos.find(
-      (fv) => fv.rollType === "pre" && fv.publicUrl === assignment.preRollPublicUrl
-    )?.publicUrl ?? assignment.preRollPublicUrl;
+  const hasFaceVideos = assignment.salesperson.faceVideos.length > 0;
 
   async function handleDelete() {
     setDeleting(true);
@@ -174,9 +164,9 @@ function AssignmentRow({
             </p>
           )}
           <p className="text-stone-500 text-xs">
-            {hasPreRoll || hasPostRoll ? (
+            {hasFaceVideos ? (
               <>
-                {currentPreRollUrl ? "プリロール✓" : "プリロール未設定"}
+                {assignment.preRollPublicUrl ? "プリロール✓" : "プリロール未設定"}
                 {" / "}
                 {assignment.postRollPublicUrl ? "ポストロール✓" : "ポストロール未設定"}
               </>
@@ -259,26 +249,39 @@ function AssignmentRow({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <FaceVideoSelect
                 label="プリロール動画を選択"
-                rollType="pre"
                 options={assignment.salesperson.faceVideos}
                 currentUrl={assignment.preRollPublicUrl}
                 onSelect={setPreRollId}
               />
               <FaceVideoSelect
                 label="ポストロール動画を選択"
-                rollType="post"
                 options={assignment.salesperson.faceVideos}
                 currentUrl={assignment.postRollPublicUrl}
                 onSelect={setPostRollId}
               />
             </div>
-            {preRollId && (
-              <video
-                src={assignment.salesperson.faceVideos.find((fv) => fv.id === preRollId)?.publicUrl}
-                controls
-                className="w-32 h-20 rounded object-cover bg-black"
-              />
-            )}
+            <div className="flex gap-3">
+              {preRollId && (
+                <div>
+                  <p className="text-xs text-stone-400 mb-1">プリロールプレビュー</p>
+                  <video
+                    src={assignment.salesperson.faceVideos.find((fv) => fv.id === preRollId)?.publicUrl}
+                    controls
+                    className="w-40 h-24 rounded object-cover bg-black"
+                  />
+                </div>
+              )}
+              {postRollId && (
+                <div>
+                  <p className="text-xs text-stone-400 mb-1">ポストロールプレビュー</p>
+                  <video
+                    src={assignment.salesperson.faceVideos.find((fv) => fv.id === postRollId)?.publicUrl}
+                    controls
+                    className="w-40 h-24 rounded object-cover bg-black"
+                  />
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex gap-2 items-center">

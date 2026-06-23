@@ -51,7 +51,7 @@ export default async function ContactPage({ params, searchParams }: ContactPageP
           </div>
           <div>
             <p className="font-semibold text-white">{salesperson.name}</p>
-            <p className="text-gray-400 text-sm">{salesperson.company.name}</p>
+            <p className="text-gray-400 text-sm">{salesperson.company?.name}</p>
             {salesperson.bio && (
               <p className="text-gray-500 text-xs mt-1 line-clamp-2">{salesperson.bio}</p>
             )}

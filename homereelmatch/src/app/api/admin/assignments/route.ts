@@ -17,7 +17,7 @@ function formatAssignment(a: any) {
     salesperson: {
       id: a.salesperson.id as string,
       name: a.salesperson.name as string,
-      company: { name: a.salesperson.company.name as string },
+      company: { name: (a.salesperson.company?.name ?? "") as string },
       faceVideos: (a.salesperson.faceVideos as { id: string; rollType: string; publicUrl: string; durationSec: number }[]).map((fv) => ({
         id: fv.id,
         rollType: fv.rollType as "pre" | "post",

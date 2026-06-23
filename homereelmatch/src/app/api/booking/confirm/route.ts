@@ -56,10 +56,10 @@ export async function POST(request: NextRequest) {
 
     const notifyParams = {
       salespersonName: slot.salesperson.name,
-      companyName: slot.salesperson.company.name,
+      companyName: slot.salesperson.company?.name ?? "",
       scheduledAt: formatDateTime(slot.startAt),
-      modelHouseName: slot.salesperson.company.modelHouseName ?? "",
-      modelHouseAddress: slot.salesperson.company.modelHouseAddress ?? "",
+      modelHouseName: slot.salesperson.company?.modelHouseName ?? "",
+      modelHouseAddress: slot.salesperson.company?.modelHouseAddress ?? "",
     };
 
     if (contactRequest.user.lineId) {

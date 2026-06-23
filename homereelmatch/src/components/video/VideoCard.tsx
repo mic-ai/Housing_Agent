@@ -147,7 +147,7 @@ export function VideoCard({ video, priority = false }: VideoCardProps) {
                 <SalespersonAvatar sp={salesperson} />
                 <div className="min-w-0">
                   <p className="text-white text-xs font-semibold truncate">{salesperson.name}</p>
-                  <p className="text-stone-400 text-xs truncate">{salesperson.company.name}</p>
+                  <p className="text-stone-400 text-xs truncate">{salesperson.company?.name}</p>
                 </div>
               </div>
               {salesperson.bio && (
@@ -184,7 +184,7 @@ export function VideoCard({ video, priority = false }: VideoCardProps) {
                 <SalespersonAvatar sp={salesperson} />
                 <div className="min-w-0 text-left flex-1">
                   <p className="text-white text-xs font-semibold truncate">{salesperson.name}</p>
-                  <p className="text-stone-400 text-xs truncate">{salesperson.company.name}</p>
+                  <p className="text-stone-400 text-xs truncate">{salesperson.company?.name}</p>
                 </div>
                 <svg
                   className={`w-4 h-4 text-stone-400 flex-shrink-0 transition-transform duration-200 ${mobileOpen ? "-rotate-180" : ""}`}

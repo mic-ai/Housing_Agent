@@ -166,7 +166,7 @@ function AssignmentRow({
         <div className="flex-1 min-w-0">
           <p className="text-white text-sm font-medium truncate">{title}</p>
           <p className="text-stone-400 text-xs">
-            {assignment.salesperson.name}（{assignment.salesperson.company.name}）
+            {assignment.salesperson.name}（{assignment.salesperson.company?.name}）
           </p>
           {hashtags && (
             <p className="text-amber-400 text-xs truncate">
@@ -342,7 +342,7 @@ export function AssignmentManagerClient({ initialAssignments, salespersons, vide
         >
           <option value="">営業マンを選択</option>
           {salespersons.map((sp) => (
-            <option key={sp.id} value={sp.id}>{sp.name}（{sp.company.name}）</option>
+            <option key={sp.id} value={sp.id}>{sp.name}（{sp.company?.name}）</option>
           ))}
         </select>
 

@@ -55,22 +55,22 @@ export default async function BookingCompletePage({ params }: CompletePageProps)
           <div>
             <p className="text-xs text-gray-500 uppercase tracking-wide">担当</p>
             <p className="text-white font-semibold mt-1">{salesperson.name}</p>
-            <p className="text-gray-400 text-sm">{salesperson.company.name}</p>
+            <p className="text-gray-400 text-sm">{salesperson.company?.name}</p>
           </div>
 
-          {(salesperson.company.modelHouseName || salesperson.company.modelHouseAddress) && (
+          {(salesperson.company?.modelHouseName || salesperson.company?.modelHouseAddress) && (
             <>
               <div className="border-t border-white/10" />
               <div>
                 <p className="text-xs text-gray-500 uppercase tracking-wide">場所</p>
-                {salesperson.company.modelHouseName && (
+                {salesperson.company?.modelHouseName && (
                   <p className="text-white font-semibold mt-1">
-                    {salesperson.company.modelHouseName}
+                    {salesperson.company?.modelHouseName}
                   </p>
                 )}
-                {salesperson.company.modelHouseAddress && (
+                {salesperson.company?.modelHouseAddress && (
                   <p className="text-gray-400 text-sm">
-                    {salesperson.company.modelHouseAddress}
+                    {salesperson.company?.modelHouseAddress}
                   </p>
                 )}
               </div>

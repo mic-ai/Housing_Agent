@@ -49,12 +49,12 @@ export default async function BookingPage({ params }: BookingPageProps) {
         <div className="mb-6 p-4 bg-gray-900 rounded-xl">
           <p className="text-gray-400 text-sm">担当営業マン</p>
           <p className="font-semibold text-white mt-1">{contactRequest.salesperson.name}</p>
-          <p className="text-gray-400 text-sm">{contactRequest.salesperson.company.name}</p>
-          {contactRequest.salesperson.company.modelHouseAddress && (
+          <p className="text-gray-400 text-sm">{contactRequest.salesperson.company?.name}</p>
+          {contactRequest.salesperson.company?.modelHouseAddress && (
             <p className="text-gray-500 text-xs mt-1">
-              {contactRequest.salesperson.company.modelHouseName}
+              {contactRequest.salesperson.company?.modelHouseName}
               <br />
-              {contactRequest.salesperson.company.modelHouseAddress}
+              {contactRequest.salesperson.company?.modelHouseAddress}
             </p>
           )}
         </div>

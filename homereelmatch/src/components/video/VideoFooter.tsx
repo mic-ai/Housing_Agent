@@ -78,7 +78,7 @@ export function VideoFooter({
           </div>
           <div className="min-w-0">
             <p className="text-white text-sm font-medium truncate">{sp.name}</p>
-            <p className="text-stone-300 text-xs truncate">{sp.company.name}</p>
+            <p className="text-stone-300 text-xs truncate">{sp.company?.name}</p>
           </div>
         </div>
       )}

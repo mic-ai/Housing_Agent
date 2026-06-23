@@ -51,7 +51,18 @@ export function SalespersonManagerClient({ initialCompanies }: Props) {
     setLoading(false);
   }, []);
 
-  useEffect(() => { loadSalespersons(); }, [loadSalespersons]);
+  const loadCompanies = useCallback(async () => {
+    const res = await fetch("/api/admin/companies");
+    if (res.ok) {
+      const body = await res.json();
+      setCompanies(body.companies?.map((c: Company & { _count?: unknown }) => ({ id: c.id, name: c.name })) ?? []);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSalespersons();
+    loadCompanies();
+  }, [loadSalespersons, loadCompanies]);
 
   async function handleAddCompany(e: React.FormEvent) {
     e.preventDefault();

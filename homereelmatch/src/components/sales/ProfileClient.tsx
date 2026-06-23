@@ -124,22 +124,22 @@ function FaceVideoList({
       {videos.length === 0 ? (
         <p className="text-xs text-gray-500">登録なし</p>
       ) : (
-        <ul className="space-y-2">
+        <ul className="space-y-3">
           {videos.map((v) => (
-            <li key={v.id} className="flex items-center gap-3 bg-gray-800 rounded-lg p-3">
+            <li key={v.id} className="bg-gray-800 rounded-lg p-3 space-y-2">
               {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-              <video src={v.publicUrl} className="w-24 h-14 object-cover rounded" muted />
-              <div className="flex-1 min-w-0">
+              <video src={v.publicUrl} className="w-full rounded" controls muted />
+              <div className="flex items-center justify-between">
                 <p className="text-xs text-gray-300">{v.durationSec}秒</p>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(v.id)}
+                  disabled={deleting === v.id}
+                  className="text-red-400 hover:text-red-300 text-xs disabled:opacity-50"
+                >
+                  {deleting === v.id ? "削除中..." : "削除"}
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => handleDelete(v.id)}
-                disabled={deleting === v.id}
-                className="text-red-400 hover:text-red-300 text-xs shrink-0 disabled:opacity-50"
-              >
-                {deleting === v.id ? "削除中..." : "削除"}
-              </button>
             </li>
           ))}
         </ul>

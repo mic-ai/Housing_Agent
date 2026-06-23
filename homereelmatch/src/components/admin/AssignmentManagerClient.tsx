@@ -48,11 +48,13 @@ function FaceVideoSelect({
   label,
   options,
   currentUrl,
+  salespersonName,
   onSelect,
 }: {
   label: string;
   options: FaceVideo[];
   currentUrl: string | null;
+  salespersonName: string;
   onSelect: (id: string | null) => void;
 }) {
   const currentId = options.find((v) => v.publicUrl === currentUrl)?.id ?? "";
@@ -68,7 +70,7 @@ function FaceVideoSelect({
         <option value="">（設定しない）</option>
         {options.map((fv, i) => (
           <option key={fv.id} value={fv.id}>
-            {fv.rollType === "pre" ? "プリ" : "ポスト"}ロール動画{i + 1}（{fv.durationSec}秒）
+            {salespersonName}・{fv.rollType === "pre" ? "プリ" : "ポスト"}ロール{i + 1}（{fv.durationSec}秒）
           </option>
         ))}
       </select>
@@ -251,12 +253,14 @@ function AssignmentRow({
                 label="プリロール動画を選択"
                 options={assignment.salesperson.faceVideos}
                 currentUrl={assignment.preRollPublicUrl}
+                salespersonName={assignment.salesperson.name}
                 onSelect={setPreRollId}
               />
               <FaceVideoSelect
                 label="ポストロール動画を選択"
                 options={assignment.salesperson.faceVideos}
                 currentUrl={assignment.postRollPublicUrl}
+                salespersonName={assignment.salesperson.name}
                 onSelect={setPostRollId}
               />
             </div>

@@ -12,7 +12,7 @@ export default async function AdminDashboardPage() {
   if (!session?.user?.id) redirect("/login");
   if (session.user.role !== "ADMIN") redirect("/dashboard");
 
-  const [videoCount, salespersonCount, pendingInquiries, houseMakerCount, venueCount, assignments, salespersons, activeVideos, houseMakers, venues, companies] =
+  const [videoCount, salespersonCount, pendingInquiries, houseMakerCount, venueCount, assignments, salespersons, activeVideos, houseMakers, venues] =
     await Promise.all([
       prisma.video.count(),
       prisma.salesperson.count(),
@@ -28,7 +28,7 @@ export default async function AdminDashboardPage() {
             select: {
               id: true,
               name: true,
-              company: { select: { name: true } },
+              houseMaker: { select: { name: true } },
               faceVideos: {
                 select: { id: true, rollType: true, publicUrl: true, durationSec: true },
                 orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
@@ -49,7 +49,7 @@ export default async function AdminDashboardPage() {
         orderBy: { createdAt: "desc" },
       }),
       prisma.salesperson.findMany({
-        select: { id: true, name: true, company: { select: { name: true } } },
+        select: { id: true, name: true, houseMaker: { select: { name: true } } },
         orderBy: { name: "asc" },
       }),
       prisma.video.findMany({
@@ -64,10 +64,6 @@ export default async function AdminDashboardPage() {
       }),
       prisma.venue.findMany({
         where: { isActive: true },
-        select: { id: true, name: true },
-        orderBy: { name: "asc" },
-      }),
-      prisma.company.findMany({
         select: { id: true, name: true },
         orderBy: { name: "asc" },
       }),
@@ -104,7 +100,7 @@ export default async function AdminDashboardPage() {
             <span className="text-xs text-gray-500">{salespersonCount}名登録済み</span>
           </div>
           <div className="bg-gray-900 rounded-xl p-5">
-            <SalespersonManagerClient initialCompanies={companies} />
+            <SalespersonManagerClient initialHouseMakers={houseMakers} />
           </div>
         </section>
 
@@ -145,7 +141,7 @@ export default async function AdminDashboardPage() {
                 salesperson: {
                   id: a.salesperson.id,
                   name: a.salesperson.name,
-                  company: { name: a.salesperson.company.name },
+                  company: { name: a.salesperson.houseMaker?.name ?? "" },
                   faceVideos: a.salesperson.faceVideos.map((fv) => ({
                     id: fv.id,
                     rollType: fv.rollType as "pre" | "post",
@@ -162,7 +158,11 @@ export default async function AdminDashboardPage() {
                   hashtags: a.video.videoHashtags.map((vh) => vh.hashtag.tagName),
                 },
               }))}
-              salespersons={salespersons}
+              salespersons={salespersons.map((sp) => ({
+                id: sp.id,
+                name: sp.name,
+                company: { name: sp.houseMaker?.name ?? "" },
+              }))}
               videos={activeVideos.map((v) => ({ ...v, hashtags: [] }))}
             />
           </div>

@@ -8,7 +8,7 @@ const CreateSchema = z.object({
   name: z.string().min(1).max(100),
   email: z.string().email(),
   password: z.string().min(8),
-  companyId: z.string().min(1),
+  houseMakerId: z.string().optional(),
   role: z.enum(["SALESPERSON", "ADMIN"]).default("SALESPERSON"),
   lineId: z.string().optional(),
   bio: z.string().optional(),
@@ -20,7 +20,7 @@ export async function GET() {
 
   const salespersons = await prisma.salesperson.findMany({
     include: {
-      company: { select: { id: true, name: true } },
+      houseMaker: { select: { id: true, name: true } },
       _count: { select: { videoSegments: true, contactRequests: true } },
     },
     orderBy: { createdAt: "desc" },
@@ -34,7 +34,7 @@ export async function GET() {
       role: sp.role,
       lineId: sp.lineId,
       bio: sp.bio,
-      company: sp.company,
+      houseMaker: sp.houseMaker,
       videoCount: sp._count.videoSegments,
       inquiryCount: sp._count.contactRequests,
       createdAt: sp.createdAt,
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
 
     const salesperson = await prisma.salesperson.create({
       data: { ...rest, password: hashedPassword },
-      include: { company: { select: { id: true, name: true } } },
+      include: { houseMaker: { select: { id: true, name: true } } },
     });
 
     return NextResponse.json({
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
         name: salesperson.name,
         email: salesperson.email,
         role: salesperson.role,
-        company: salesperson.company,
+        houseMaker: salesperson.houseMaker,
         videoCount: 0,
         inquiryCount: 0,
         createdAt: salesperson.createdAt,

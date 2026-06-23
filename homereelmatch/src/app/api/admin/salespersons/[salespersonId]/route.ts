@@ -8,7 +8,7 @@ const PatchSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   email: z.string().email().optional(),
   password: z.string().min(8).optional(),
-  companyId: z.string().optional(),
+  houseMakerId: z.string().nullable().optional(),
   role: z.enum(["SALESPERSON", "ADMIN"]).optional(),
   lineId: z.string().nullable().optional(),
   bio: z.string().nullable().optional(),
@@ -34,7 +34,7 @@ export async function PATCH(
     const salesperson = await prisma.salesperson.update({
       where: { id: salespersonId },
       data,
-      include: { company: { select: { id: true, name: true } } },
+      include: { houseMaker: { select: { id: true, name: true } } },
     });
     return NextResponse.json({ salesperson });
   } catch (error: unknown) {

@@ -34,7 +34,7 @@ export function mapVideoToDTO(video: {
         name: string;
         modelHouseName: string | null;
         modelHouseAddress: string | null;
-      };
+      } | null;
     };
   }>;
 }) {

@@ -33,7 +33,7 @@ export interface SalespersonDTO {
     name: string;
     modelHouseName: string | null;
     modelHouseAddress: string | null;
-  };
+  } | null;
 }
 
 export interface SalespersonVideoDTO {

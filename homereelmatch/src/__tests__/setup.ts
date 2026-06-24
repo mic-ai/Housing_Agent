@@ -27,15 +27,20 @@ vi.mock("next/headers", () => ({
 // Prisma mock
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    $transaction: vi.fn((callback: (tx: unknown) => unknown) => {
+    // $transaction supports both array form (DELETE) and callback form (PATCH)
+    $transaction: vi.fn((arg: unknown) => {
+      if (Array.isArray(arg)) {
+        return Promise.all(arg);
+      }
       const tx = {
-        video: { create: vi.fn(), update: vi.fn() },
+        video: { create: vi.fn(), update: vi.fn(), findUnique: vi.fn() },
         hashtag: { upsert: vi.fn() },
         videoHashtag: { create: vi.fn(), deleteMany: vi.fn() },
+        salespersonVideo: { deleteMany: vi.fn() },
         user: { create: vi.fn() },
         contactRequest: { create: vi.fn() },
       };
-      return callback(tx);
+      return (arg as (tx: unknown) => unknown)(tx);
     }),
     video: {
       findMany: vi.fn(),
@@ -71,6 +76,7 @@ vi.mock("@/lib/prisma", () => ({
       findMany: vi.fn(),
       upsert: vi.fn(),
       delete: vi.fn(),
+      deleteMany: vi.fn(),
     },
     hashtag: {
       findMany: vi.fn(),

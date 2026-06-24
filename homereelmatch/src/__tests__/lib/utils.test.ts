@@ -14,6 +14,10 @@ describe("extractYouTubeId", () => {
     expect(extractYouTubeId("dQw4w9WgXcQ")).toBe("dQw4w9WgXcQ");
   });
 
+  it("YouTube Shorts URLからIDを抽出する", () => {
+    expect(extractYouTubeId("https://www.youtube.com/shorts/dQw4w9WgXcQ")).toBe("dQw4w9WgXcQ");
+  });
+
   it("無効なURLはnullを返す", () => {
     expect(extractYouTubeId("https://example.com/invalid")).toBeNull();
   });

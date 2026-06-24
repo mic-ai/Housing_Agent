@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 
 import { GET, PATCH } from "@/app/api/admin/videos/route";
-import { PATCH as PATCH_VIDEO } from "@/app/api/admin/videos/[videoId]/route";
+import { DELETE, PATCH as PATCH_VIDEO } from "@/app/api/admin/videos/[videoId]/route";
 
 const VIDEO = {
   id: "vid_001",
@@ -34,7 +34,7 @@ const SALESPERSON_SESSION = {
   expires: "2099-01-01T00:00:00.000Z",
 };
 
-const patchParams = Promise.resolve({ videoId: "vid_001" });
+const videoParams = Promise.resolve({ videoId: "vid_001" });
 
 function makeReq(method: string, body?: object) {
   return new NextRequest("http://localhost/api/admin/videos", {
@@ -135,6 +135,51 @@ describe("PATCH /api/admin/videos (一括操作)", () => {
   });
 });
 
+describe("DELETE /api/admin/videos/[videoId] — 認証チェック", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("未認証は401を返す", async () => {
+    vi.mocked(auth).mockResolvedValue(null as never);
+    const req = new NextRequest("http://localhost/api/admin/videos/vid_001", { method: "DELETE" });
+    const res = await DELETE(req, { params: videoParams });
+    expect(res.status).toBe(401);
+  });
+
+  it("SALESPERSON ロールは403を返す", async () => {
+    vi.mocked(auth).mockResolvedValue(SALESPERSON_SESSION as never);
+    const req = new NextRequest("http://localhost/api/admin/videos/vid_001", { method: "DELETE" });
+    const res = await DELETE(req, { params: videoParams });
+    expect(res.status).toBe(403);
+  });
+});
+
+describe("DELETE /api/admin/videos/[videoId]", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(auth).mockResolvedValue(ADMIN_SESSION as never);
+  });
+
+  it("関連レコードを含めてトランザクションで削除し 200 を返す", async () => {
+    vi.mocked(prisma.videoHashtag.deleteMany).mockResolvedValue({ count: 1 } as never);
+    vi.mocked(prisma.salespersonVideo.deleteMany).mockResolvedValue({ count: 1 } as never);
+    vi.mocked(prisma.video.delete).mockResolvedValue(VIDEO as never);
+
+    const req = new NextRequest("http://localhost/api/admin/videos/vid_001", { method: "DELETE" });
+    const res = await DELETE(req, { params: videoParams });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.ok).toBe(true);
+
+    // $transaction が呼ばれたことを確認
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    // 配列形式で渡された3オペレーション（deleteMany×2 + delete）を確認
+    const txArg = vi.mocked(prisma.$transaction).mock.calls[0][0];
+    expect(Array.isArray(txArg)).toBe(true);
+    expect((txArg as unknown[]).length).toBe(3);
+  });
+});
+
 describe("PATCH /api/admin/videos/[videoId] — 認証チェック", () => {
   beforeEach(() => vi.clearAllMocks());
 
@@ -145,7 +190,7 @@ describe("PATCH /api/admin/videos/[videoId] — 認証チェック", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ isActive: false }),
     });
-    const res = await PATCH_VIDEO(req, { params: patchParams });
+    const res = await PATCH_VIDEO(req, { params: videoParams });
     expect(res.status).toBe(401);
   });
 
@@ -156,7 +201,7 @@ describe("PATCH /api/admin/videos/[videoId] — 認証チェック", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ isActive: false }),
     });
-    const res = await PATCH_VIDEO(req, { params: patchParams });
+    const res = await PATCH_VIDEO(req, { params: videoParams });
     expect(res.status).toBe(403);
   });
 });
@@ -174,7 +219,7 @@ describe("PATCH /api/admin/videos/[videoId]", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ isActive: false }),
     });
-    const res = await PATCH_VIDEO(req, { params: patchParams });
+    const res = await PATCH_VIDEO(req, { params: videoParams });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.data.isActive).toBe(false);
@@ -187,7 +232,7 @@ describe("PATCH /api/admin/videos/[videoId]", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title: "更新タイトル" }),
     });
-    await PATCH_VIDEO(req, { params: patchParams });
+    await PATCH_VIDEO(req, { params: videoParams });
     expect(prisma.video.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ title: "更新タイトル" }) })
     );

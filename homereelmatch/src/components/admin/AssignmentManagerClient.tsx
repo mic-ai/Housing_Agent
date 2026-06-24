@@ -48,23 +48,21 @@ function extractYouTubeId(url: string): string | null {
 function FaceVideoSelect({
   label,
   options,
-  currentUrl,
+  selectedId,
   salespersonName,
   onSelect,
 }: {
   label: string;
   options: FaceVideo[];
-  currentUrl: string | null;
+  selectedId: string | null;
   salespersonName: string;
   onSelect: (id: string | null) => void;
 }) {
-  const currentId = options.find((v) => v.publicUrl === currentUrl)?.id ?? "";
-
   return (
     <div>
       <label className="block text-xs text-stone-400 mb-1">{label}</label>
       <select
-        value={currentId}
+        value={selectedId ?? ""}
         onChange={(e) => onSelect(e.target.value || null)}
         className="w-full bg-stone-700 border border-stone-600 rounded px-3 py-1.5 text-white text-sm"
       >
@@ -284,14 +282,14 @@ function AssignmentRow({
               <FaceVideoSelect
                 label="プリロール動画を選択"
                 options={assignment.salesperson.faceVideos}
-                currentUrl={assignment.preRollPublicUrl}
+                selectedId={preRollId}
                 salespersonName={assignment.salesperson.name}
                 onSelect={setPreRollId}
               />
               <FaceVideoSelect
                 label="ポストロール動画を選択"
                 options={assignment.salesperson.faceVideos}
-                currentUrl={assignment.postRollPublicUrl}
+                selectedId={postRollId}
                 salespersonName={assignment.salesperson.name}
                 onSelect={setPostRollId}
               />

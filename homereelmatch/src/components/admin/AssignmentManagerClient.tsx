@@ -45,6 +45,59 @@ function extractYouTubeId(url: string): string | null {
   return m?.[1] ?? null;
 }
 
+function FaceVideoPreview({ url, label }: { url: string | undefined; label: string }) {
+  const [err, setErr] = useState(false);
+
+  if (!url) {
+    return (
+      <div>
+        <p className="text-xs text-stone-400 mb-1">{label}</p>
+        <div className="w-40 h-24 rounded bg-stone-800 flex items-center justify-center">
+          <p className="text-stone-500 text-xs text-center px-2">URL未設定</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <p className="text-xs text-stone-400 mb-1">{label}</p>
+      {err ? (
+        <div className="w-40 h-24 rounded bg-red-950 flex flex-col items-center justify-center gap-1 px-2">
+          <p className="text-red-400 text-xs text-center">読み込みエラー</p>
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-400 text-xs underline break-all"
+          >
+            URLを開く
+          </a>
+        </div>
+      ) : (
+        <>
+          <video
+            src={url}
+            controls
+            playsInline
+            preload="metadata"
+            onError={() => setErr(true)}
+            className="w-40 h-24 rounded object-cover bg-stone-800"
+          />
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block text-blue-400 text-xs underline mt-1 truncate max-w-[160px]"
+          >
+            URLで確認
+          </a>
+        </>
+      )}
+    </div>
+  );
+}
+
 function FaceVideoSelect({
   label,
   options,
@@ -294,30 +347,18 @@ function AssignmentRow({
                 onSelect={setPostRollId}
               />
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-3 flex-wrap">
               {preRollId && (
-                <div>
-                  <p className="text-xs text-stone-400 mb-1">プリロールプレビュー</p>
-                  <video
-                    src={assignment.salesperson.faceVideos.find((fv) => fv.id === preRollId)?.publicUrl}
-                    controls
-                    playsInline
-                    preload="metadata"
-                    className="w-40 h-24 rounded object-cover bg-stone-800"
-                  />
-                </div>
+                <FaceVideoPreview
+                  url={assignment.salesperson.faceVideos.find((fv) => fv.id === preRollId)?.publicUrl}
+                  label="プリロールプレビュー"
+                />
               )}
               {postRollId && (
-                <div>
-                  <p className="text-xs text-stone-400 mb-1">ポストロールプレビュー</p>
-                  <video
-                    src={assignment.salesperson.faceVideos.find((fv) => fv.id === postRollId)?.publicUrl}
-                    controls
-                    playsInline
-                    preload="metadata"
-                    className="w-40 h-24 rounded object-cover bg-stone-800"
-                  />
-                </div>
+                <FaceVideoPreview
+                  url={assignment.salesperson.faceVideos.find((fv) => fv.id === postRollId)?.publicUrl}
+                  label="ポストロールプレビュー"
+                />
               )}
             </div>
           </div>

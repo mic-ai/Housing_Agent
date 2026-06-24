@@ -70,9 +70,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const buffer = Buffer.from(await file.arrayBuffer());
     const ext = extFromMime(file.type);
 
-    // Duration validation
+    // Duration validation（ffprobe が使えない環境では null → スキップ）
     const durationSec = await getVideoDurationSec(buffer, ext);
-    if (durationSec > MAX_DURATION_SEC) {
+    if (durationSec !== null && durationSec > MAX_DURATION_SEC) {
       return NextResponse.json(
         { error: `Duration ${durationSec}s exceeds maximum of ${MAX_DURATION_SEC}s` },
         { status: 400 }
@@ -83,10 +83,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const storagePath = buildFaceVideoPath(spId, vId, rollType, ext);
     const { publicUrl } = await uploadFaceVideo(buffer, storagePath, file.type);
 
+    const resolvedDuration = durationSec !== null ? Math.round(durationSec) : 0;
     const updateFields =
       rollType === "pre"
-        ? { preRollStoragePath: storagePath, preRollPublicUrl: publicUrl, preRollDurationSec: Math.round(durationSec) }
-        : { postRollStoragePath: storagePath, postRollPublicUrl: publicUrl, postRollDurationSec: Math.round(durationSec) };
+        ? { preRollStoragePath: storagePath, preRollPublicUrl: publicUrl, preRollDurationSec: resolvedDuration }
+        : { postRollStoragePath: storagePath, postRollPublicUrl: publicUrl, postRollDurationSec: resolvedDuration };
 
     const record = await prisma.salespersonVideo.upsert({
       where: { videoId_salespersonId: { videoId: vId, salespersonId: spId } },
@@ -97,7 +98,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({
       salespersonVideoId: record.id,
       publicUrl,
-      durationSec: Math.round(durationSec),
+      durationSec: resolvedDuration,
       type: rollType,
     });
   } catch (error) {

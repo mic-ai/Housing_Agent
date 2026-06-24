@@ -55,7 +55,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const ext = extFromMime(file.type);
     const durationSec = await getVideoDurationSec(buffer, ext);
 
-    if (durationSec > MAX_DURATION_SEC) {
+    // ffprobe が利用可能な場合のみ尺チェック（Vercel 等では null になる）
+    if (durationSec !== null && durationSec > MAX_DURATION_SEC) {
       return NextResponse.json({ error: `Duration ${durationSec}s exceeds maximum of ${MAX_DURATION_SEC}s` }, { status: 400 });
     }
 
@@ -70,7 +71,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         rollType,
         storagePath,
         publicUrl,
-        durationSec: Math.round(durationSec),
+        durationSec: durationSec !== null ? Math.round(durationSec) : 0,
       },
     });
 

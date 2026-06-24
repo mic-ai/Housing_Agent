@@ -80,7 +80,8 @@ function FaceVideoPreview({ url, label }: { url: string | undefined; label: stri
             src={url}
             controls
             playsInline
-            preload="metadata"
+            preload="auto"
+            onLoadedMetadata={(e) => { e.currentTarget.currentTime = 0.1; }}
             onError={() => setErr(true)}
             className="w-40 h-24 rounded object-cover bg-stone-800"
           />

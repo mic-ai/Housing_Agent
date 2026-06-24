@@ -468,7 +468,7 @@ npx vercel --prod
 
 ---
 
-## 現在の状態（2026-06-23）
+## 現在の状態（2026-06-24）
 
 全フェーズ実装・本番デプロイ済み。
 
@@ -498,6 +498,12 @@ npx vercel --prod
 | 営業マンアイコン2倍化（w-20 h-20） | 完了（2026-06-23） |
 | 管理画面5タブ化（AdminDashboardClient） | 完了（2026-06-23） |
 | フロントエンドUI全体改善（stone系・アイコン・カード） | 完了（2026-06-23） |
+| Vercel プロジェクト接続修正・sitemap.xml 復旧 | 完了（2026-06-24） |
+| 接続設定ドロップダウン選択が反映されないバグ修正 | 完了（2026-06-24） |
+| 顔出し動画プレビュー改善（FaceVideoPreview・エラー表示・URLリンク） | 完了（2026-06-24） |
+| 接続設定DELETE時に顔出し動画ファイルを削除するバグ修正 | 完了（2026-06-24） |
+| 保存失敗時のエラー表示・行ヘッダー即時更新 | 完了（2026-06-24） |
+| 顔出し動画アップロード Internal Server Error 修正（ffprobe Vercel 対応） | 完了（2026-06-24） |
 
 ### 直近の主要変更（2026-06-23）
 
@@ -549,6 +555,56 @@ npx vercel --prod
 #### watch page の isActive フィルタ
 - `isActive: false` の動画は公開フィード（`/`）に表示しないが、直接 URL（`/watch/[id]`）では表示する
 - 管理者プレビュー目的のため `where: { id: videoId }` のみとし `isActive: true` は付けない
+
+### 直近の主要変更（2026-06-24）
+
+#### Vercel プロジェクト接続修正・sitemap.xml 復旧
+- GitHub `mic-ai/Housing_Agent` リポジトリを正しい Vercel プロジェクト（`homereelmatch`）に接続し直した
+- Vercel プロジェクトの Root Directory を `homereelmatch` に設定（以前は repo ルートにデプロイされていた）
+- `sitemap.ts`（メタデータ規約）→ `src/app/api/sitemap/route.ts`（Route Handler）＋ `next.config.ts` rewrite に変更
+  - `/sitemap.xml` → `/api/sitemap` の rewrite を追加
+  - DB 取得失敗時は静的ルートのみ返すフォールバック付き
+
+#### 接続設定 UI バグ修正（AssignmentManagerClient.tsx）
+- **ドロップダウン選択が反映されないバグ**: `<select value={currentId}>` が props 由来の値で固定されていた → `selectedId` state を直接渡す形に変更
+- **FaceVideoPreview コンポーネント新設**:
+  - `onError` でロードエラーを検知 → 赤いエラー表示＋「URLを開く」リンクに切り替え
+  - `url` が undefined 時は「URL未設定」を明示
+  - 「URLで確認」リンクで Supabase Storage URL を直接テスト可能
+  - `preload="auto"` ＋ `onLoadedMetadata` で `currentTime=0.1` シーク → 最初のフレームをサムネイルとして表示
+- **保存失敗時のエラー表示**: `videoRes.ok && faceRes.ok` が false の場合、エラー内容を赤字表示
+- **行ヘッダー即時更新**: 保存成功後に「プリロール✓ / 未設定」表示が `savedPreRollUrl` / `savedPostRollUrl` state で即時反映
+
+#### 接続設定DELETE時の顔出し動画ファイル削除バグ修正（重大）
+- **バグ内容**: `DELETE /api/admin/assignments/[id]` が `preRollStoragePath` / `postRollStoragePath` のファイルを Supabase Storage から削除していた
+- **影響**: 顔出し動画ライブラリ（`SalespersonFaceVideo`）のファイル実体が消え、DB レコードは残るが URL が 404 になる「ゾンビレコード」が生成されていた
+- **修正**: `deleteFaceVideo` 呼び出しを除去。顔出し動画ファイルの削除は `DELETE /api/salesperson/profile/face-videos/[id]` のみで行う
+- **データ復旧手順**: 営業マンが `/dashboard/profile` でゾンビレコードを削除 → 再アップロード → 管理者が接続設定を再設定
+
+#### 顔出し動画アップロード Internal Server Error 修正
+- **原因**: `@ffprobe-installer/ffprobe` のバイナリが 76MB あり Vercel サーバーレス関数にバンドルされない → `getVideoDurationSec` が例外を投げて 500 エラー
+- **修正**: `getVideoDurationSec` の戻り値を `number | null` に変更
+  - ffprobe のパス解決失敗・実行エラー時は `null` を返す
+  - 呼び出し側で `null` の場合は尺チェックをスキップしてアップロード続行
+  - `durationSec` は `0` で DB 保存（フォールバック）
+- **影響箇所**: `src/lib/video-duration.ts`, `src/app/api/salesperson/profile/face-videos/route.ts`, `src/app/api/face-videos/upload/route.ts`
+
+### 実装上の重要な知見（2026-06-24 追加）
+
+#### Vercel デプロイ設定
+- Vercel プロジェクトの **Root Directory** を `homereelmatch` に設定しないと、repo ルートへのデプロイになりアプリが動かない
+- `.vercel/project.json` の `projectId` で接続先プロジェクトを確認できる
+
+#### 接続設定と顔出し動画ライブラリの関係
+- `SalespersonVideo.preRollPublicUrl` は `SalespersonFaceVideo.publicUrl` への**参照（コピー）**に過ぎない
+- 接続設定（`SalespersonVideo`）を削除してもファイルは削除してはいけない
+- ファイルのライフサイクルは `SalespersonFaceVideo` が管理する
+- 同じ顔出し動画を複数の接続設定で参照することも可能（排他制約なし）
+
+#### ffprobe と Vercel
+- `@ffprobe-installer/ffprobe` の linux-x64 バイナリは 76MB あり、Vercel の関数バンドルに含まれない
+- `getVideoDurationSec` は `number | null` を返す設計とし、`null` の場合は尺チェックをスキップすること
+- 10 秒制限はクライアントサイドでも別途実装することを推奨
 
 ### 環境変数メモ
 

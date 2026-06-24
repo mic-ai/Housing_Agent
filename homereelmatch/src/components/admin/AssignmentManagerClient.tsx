@@ -301,7 +301,9 @@ function AssignmentRow({
                   <video
                     src={assignment.salesperson.faceVideos.find((fv) => fv.id === preRollId)?.publicUrl}
                     controls
-                    className="w-40 h-24 rounded object-cover bg-black"
+                    playsInline
+                    preload="metadata"
+                    className="w-40 h-24 rounded object-cover bg-stone-800"
                   />
                 </div>
               )}
@@ -311,7 +313,9 @@ function AssignmentRow({
                   <video
                     src={assignment.salesperson.faceVideos.find((fv) => fv.id === postRollId)?.publicUrl}
                     controls
-                    className="w-40 h-24 rounded object-cover bg-black"
+                    playsInline
+                    preload="metadata"
+                    className="w-40 h-24 rounded object-cover bg-stone-800"
                   />
                 </div>
               )}

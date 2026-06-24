@@ -17,6 +17,6 @@ export default defineConfig({
       },
     },
     target: "es2018",
-    minify: "terser",
+    minify: "oxc",
   },
 });

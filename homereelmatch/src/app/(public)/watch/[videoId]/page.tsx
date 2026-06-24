@@ -64,7 +64,8 @@ export default async function WatchPage({ params }: WatchPageProps) {
             },
           },
         },
-        orderBy: { createdAt: "asc" },
+        // isPrimary: true を優先し、なければ最古の接続にフォールバック
+        orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
         take: 1,
       },
     },

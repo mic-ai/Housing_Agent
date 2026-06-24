@@ -174,7 +174,7 @@ describe("DELETE /api/admin/videos/[videoId]", () => {
     // $transaction が呼ばれたことを確認
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
     // 配列形式で渡された3オペレーション（deleteMany×2 + delete）を確認
-    const txArg = vi.mocked(prisma.$transaction).mock.calls[0][0];
+    const txArg = vi.mocked(prisma.$transaction).mock.calls[0][0] as unknown;
     expect(Array.isArray(txArg)).toBe(true);
     expect((txArg as unknown[]).length).toBe(3);
   });

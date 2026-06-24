@@ -9,6 +9,7 @@ type Params = { params: Promise<{ assignmentId: string }> };
 const PatchSchema = z.object({
   preRollFaceVideoId: z.string().nullable().optional(),
   postRollFaceVideoId: z.string().nullable().optional(),
+  isPrimary: z.literal(true).optional(),
 });
 
 export async function PATCH(request: NextRequest, { params }: Params): Promise<NextResponse> {
@@ -19,7 +20,29 @@ export async function PATCH(request: NextRequest, { params }: Params): Promise<N
 
   try {
     const body = await request.json();
-    const { preRollFaceVideoId, postRollFaceVideoId } = PatchSchema.parse(body);
+    const { preRollFaceVideoId, postRollFaceVideoId, isPrimary } = PatchSchema.parse(body);
+
+    // isPrimary: true の場合、同一動画の他接続を先にリセット
+    if (isPrimary) {
+      const assignment = await prisma.salespersonVideo.findUnique({
+        where: { id: assignmentId },
+        select: { videoId: true },
+      });
+      if (!assignment) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+      await prisma.$transaction([
+        prisma.salespersonVideo.updateMany({
+          where: { videoId: assignment.videoId, id: { not: assignmentId } },
+          data: { isPrimary: false },
+        }),
+        prisma.salespersonVideo.update({
+          where: { id: assignmentId },
+          data: { isPrimary: true },
+        }),
+      ]);
+
+      return NextResponse.json({ data: { isPrimary: true } });
+    }
 
     const updateData: Record<string, unknown> = {};
 

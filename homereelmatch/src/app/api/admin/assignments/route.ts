@@ -12,6 +12,7 @@ const CreateSchema = z.object({
 function formatAssignment(a: any) {
   return {
     id: a.id as string,
+    isPrimary: a.isPrimary as boolean,
     preRollPublicUrl: a.preRollPublicUrl as string | null,
     postRollPublicUrl: a.postRollPublicUrl as string | null,
     salesperson: {
@@ -43,6 +44,7 @@ export async function GET() {
   const assignments = await prisma.salespersonVideo.findMany({
     select: {
       id: true,
+      isPrimary: true,
       preRollPublicUrl: true,
       postRollPublicUrl: true,
       salesperson: {
@@ -86,19 +88,24 @@ export async function POST(request: NextRequest) {
 
     const { salespersonId, videoId } = parsed.data;
 
-    const [salesperson, video] = await Promise.all([
+    const [salesperson, video, existingCount] = await Promise.all([
       prisma.salesperson.findUnique({ where: { id: salespersonId } }),
       prisma.video.findUnique({ where: { id: videoId } }),
+      prisma.salespersonVideo.count({ where: { videoId } }),
     ]);
     if (!salesperson) return NextResponse.json({ error: "Salesperson not found" }, { status: 404 });
     if (!video) return NextResponse.json({ error: "Video not found" }, { status: 404 });
 
+    // 動画への最初の接続は isPrimary: true を自動設定
+    const isFirstAssignment = existingCount === 0;
+
     const raw = await prisma.salespersonVideo.upsert({
       where: { videoId_salespersonId: { videoId, salespersonId } },
       update: {},
-      create: { videoId, salespersonId },
+      create: { videoId, salespersonId, isPrimary: isFirstAssignment },
       select: {
         id: true,
+        isPrimary: true,
         preRollPublicUrl: true,
         postRollPublicUrl: true,
         salesperson: {

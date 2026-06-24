@@ -18,6 +18,7 @@ export default async function AdminDashboardPage() {
       prisma.salespersonVideo.findMany({
         select: {
           id: true,
+          isPrimary: true,
           preRollPublicUrl: true,
           postRollPublicUrl: true,
           salesperson: {
@@ -99,6 +100,7 @@ export default async function AdminDashboardPage() {
         <AdminDashboardClient
           initialAssignments={assignments.map((a) => ({
             id: a.id,
+            isPrimary: a.isPrimary,
             preRollPublicUrl: a.preRollPublicUrl,
             postRollPublicUrl: a.postRollPublicUrl,
             salesperson: {

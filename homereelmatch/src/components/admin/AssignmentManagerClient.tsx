@@ -27,6 +27,7 @@ interface Video {
 
 interface Assignment {
   id: string;
+  isPrimary: boolean;
   preRollPublicUrl: string | null;
   postRollPublicUrl: string | null;
   salesperson: Salesperson;
@@ -84,12 +85,15 @@ function FaceVideoSelect({
 function AssignmentRow({
   assignment,
   onDelete,
+  onSetPrimary,
 }: {
   assignment: Assignment;
   onDelete: (id: string) => void;
+  onSetPrimary: (id: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [settingPrimary, setSettingPrimary] = useState(false);
   const [title, setTitle] = useState(assignment.video.title);
   const [hashtags, setHashtags] = useState(assignment.video.hashtags.join(", "));
   const [preRollId, setPreRollId] = useState<string | null>(
@@ -104,6 +108,17 @@ function AssignmentRow({
   );
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  async function handleSetPrimary() {
+    setSettingPrimary(true);
+    const res = await fetch(`/api/admin/assignments/${assignment.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isPrimary: true }),
+    });
+    if (res.ok) onSetPrimary(assignment.id);
+    setSettingPrimary(false);
+  }
 
   const v = assignment.video;
   const ytId = v.platform === "YOUTUBE" ? extractYouTubeId(v.url) : null;
@@ -156,7 +171,14 @@ function AssignmentRow({
           <div className="w-20 h-12 bg-stone-700 rounded shrink-0" />
         )}
         <div className="flex-1 min-w-0">
-          <p className="text-white text-sm font-medium truncate">{title}</p>
+          <div className="flex items-center gap-2 mb-0.5">
+            <p className="text-white text-sm font-medium truncate">{title}</p>
+            {assignment.isPrimary && (
+              <span className="flex-shrink-0 text-xs px-1.5 py-0.5 rounded bg-amber-600 text-white font-medium">
+                メイン
+              </span>
+            )}
+          </div>
           <p className="text-stone-400 text-xs">
             {assignment.salesperson.name}（{assignment.salesperson.company?.name}）
           </p>
@@ -178,6 +200,16 @@ function AssignmentRow({
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {!assignment.isPrimary && (
+            <button
+              type="button"
+              onClick={handleSetPrimary}
+              disabled={settingPrimary}
+              className="text-xs px-2 py-1 rounded bg-amber-800 hover:bg-amber-700 text-amber-200 disabled:opacity-50"
+            >
+              {settingPrimary ? "設定中..." : "メインに設定"}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setExpanded((x) => !x)}
@@ -383,6 +415,15 @@ export function AssignmentManagerClient({ initialAssignments, salespersons, vide
               key={a.id}
               assignment={a}
               onDelete={(id) => setAssignments((prev) => prev.filter((x) => x.id !== id))}
+              onSetPrimary={(id) =>
+                setAssignments((prev) =>
+                  prev.map((x) =>
+                    x.video.id === assignments.find((a) => a.id === id)?.video.id
+                      ? { ...x, isPrimary: x.id === id }
+                      : x
+                  )
+                )
+              }
             />
           ))}
         </div>

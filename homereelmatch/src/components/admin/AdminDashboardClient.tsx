@@ -32,6 +32,7 @@ interface Video {
 
 interface Assignment {
   id: string;
+  isPrimary: boolean;
   preRollPublicUrl: string | null;
   postRollPublicUrl: string | null;
   salesperson: Salesperson;

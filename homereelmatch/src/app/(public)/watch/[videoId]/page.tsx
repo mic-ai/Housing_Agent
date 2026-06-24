@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { WatchClientShell } from "@/components/video/WatchClientShell";
 import { WatchOverlay } from "@/components/video/WatchOverlay";
+import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { extractYouTubeId } from "@/lib/utils";
 import type { Metadata } from "next";
 
@@ -11,17 +12,28 @@ interface WatchPageProps {
 
 export async function generateMetadata({ params }: WatchPageProps): Promise<Metadata> {
   const { videoId } = await params;
-  const video = await prisma.video.findUnique({ where: { id: videoId } });
+  const video = await prisma.video.findUnique({
+    where: { id: videoId },
+    include: { videoHashtags: { include: { hashtag: true } } },
+  });
   if (!video) return { title: "動画が見つかりません" };
   const ytId = video.platform === "YOUTUBE" ? extractYouTubeId(video.url) : null;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://homereelmatch.example.com";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://homereelmatch.vercel.app";
+  const description =
+    video.description ??
+    `${video.title}の住宅情報ショート動画。HomeReelMatchで担当営業マンとマッチングしよう。`;
+  const keywords = video.videoHashtags.map((vh) => vh.hashtag.tagName);
 
   return {
     title: video.title,
-    description: video.description ?? undefined,
+    description,
+    keywords: [...keywords, "住宅", "動画"],
+    alternates: {
+      canonical: `/watch/${videoId}`,
+    },
     openGraph: {
       title: video.title,
-      description: video.description ?? undefined,
+      description,
       type: "video.other",
       url: `${appUrl}/watch/${video.id}`,
       images: video.thumbnailUrl
@@ -34,7 +46,7 @@ export async function generateMetadata({ params }: WatchPageProps): Promise<Meta
     twitter: {
       card: "player",
       title: video.title,
-      description: video.description ?? undefined,
+      description,
       images: video.thumbnailUrl ? [video.thumbnailUrl] : [],
       ...(ytId && {
         players: [{
@@ -92,8 +104,25 @@ export default async function WatchPage({ params }: WatchPageProps) {
     primarySalesperson?.faceVideos.find((v) => v.rollType === "post")?.durationSec ??
     null;
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://homereelmatch.vercel.app";
   const canonicalUrl = `${appUrl}/watch/${video.id}`;
+
+  const ytId = video.platform === "YOUTUBE" ? extractYouTubeId(video.url) : null;
+  const hashtags = video.videoHashtags.map((vh) => vh.hashtag);
+
+  const videoJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "VideoObject",
+    name: video.title,
+    description: video.description ?? `${video.title}の住宅情報ショート動画`,
+    thumbnailUrl: video.thumbnailUrl ?? (ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : undefined),
+    uploadDate: video.createdAt.toISOString(),
+    contentUrl: video.url,
+    embedUrl: ytId ? `https://www.youtube.com/embed/${ytId}` : undefined,
+    url: canonicalUrl,
+    keywords: hashtags.map((h) => h.tagName).join(", "),
+    inLanguage: "ja",
+  };
 
   const salespersonVideo =
     primaryAssignment && primarySalesperson
@@ -123,24 +152,46 @@ export default async function WatchPage({ params }: WatchPageProps) {
       : null;
 
   return (
-    <main className="min-h-screen bg-black flex items-center justify-center">
-      <div className="relative w-full max-w-sm mx-auto aspect-[9/16] bg-black">
-        <WatchOverlay
-          videoId={video.id}
-          videoTitle={video.title}
-          videoUrl={canonicalUrl}
-        />
-        <WatchClientShell
-          platform={video.platform}
-          url={video.url}
-          preRollUrl={preRollUrl}
-          postRollUrl={postRollUrl}
-          videoId={video.id}
-          title={video.title}
-          hashtags={video.videoHashtags.map((vh) => vh.hashtag)}
-          salespersonVideo={salespersonVideo}
-        />
-      </div>
-    </main>
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(videoJsonLd) }}
+      />
+      <main className="min-h-screen bg-black">
+        {/* パンくずリスト（SEO用・視覚的にも表示） */}
+        <div className="absolute top-0 left-0 right-0 z-20 px-4 pt-3 pointer-events-none">
+          <div className="pointer-events-auto">
+            <Breadcrumb
+              appUrl={appUrl}
+              items={[
+                { name: "ホーム", href: "/" },
+                ...(hashtags[0] ? [{ name: `#${hashtags[0].tagName}`, href: `/tag/${encodeURIComponent(hashtags[0].tagName)}` }] : []),
+                { name: video.title },
+              ]}
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="relative w-full max-w-sm mx-auto aspect-[9/16] bg-black">
+            <WatchOverlay
+              videoId={video.id}
+              videoTitle={video.title}
+              videoUrl={canonicalUrl}
+            />
+            <WatchClientShell
+              platform={video.platform}
+              url={video.url}
+              preRollUrl={preRollUrl}
+              postRollUrl={postRollUrl}
+              videoId={video.id}
+              title={video.title}
+              hashtags={hashtags}
+              salespersonVideo={salespersonVideo}
+            />
+          </div>
+        </div>
+      </main>
+    </>
   );
 }

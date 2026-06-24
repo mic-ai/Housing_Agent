@@ -6,6 +6,16 @@ import { HashtagCloud } from "@/components/search/HashtagCloud";
 import { FilterBar } from "@/components/search/FilterBar";
 import { VideoFeedClient } from "@/components/video/VideoFeedClient";
 import { mapVideoToDTO } from "@/lib/utils";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "HomeReelMatch | 住宅情報動画 × 営業マンマッチング",
+  description:
+    "注文住宅・建売・ハウスメーカーの縦型ショート動画を視聴して、あなたに合った住宅営業マンと出会えるマッチングサービスです。",
+  alternates: {
+    canonical: "/",
+  },
+};
 
 interface HomePageProps {
   searchParams: Promise<{

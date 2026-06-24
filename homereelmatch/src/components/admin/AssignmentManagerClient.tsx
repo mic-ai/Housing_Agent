@@ -160,6 +160,10 @@ function AssignmentRow({
   );
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  // 保存後の表示用（props は immutable なので state で持つ）
+  const [savedPreRollUrl, setSavedPreRollUrl] = useState(assignment.preRollPublicUrl);
+  const [savedPostRollUrl, setSavedPostRollUrl] = useState(assignment.postRollPublicUrl);
 
   async function handleSetPrimary() {
     setSettingPrimary(true);
@@ -188,6 +192,7 @@ function AssignmentRow({
   async function handleSave() {
     setSaving(true);
     setSaved(false);
+    setSaveError(null);
 
     const [videoRes, faceRes] = await Promise.all([
       fetch(`/api/admin/videos/${v.id}`, {
@@ -206,8 +211,20 @@ function AssignmentRow({
     ]);
 
     if (videoRes.ok && faceRes.ok) {
+      // 行ヘッダーの状態を保存済みの値に更新
+      const preUrl = preRollId
+        ? assignment.salesperson.faceVideos.find((fv) => fv.id === preRollId)?.publicUrl ?? null
+        : null;
+      const postUrl = postRollId
+        ? assignment.salesperson.faceVideos.find((fv) => fv.id === postRollId)?.publicUrl ?? null
+        : null;
+      setSavedPreRollUrl(preUrl);
+      setSavedPostRollUrl(postUrl);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
+    } else {
+      const errBody = !faceRes.ok ? await faceRes.json().catch(() => ({})) : await videoRes.json().catch(() => ({}));
+      setSaveError(errBody?.error ? JSON.stringify(errBody.error) : "保存に失敗しました");
     }
     setSaving(false);
   }
@@ -242,9 +259,9 @@ function AssignmentRow({
           <p className="text-stone-500 text-xs">
             {hasFaceVideos ? (
               <>
-                {assignment.preRollPublicUrl ? "プリロール✓" : "プリロール未設定"}
+                {savedPreRollUrl ? "プリロール✓" : "プリロール未設定"}
                 {" / "}
-                {assignment.postRollPublicUrl ? "ポストロール✓" : "ポストロール未設定"}
+                {savedPostRollUrl ? "ポストロール✓" : "ポストロール未設定"}
               </>
             ) : (
               "顔出し動画なし"
@@ -374,6 +391,7 @@ function AssignmentRow({
               {saving ? "保存中..." : "保存する"}
             </button>
             {saved && <span className="text-green-400 text-xs">保存しました</span>}
+            {saveError && <span className="text-red-400 text-xs">{saveError}</span>}
           </div>
         </div>
       )}

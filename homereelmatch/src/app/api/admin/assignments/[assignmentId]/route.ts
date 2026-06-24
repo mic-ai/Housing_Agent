@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin";
-import { deleteFaceVideo } from "@/lib/storage";
 
 type Params = { params: Promise<{ assignmentId: string }> };
 
@@ -114,9 +113,7 @@ export async function DELETE(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const paths = [assignment.preRollStoragePath, assignment.postRollStoragePath].filter(Boolean) as string[];
-  await Promise.allSettled(paths.map((p) => deleteFaceVideo(p)));
-
+  // 顔出し動画ファイルはSalespersonFaceVideoライブラリが管理するため、ここでは削除しない
   await prisma.salespersonVideo.delete({ where: { id: assignmentId } });
 
   return new NextResponse(null, { status: 204 });

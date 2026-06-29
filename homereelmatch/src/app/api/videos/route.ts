@@ -109,6 +109,7 @@ export async function POST(request: NextRequest) {
           description: data.description,
           houseMakerId: data.houseMakerId,
           venueId: data.venueId,
+          isActive: false,
         },
       });
 

@@ -39,6 +39,7 @@ export default async function AdminDashboardPage() {
               url: true,
               title: true,
               thumbnailUrl: true,
+              isActive: true,
               videoHashtags: { select: { hashtag: { select: { tagName: true } } } },
             },
           },
@@ -120,6 +121,7 @@ export default async function AdminDashboardPage() {
               url: a.video.url,
               title: a.video.title,
               thumbnailUrl: a.video.thumbnailUrl,
+              isActive: a.video.isActive,
               hashtags: a.video.videoHashtags.map((vh) => vh.hashtag.tagName),
             },
           }))}
@@ -128,7 +130,7 @@ export default async function AdminDashboardPage() {
             name: sp.name,
             company: { name: sp.houseMaker?.name ?? "" },
           }))}
-          activeVideos={activeVideos.map((v) => ({ ...v, hashtags: [] }))}
+          activeVideos={activeVideos.map((v) => ({ ...v, hashtags: [], isActive: true }))}
           initialHouseMakers={houseMakers}
         />
       </main>

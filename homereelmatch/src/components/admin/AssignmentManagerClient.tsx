@@ -23,6 +23,7 @@ interface Video {
   title: string;
   thumbnailUrl: string | null;
   hashtags: string[];
+  isActive: boolean;
 }
 
 interface Assignment {
@@ -146,6 +147,8 @@ function AssignmentRow({
   const [expanded, setExpanded] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [settingPrimary, setSettingPrimary] = useState(false);
+  const [isActive, setIsActive] = useState(assignment.video.isActive);
+  const [togglingActive, setTogglingActive] = useState(false);
   const [title, setTitle] = useState(assignment.video.title);
   const [hashtags, setHashtags] = useState(assignment.video.hashtags.join(", "));
   const [preRollId, setPreRollId] = useState<string | null>(
@@ -164,6 +167,17 @@ function AssignmentRow({
   // 保存後の表示用（props は immutable なので state で持つ）
   const [savedPreRollUrl, setSavedPreRollUrl] = useState(assignment.preRollPublicUrl);
   const [savedPostRollUrl, setSavedPostRollUrl] = useState(assignment.postRollPublicUrl);
+
+  async function handleToggleActive() {
+    setTogglingActive(true);
+    const res = await fetch(`/api/admin/videos/${v.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isActive: !isActive }),
+    });
+    if (res.ok) setIsActive((x) => !x);
+    setTogglingActive(false);
+  }
 
   async function handleSetPrimary() {
     setSettingPrimary(true);
@@ -268,13 +282,25 @@ function AssignmentRow({
             )}
           </p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+          <button
+            type="button"
+            onClick={handleToggleActive}
+            disabled={togglingActive}
+            className={`text-xs px-3 py-1.5 rounded font-medium transition-colors disabled:opacity-50 ${
+              isActive
+                ? "bg-green-800 hover:bg-green-700 text-green-200"
+                : "bg-amber-600 hover:bg-amber-500 text-white"
+            }`}
+          >
+            {togglingActive ? "変更中..." : isActive ? "公開中" : "公開する"}
+          </button>
           {!assignment.isPrimary && (
             <button
               type="button"
               onClick={handleSetPrimary}
               disabled={settingPrimary}
-              className="text-xs px-2 py-1 rounded bg-amber-800 hover:bg-amber-700 text-amber-200 disabled:opacity-50"
+              className="text-xs px-2 py-1 rounded bg-stone-700 hover:bg-stone-600 text-stone-300 disabled:opacity-50"
             >
               {settingPrimary ? "設定中..." : "メインに設定"}
             </button>
@@ -408,18 +434,19 @@ export function AssignmentManagerClient({ initialAssignments, salespersons, vide
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch("/api/admin/videos?isActive=true&limit=200")
+    fetch("/api/admin/videos?limit=200")
       .then((r) => r.json())
       .then((json) => {
         if (Array.isArray(json.data)) {
           setAvailableVideos(
-            json.data.map((v: { id: string; platform: "YOUTUBE" | "INSTAGRAM"; url: string; title: string; thumbnailUrl: string | null; hashtags: string[] }) => ({
+            json.data.map((v: { id: string; platform: "YOUTUBE" | "INSTAGRAM"; url: string; title: string; thumbnailUrl: string | null; hashtags: string[]; isActive: boolean }) => ({
               id: v.id,
               platform: v.platform,
               url: v.url,
               title: v.title,
               thumbnailUrl: v.thumbnailUrl,
               hashtags: v.hashtags,
+              isActive: v.isActive,
             }))
           );
         }

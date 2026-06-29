@@ -32,6 +32,7 @@ function formatAssignment(a: any) {
       url: a.video.url as string,
       title: a.video.title as string,
       thumbnailUrl: a.video.thumbnailUrl as string | null,
+      isActive: a.video.isActive as boolean,
       hashtags: (a.video.videoHashtags as { hashtag: { tagName: string } }[]).map((vh) => vh.hashtag.tagName),
     },
   };
@@ -65,6 +66,7 @@ export async function GET() {
           url: true,
           title: true,
           thumbnailUrl: true,
+          isActive: true,
           videoHashtags: { select: { hashtag: { select: { tagName: true } } } },
         },
       },

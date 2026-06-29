@@ -28,6 +28,7 @@ interface Video {
   title: string;
   thumbnailUrl: string | null;
   hashtags: string[];
+  isActive: boolean;
 }
 
 interface Assignment {

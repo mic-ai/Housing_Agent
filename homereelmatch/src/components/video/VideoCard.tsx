@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { extractYouTubeId, getYouTubeThumbnail } from "@/lib/utils";
 import type { VideoDTO } from "@/types";
 
 interface VideoCardProps {
@@ -65,7 +66,12 @@ function CtaButtons({ salespersonId, videoId }: { salespersonId: string; videoId
 
 export function VideoCard({ video, priority = false }: VideoCardProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [thumbErrored, setThumbErrored] = useState(false);
   const salesperson = video.salespersonVideos[0]?.salesperson;
+
+  const ytId = video.platform === "YOUTUBE" ? extractYouTubeId(video.url) : null;
+  const ytThumb = ytId ? getYouTubeThumbnail(ytId) : null;
+  const thumbnailSrc = thumbErrored ? ytThumb : (video.thumbnailUrl ?? ytThumb);
 
   const toggleMobile = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -79,14 +85,15 @@ export function VideoCard({ video, priority = false }: VideoCardProps) {
     <div className="group">
       <div className="relative aspect-[9/16] bg-stone-900 rounded-xl overflow-hidden">
         {/* Thumbnail */}
-        {video.thumbnailUrl ? (
+        {thumbnailSrc ? (
           <Image
-            src={video.thumbnailUrl}
+            src={thumbnailSrc}
             alt={video.title}
             fill
             priority={priority}
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
             className="object-cover"
+            onError={() => setThumbErrored(true)}
           />
         ) : (
           <ThumbnailPlaceholder video={video} />

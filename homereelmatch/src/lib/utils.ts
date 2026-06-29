@@ -42,7 +42,11 @@ export function mapVideoToDTO(video: {
     id: video.id,
     platform: video.platform,
     url: video.url,
-    thumbnailUrl: video.thumbnailUrl,
+    thumbnailUrl: video.thumbnailUrl ?? (
+      video.platform === "YOUTUBE"
+        ? (() => { const id = extractYouTubeId(video.url); return id ? getYouTubeThumbnail(id) : null; })()
+        : null
+    ),
     title: video.title,
     description: video.description,
     houseMaker: video.houseMaker,

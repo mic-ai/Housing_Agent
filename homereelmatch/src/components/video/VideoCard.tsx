@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useTransition, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { extractYouTubeId, getYouTubeThumbnail } from "@/lib/utils";
@@ -65,14 +66,22 @@ function CtaButtons({ salespersonId, videoId }: { salespersonId: string; videoId
 }
 
 export function VideoCard({ video, priority = false }: VideoCardProps) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [thumbErrored, setThumbErrored] = useState(false);
-  const [isNavigating, setIsNavigating] = useState(false);
   const salesperson = video.salespersonVideos[0]?.salesperson;
 
   const ytId = video.platform === "YOUTUBE" ? extractYouTubeId(video.url) : null;
   const ytThumb = ytId ? getYouTubeThumbnail(ytId) : null;
   const thumbnailSrc = thumbErrored ? ytThumb : (video.thumbnailUrl ?? ytThumb);
+
+  const handleCardClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    startTransition(() => {
+      router.push(`/watch/${video.id}`);
+    });
+  }, [router, video.id]);
 
   const toggleMobile = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -105,7 +114,7 @@ export function VideoCard({ video, priority = false }: VideoCardProps) {
           href={`/watch/${video.id}`}
           className="absolute inset-0 z-10"
           aria-label={`${video.title}を視聴`}
-          onClick={() => setIsNavigating(true)}
+          onClick={handleCardClick}
         >
           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors duration-200 flex items-center justify-center">
             <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-white/20 backdrop-blur-sm rounded-full p-3 border border-white/30">
@@ -220,8 +229,8 @@ export function VideoCard({ video, priority = false }: VideoCardProps) {
             </div>
           </>
         )}
-        {/* 即時フィードバック: クリック後に loading.tsx が表示されるまでの隙間を埋める */}
-        {isNavigating && (
+        {/* useTransition の isPending が同期的に true になるので確実に即表示される */}
+        {isPending && (
           <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
             <div className="w-10 h-10 border-[3px] border-stone-600 border-t-amber-400 rounded-full animate-spin" />
           </div>

@@ -131,7 +131,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           <Link href="/embed-demo" className="hover:text-amber-600 transition-colors">
             ウィジェット埋め込み
           </Link>
-          <Link href="/dashboard/login" className="hover:text-amber-600 transition-colors">
+          <Link href="/login" className="hover:text-amber-600 transition-colors">
             営業マンログイン
           </Link>
         </div>

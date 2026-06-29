@@ -32,10 +32,10 @@ interface ContactFormProps {
 }
 
 const inputClass =
-  "w-full px-3 py-3 bg-stone-800 border border-stone-700 rounded-lg text-white placeholder-stone-500 focus:outline-none focus:ring-2 focus:ring-amber-500";
+  "w-full px-3 py-3 bg-white border border-stone-200 rounded-lg text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-400 shadow-sm";
 
 const selectClass =
-  "w-full px-3 py-2.5 bg-stone-800 border border-stone-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm";
+  "w-full px-3 py-2.5 bg-white border border-stone-200 rounded-lg text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm shadow-sm";
 
 export function ContactForm({ salespersonId, videoId, defaultMethod = "LINE" }: ContactFormProps) {
   const router = useRouter();
@@ -93,7 +93,7 @@ export function ContactForm({ salespersonId, videoId, defaultMethod = "LINE" }: 
       )}
 
       <div>
-        <label className="block text-sm font-medium text-stone-300 mb-1">
+        <label className="block text-sm font-medium text-stone-700 mb-1">
           お名前 <span className="text-red-400">*</span>
         </label>
         <input {...register("name")} className={inputClass} />
@@ -101,7 +101,7 @@ export function ContactForm({ salespersonId, videoId, defaultMethod = "LINE" }: 
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-stone-300 mb-1">
+        <label className="block text-sm font-medium text-stone-700 mb-1">
           連絡方法 <span className="text-red-400">*</span>
         </label>
         <div className="flex gap-3">
@@ -113,7 +113,7 @@ export function ContactForm({ salespersonId, videoId, defaultMethod = "LINE" }: 
                 {...register("contactMethod")}
                 className="accent-amber-500 w-4 h-4"
               />
-              <span className="text-white text-sm">{m === "LINE" ? "LINE" : "メール"}</span>
+              <span className="text-stone-700 text-sm">{m === "LINE" ? "LINE" : "メール"}</span>
             </label>
           ))}
         </div>
@@ -121,7 +121,7 @@ export function ContactForm({ salespersonId, videoId, defaultMethod = "LINE" }: 
 
       {contactMethod === "LINE" && (
         <div>
-          <label className="block text-sm font-medium text-stone-300 mb-1">
+          <label className="block text-sm font-medium text-stone-700 mb-1">
             LINE ID <span className="text-red-400">*</span>
           </label>
           <input
@@ -135,7 +135,7 @@ export function ContactForm({ salespersonId, videoId, defaultMethod = "LINE" }: 
 
       {contactMethod === "EMAIL" && (
         <div>
-          <label className="block text-sm font-medium text-stone-300 mb-1">
+          <label className="block text-sm font-medium text-stone-700 mb-1">
             メールアドレス <span className="text-red-400">*</span>
           </label>
           <input {...register("email")} type="email" className={inputClass} />
@@ -144,15 +144,15 @@ export function ContactForm({ salespersonId, videoId, defaultMethod = "LINE" }: 
       )}
 
       <div>
-        <label className="block text-sm font-medium text-stone-300 mb-1">電話番号</label>
+        <label className="block text-sm font-medium text-stone-700 mb-1">電話番号</label>
         <input {...register("phone")} type="tel" className={inputClass} />
       </div>
 
-      <fieldset className="border border-stone-700 rounded-lg p-4 space-y-3">
-        <legend className="text-sm font-medium text-stone-300 px-2">アンケート（任意）</legend>
+      <fieldset className="border border-stone-200 rounded-lg p-4 space-y-3 bg-white shadow-sm">
+        <legend className="text-sm font-medium text-stone-600 px-2">アンケート（任意）</legend>
 
         <div>
-          <label className="block text-xs text-stone-400 mb-1">購入検討時期</label>
+          <label className="block text-xs text-stone-500 mb-1">購入検討時期</label>
           <select {...register("purchaseTiming")} className={selectClass}>
             <option value="">選択してください</option>
             <option value="3months">3ヶ月以内</option>
@@ -163,7 +163,7 @@ export function ContactForm({ salespersonId, videoId, defaultMethod = "LINE" }: 
         </div>
 
         <div>
-          <label className="block text-xs text-stone-400 mb-1">希望エリア</label>
+          <label className="block text-xs text-stone-500 mb-1">希望エリア</label>
           <input
             {...register("area")}
             placeholder="例: 名古屋市・中区"
@@ -172,7 +172,7 @@ export function ContactForm({ salespersonId, videoId, defaultMethod = "LINE" }: 
         </div>
 
         <div>
-          <label className="block text-xs text-stone-400 mb-1">予算感</label>
+          <label className="block text-xs text-stone-500 mb-1">予算感</label>
           <select {...register("budget")} className={selectClass}>
             <option value="">選択してください</option>
             <option value="under3000">〜3,000万円</option>
@@ -183,11 +183,11 @@ export function ContactForm({ salespersonId, videoId, defaultMethod = "LINE" }: 
         </div>
 
         <div>
-          <label className="block text-xs text-stone-400 mb-1">メッセージ</label>
+          <label className="block text-xs text-stone-500 mb-1">メッセージ</label>
           <textarea
             {...register("message")}
             rows={3}
-            className="w-full px-3 py-2.5 bg-stone-800 border border-stone-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm resize-none"
+            className="w-full px-3 py-2.5 bg-white border border-stone-200 rounded-lg text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm resize-none shadow-sm"
           />
         </div>
       </fieldset>
@@ -195,7 +195,7 @@ export function ContactForm({ salespersonId, videoId, defaultMethod = "LINE" }: 
       <button
         type="submit"
         disabled={isSubmitting}
-        className="w-full py-3 bg-amber-600 hover:bg-amber-500 active:bg-amber-700 disabled:bg-stone-700 disabled:text-stone-400 text-white font-medium rounded-lg transition-colors"
+        className="w-full py-3 bg-amber-600 hover:bg-amber-500 active:bg-amber-700 disabled:bg-stone-200 disabled:text-stone-400 text-white font-medium rounded-lg transition-colors"
       >
         {isSubmitting ? "送信中..." : "連絡を申請する"}
       </button>

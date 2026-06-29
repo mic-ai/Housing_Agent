@@ -75,8 +75,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   ]);
 
   return (
-    <div className="min-h-screen bg-stone-950 text-white">
-      <header className="sticky top-0 z-10 bg-stone-950/90 backdrop-blur-sm border-b border-white/10 px-4 py-3">
+    <div className="min-h-screen bg-amber-50 text-stone-800">
+      <header className="sticky top-0 z-10 bg-white border-b border-amber-100 shadow-sm px-4 py-3">
         <div className="max-w-2xl mx-auto">
           <div className="flex items-center gap-3 mb-3">
             <div className="flex items-center gap-2 shrink-0">
@@ -85,14 +85,14 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                   <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
                 </svg>
               </div>
-              <h1 className="text-lg font-bold text-white tracking-tight">HomeReelMatch</h1>
+              <h1 className="text-lg font-bold text-stone-800 tracking-tight">HomeReelMatch</h1>
             </div>
           </div>
           <SearchBar defaultValue={params.q} />
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 py-4 bg-stone-950">
+      <main className="max-w-2xl mx-auto px-4 py-4">
         {!params.q && (
           <div className="mb-3 space-y-2">
             <Suspense fallback={null}>
@@ -110,9 +110,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         )}
 
         {params.q && (
-          <p className="text-stone-400 text-sm mb-4">
-            <span className="text-stone-500">検索:</span>{" "}
-            <span className="text-amber-400 font-medium">「{params.q}」</span>
+          <p className="text-stone-500 text-sm mb-4">
+            <span className="text-stone-400">検索:</span>{" "}
+            <span className="text-amber-600 font-medium">「{params.q}」</span>
           </p>
         )}
 
@@ -125,13 +125,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         />
       </main>
 
-      <footer className="border-t border-stone-800 mt-12 py-6 text-center">
-        <p className="text-stone-500 text-xs mb-2">© HomeReelMatch</p>
-        <div className="flex items-center justify-center gap-4 text-xs text-stone-500">
-          <Link href="/embed-demo" className="hover:text-amber-400 transition-colors">
+      <footer className="border-t border-amber-100 mt-12 py-6 text-center bg-white">
+        <p className="text-stone-400 text-xs mb-2">© HomeReelMatch</p>
+        <div className="flex items-center justify-center gap-4 text-xs text-stone-400">
+          <Link href="/embed-demo" className="hover:text-amber-600 transition-colors">
             ウィジェット埋め込み
           </Link>
-          <Link href="/dashboard/login" className="hover:text-amber-400 transition-colors">
+          <Link href="/dashboard/login" className="hover:text-amber-600 transition-colors">
             営業マンログイン
           </Link>
         </div>

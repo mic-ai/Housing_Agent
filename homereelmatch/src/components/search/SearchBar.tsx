@@ -27,7 +27,7 @@ export function SearchBar({ defaultValue = "" }: SearchBarProps) {
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="動画・ハッシュタグ・営業マンで検索"
-        className="flex-1 px-4 py-2 rounded-full bg-white/10 border border-white/20 text-white placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm"
+        className="flex-1 px-4 py-2 rounded-full bg-white border border-stone-200 text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm shadow-sm"
       />
       <button
         type="submit"

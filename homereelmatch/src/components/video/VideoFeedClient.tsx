@@ -17,9 +17,9 @@ interface VideoFeedClientProps {
 function EmptyState({ tag, q }: { tag?: string; q?: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center px-4">
-      <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-5 border border-white/10">
+      <div className="w-20 h-20 rounded-full bg-amber-100 flex items-center justify-center mb-5 border border-amber-200">
         <svg
-          className="w-10 h-10 text-stone-600"
+          className="w-10 h-10 text-amber-400"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -33,15 +33,15 @@ function EmptyState({ tag, q }: { tag?: string; q?: string }) {
           />
         </svg>
       </div>
-      <p className="text-stone-300 text-lg font-medium mb-2">動画が見つかりませんでした</p>
+      <p className="text-stone-600 text-lg font-medium mb-2">動画が見つかりませんでした</p>
       {tag && (
-        <p className="text-stone-500 text-sm">「#{tag}」に一致する動画はありません</p>
+        <p className="text-stone-400 text-sm">「#{tag}」に一致する動画はありません</p>
       )}
       {q && !tag && (
-        <p className="text-stone-500 text-sm">「{q}」の検索結果はありません</p>
+        <p className="text-stone-400 text-sm">「{q}」の検索結果はありません</p>
       )}
       {!tag && !q && (
-        <p className="text-stone-500 text-sm">まだ動画が登録されていません</p>
+        <p className="text-stone-400 text-sm">まだ動画が登録されていません</p>
       )}
     </div>
   );

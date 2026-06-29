@@ -11,6 +11,8 @@ const LoginSchema = z.object({
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
+  // AUTH_SECRET がなければ NEXTAUTH_SECRET にフォールバック（Vercel 環境変数名の揺れ対策）
+  secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
   providers: [
     Credentials({
       credentials: {

@@ -155,7 +155,6 @@ function VideoEditPanel({
 export function VideoManagerClient() {
   const [videos, setVideos] = useState<AdminVideo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [filterActive, setFilterActive] = useState<"all" | "active" | "inactive">("all");
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -187,32 +186,12 @@ export function VideoManagerClient() {
 
   useEffect(() => { load(); }, [load]);
 
-  async function toggleActive(videoId: string, current: boolean) {
-    await fetch(`/api/admin/videos/${videoId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isActive: !current }),
-    });
-    await load();
-  }
-
   async function updateSortOrder(videoId: string, sortOrder: number) {
     await fetch(`/api/admin/videos/${videoId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sortOrder }),
     });
-  }
-
-  async function bulkSetActive(isActive: boolean) {
-    if (selected.size === 0) return;
-    await fetch("/api/admin/videos", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids: Array.from(selected), isActive }),
-    });
-    setSelected(new Set());
-    await load();
   }
 
   async function deleteVideo(videoId: string) {
@@ -224,14 +203,6 @@ export function VideoManagerClient() {
     }
     setPendingDeleteId(null);
     setDeleting(false);
-  }
-
-  function toggleSelect(id: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
   }
 
   async function handleRegister(e: React.FormEvent<HTMLFormElement>) {
@@ -293,13 +264,6 @@ export function VideoManagerClient() {
           ))}
         </div>
         <div className="flex gap-2 items-center">
-          {selected.size > 0 && (
-            <>
-              <span className="text-sm text-gray-400">{selected.size}件選択中</span>
-              <button type="button" onClick={() => bulkSetActive(true)} className="px-3 py-1 text-xs bg-green-700 text-white rounded hover:bg-green-600">一括公開</button>
-              <button type="button" onClick={() => bulkSetActive(false)} className="px-3 py-1 text-xs bg-red-800 text-white rounded hover:bg-red-700">一括非公開</button>
-            </>
-          )}
           <button
             type="button"
             onClick={() => {
@@ -394,12 +358,6 @@ export function VideoManagerClient() {
           {videos.map((v) => (
             <div key={v.id} className="py-3">
               <div className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  checked={selected.has(v.id)}
-                  onChange={() => toggleSelect(v.id)}
-                  className="w-4 h-4 rounded border-gray-600"
-                />
                 {/* サムネイル */}
                 {(() => {
                   const ytId = v.platform === "YOUTUBE" ? extractYouTubeId(v.url) : null;
@@ -438,13 +396,6 @@ export function VideoManagerClient() {
                     className="text-xs px-3 py-1 rounded bg-blue-800 hover:bg-blue-700 text-white"
                   >
                     {editingId === v.id ? "閉じる" : "編集"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => toggleActive(v.id, v.isActive)}
-                    className={`text-xs px-3 py-1 rounded ${v.isActive ? "bg-gray-700 hover:bg-gray-600 text-gray-300" : "bg-blue-700 hover:bg-blue-600 text-white"}`}
-                  >
-                    {v.isActive ? "非公開" : "公開"}
                   </button>
                   {pendingDeleteId === v.id ? (
                     <>

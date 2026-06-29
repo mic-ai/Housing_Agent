@@ -89,8 +89,6 @@ export function VideoCard({ video, priority = false }: VideoCardProps) {
     setMobileOpen((v) => !v);
   }, []);
 
-  const closeMobile = useCallback(() => setMobileOpen(false), []);
-
   return (
     <div className="group">
       <div className="relative aspect-[9/16] bg-stone-900 rounded-xl overflow-hidden">
@@ -178,47 +176,39 @@ export function VideoCard({ video, priority = false }: VideoCardProps) {
           </div>
         )}
 
-        {/* ── Mobile: tap-to-expand panel (below md) ── */}
+        {/* ── Mobile: bottom info bar + expand panel (below md) ── */}
+        {/* コンテナを pointer-events-none にしてタップを下の Link(z-10) に透過させる。
+            展開ボタンと開いた時のCTAパネルのみ pointer-events-auto で再有効化。 */}
         {salesperson && (
-          <>
-            {/* Backdrop: closes panel when tapping above it */}
-            {mobileOpen && (
-              <div
-                className="md:hidden absolute inset-0 z-[25]"
-                onClick={closeMobile}
-                aria-hidden="true"
-              />
-            )}
-
-            <div className="md:hidden absolute bottom-0 left-0 right-0 z-30">
-              {/* Mini-bar — always visible on mobile */}
+          <div className="md:hidden absolute bottom-0 left-0 right-0 z-30 pointer-events-none">
+            {/* Info bar: タップが Link まで透過する */}
+            <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-t from-stone-950 via-stone-950/80 to-transparent">
+              <SalespersonAvatar sp={salesperson} />
+              <div className="min-w-0 text-left flex-1">
+                <p className="text-white text-xs font-semibold truncate">{salesperson.name}</p>
+                <p className="text-stone-400 text-xs truncate">{salesperson.company?.name}</p>
+              </div>
+              {/* 展開ボタンのみクリック可能 */}
               <button
                 type="button"
                 onClick={toggleMobile}
                 aria-expanded={mobileOpen}
                 aria-label="担当営業マンの情報を表示"
-                className="w-full flex items-center gap-2 px-3 py-2 bg-gradient-to-t from-stone-950 via-stone-950/80 to-transparent"
+                className="pointer-events-auto shrink-0 p-1 -mr-1"
               >
-                <SalespersonAvatar sp={salesperson} />
-                <div className="min-w-0 text-left flex-1">
-                  <p className="text-white text-xs font-semibold truncate">{salesperson.name}</p>
-                  <p className="text-stone-400 text-xs truncate">{salesperson.company?.name}</p>
-                </div>
                 <svg
-                  className={`w-4 h-4 text-stone-400 flex-shrink-0 transition-transform duration-200 ${mobileOpen ? "-rotate-180" : ""}`}
+                  className={`w-4 h-4 text-stone-400 transition-transform duration-200 ${mobileOpen ? "-rotate-180" : ""}`}
                   fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
                   aria-hidden="true"
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
+            </div>
 
-              {/* Expanded panel */}
-              <div
-                className={`bg-stone-950/95 px-3 overflow-hidden transition-all duration-200 ${
-                  mobileOpen ? "max-h-40 pb-3 opacity-100" : "max-h-0 opacity-0"
-                }`}
-              >
+            {/* 展開時の CTA パネル */}
+            {mobileOpen && (
+              <div className="pointer-events-auto bg-stone-950/95 px-3 pb-3">
                 {salesperson.bio && (
                   <p className="text-stone-300 text-xs line-clamp-2 mb-2.5 pt-1 leading-relaxed">
                     {salesperson.bio}
@@ -226,8 +216,8 @@ export function VideoCard({ video, priority = false }: VideoCardProps) {
                 )}
                 <CtaButtons salespersonId={salesperson.id} videoId={video.id} />
               </div>
-            </div>
-          </>
+            )}
+          </div>
         )}
         {/* useTransition の isPending が同期的に true になるので確実に即表示される */}
         {isPending && (

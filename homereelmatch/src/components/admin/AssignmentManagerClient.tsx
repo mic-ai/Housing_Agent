@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface FaceVideo {
   id: string;
@@ -401,10 +401,31 @@ function AssignmentRow({
 
 export function AssignmentManagerClient({ initialAssignments, salespersons, videos }: Props) {
   const [assignments, setAssignments] = useState<Assignment[]>(initialAssignments);
+  const [availableVideos, setAvailableVideos] = useState<Video[]>(videos);
   const [salespersonId, setSalespersonId] = useState("");
   const [videoId, setVideoId] = useState("");
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetch("/api/admin/videos?isActive=true&limit=200")
+      .then((r) => r.json())
+      .then((json) => {
+        if (Array.isArray(json.data)) {
+          setAvailableVideos(
+            json.data.map((v: { id: string; platform: "YOUTUBE" | "INSTAGRAM"; url: string; title: string; thumbnailUrl: string | null; hashtags: string[] }) => ({
+              id: v.id,
+              platform: v.platform,
+              url: v.url,
+              title: v.title,
+              thumbnailUrl: v.thumbnailUrl,
+              hashtags: v.hashtags,
+            }))
+          );
+        }
+      })
+      .catch(() => { /* keep initial videos on error */ });
+  }, []);
 
   async function handleAdd() {
     if (!salespersonId || !videoId) return;
@@ -453,7 +474,7 @@ export function AssignmentManagerClient({ initialAssignments, salespersons, vide
           className="bg-stone-800 border border-stone-700 text-white rounded-lg px-3 py-2 text-sm"
         >
           <option value="">本編動画を選択</option>
-          {videos.map((v) => <option key={v.id} value={v.id}>{v.title}</option>)}
+          {availableVideos.map((v) => <option key={v.id} value={v.id}>{v.title}</option>)}
         </select>
 
         <button

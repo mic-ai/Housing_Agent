@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { requireSalesperson } from "@/lib/admin";
+import { mapVideoToDTO } from "@/lib/utils";
 
 const videoInclude = {
   videoHashtags: { include: { hashtag: true } },
@@ -69,7 +70,7 @@ export async function GET(request: NextRequest) {
     const data = hasMore ? videos.slice(0, -1) : videos;
     const nextCursor = hasMore ? data[data.length - 1].id : null;
 
-    return NextResponse.json({ data, nextCursor });
+    return NextResponse.json({ data: data.map(mapVideoToDTO), nextCursor });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.errors }, { status: 400 });

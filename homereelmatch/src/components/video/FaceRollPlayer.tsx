@@ -38,6 +38,7 @@ export function FaceRollPlayer({ src, onEnded }: FaceRollPlayerProps) {
         muted={false}
         controls={false}
         onEnded={onEnded}
+        onError={onEnded}
         className="w-full h-full object-cover"
       />
       {needsTap && (

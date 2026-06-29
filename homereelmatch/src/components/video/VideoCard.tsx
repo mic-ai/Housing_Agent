@@ -166,8 +166,11 @@ export function VideoCard({ video, priority = false }: VideoCardProps) {
         </div>
 
         {/* ── Desktop: hover overlay (md+) ── */}
+        {/* オーバーレイ全体は pointer-events-none のまま。
+            CTA ボタンラッパーのみ pointer-events-auto にすることで
+            背景・営業マン情報エリアのクリックはカードコンテナに透過する。 */}
         {salesperson && (
-          <div className="hidden md:block absolute bottom-0 left-0 right-0 z-30 opacity-0 translate-y-3 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 pointer-events-none group-hover:pointer-events-auto">
+          <div className="hidden md:block absolute bottom-0 left-0 right-0 z-30 opacity-0 translate-y-3 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 pointer-events-none">
             <div className="bg-gradient-to-t from-stone-950 via-stone-950/95 to-transparent pt-10 pb-3 px-3">
               <div className="flex items-center gap-2.5 mb-2">
                 <SalespersonAvatar sp={salesperson} />
@@ -181,8 +184,8 @@ export function VideoCard({ video, priority = false }: VideoCardProps) {
                   {salesperson.bio}
                 </p>
               )}
-              {/* stopPropagation でカードのナビゲーションを遮断 */}
-              <div onClick={stopProp}>
+              {/* CTA ボタンのみクリック可能・stopPropagation でカードナビを遮断 */}
+              <div className="pointer-events-auto" onClick={stopProp}>
                 <CtaButtons salespersonId={salesperson.id} videoId={video.id} />
               </div>
             </div>

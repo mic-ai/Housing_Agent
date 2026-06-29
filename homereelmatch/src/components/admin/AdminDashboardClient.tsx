@@ -50,11 +50,11 @@ interface AdminDashboardClientProps {
 type Tab = "salesperson" | "housemaker" | "venue" | "assignment" | "video";
 
 const TABS: { id: Tab; label: string }[] = [
+  { id: "assignment", label: "公開設定" },
+  { id: "video", label: "本編登録" },
   { id: "salesperson", label: "営業マン管理" },
   { id: "housemaker", label: "ハウスメーカー" },
   { id: "venue", label: "会場管理" },
-  { id: "assignment", label: "接続設定" },
-  { id: "video", label: "動画登録" },
 ];
 
 export function AdminDashboardClient({
@@ -63,7 +63,7 @@ export function AdminDashboardClient({
   activeVideos,
   initialHouseMakers,
 }: AdminDashboardClientProps) {
-  const [activeTab, setActiveTab] = useState<Tab>("salesperson");
+  const [activeTab, setActiveTab] = useState<Tab>("assignment");
 
   return (
     <div className="bg-gray-900 rounded-xl">

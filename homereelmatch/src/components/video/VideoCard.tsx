@@ -76,22 +76,33 @@ export function VideoCard({ video, priority = false }: VideoCardProps) {
   const ytThumb = ytId ? getYouTubeThumbnail(ytId) : null;
   const thumbnailSrc = thumbErrored ? ytThumb : (video.thumbnailUrl ?? ytThumb);
 
-  const handleCardClick = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
+  // カードコンテナ全体の onClick でナビゲーション。子要素は stopPropagation で独立処理。
+  const handleCardClick = useCallback(() => {
     startTransition(() => {
       router.push(`/watch/${video.id}`);
     });
   }, [router, video.id]);
 
   const toggleMobile = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
     e.stopPropagation();
     setMobileOpen((v) => !v);
   }, []);
 
+  // CTA ボタンエリアのクリックがカードナビゲーションに伝播しないよう止める
+  const stopProp = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+  }, []);
+
   return (
     <div className="group">
-      <div className="relative aspect-[9/16] bg-stone-900 rounded-xl overflow-hidden">
+      {/* カード全体がタップ領域。z-index の積み重ねに依存しない確実な方式 */}
+      <div
+        role="link"
+        tabIndex={0}
+        onClick={handleCardClick}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleCardClick(); }}
+        className="relative aspect-[9/16] bg-stone-900 rounded-xl overflow-hidden cursor-pointer"
+      >
         {/* Thumbnail */}
         {thumbnailSrc ? (
           <Image
@@ -107,13 +118,14 @@ export function VideoCard({ video, priority = false }: VideoCardProps) {
           <ThumbnailPlaceholder video={video} />
         )}
 
-        {/* Main watch link — covers the card; hover play button lives inside */}
+        {/* SEO 用 href（クリックはコンテナが処理するため pointer-events-none） */}
         <Link
           href={`/watch/${video.id}`}
-          className="absolute inset-0 z-10"
-          aria-label={`${video.title}を視聴`}
-          onClick={handleCardClick}
+          aria-hidden="true"
+          tabIndex={-1}
+          className="absolute inset-0 z-10 pointer-events-none"
         >
+          {/* ホバー時の再生ボタンオーバーレイ */}
           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors duration-200 flex items-center justify-center">
             <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-white/20 backdrop-blur-sm rounded-full p-3 border border-white/30">
               <svg className="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -139,9 +151,7 @@ export function VideoCard({ video, priority = false }: VideoCardProps) {
         <div
           className={[
             "absolute left-0 right-0 z-30 p-3 pointer-events-none transition-all duration-200",
-            // Desktop: fade out on hover when salesperson is present
             salesperson ? "md:group-hover:opacity-0 md:group-hover:translate-y-1" : "",
-            // Mobile: shift up to sit above the mini-bar
             salesperson ? "bottom-12 md:bottom-0" : "bottom-0",
           ].join(" ")}
         >
@@ -171,30 +181,30 @@ export function VideoCard({ video, priority = false }: VideoCardProps) {
                   {salesperson.bio}
                 </p>
               )}
-              <CtaButtons salespersonId={salesperson.id} videoId={video.id} />
+              {/* stopPropagation でカードのナビゲーションを遮断 */}
+              <div onClick={stopProp}>
+                <CtaButtons salespersonId={salesperson.id} videoId={video.id} />
+              </div>
             </div>
           </div>
         )}
 
         {/* ── Mobile: bottom info bar + expand panel (below md) ── */}
-        {/* コンテナを pointer-events-none にしてタップを下の Link(z-10) に透過させる。
-            展開ボタンと開いた時のCTAパネルのみ pointer-events-auto で再有効化。 */}
         {salesperson && (
           <div className="md:hidden absolute bottom-0 left-0 right-0 z-30 pointer-events-none">
-            {/* Info bar: タップが Link まで透過する */}
             <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-t from-stone-950 via-stone-950/80 to-transparent">
               <SalespersonAvatar sp={salesperson} />
               <div className="min-w-0 text-left flex-1">
                 <p className="text-white text-xs font-semibold truncate">{salesperson.name}</p>
                 <p className="text-stone-400 text-xs truncate">{salesperson.company?.name}</p>
               </div>
-              {/* 展開ボタンのみクリック可能 */}
+              {/* 展開ボタンのみ pointer-events-auto + stopPropagation */}
               <button
                 type="button"
                 onClick={toggleMobile}
                 aria-expanded={mobileOpen}
                 aria-label="担当営業マンの情報を表示"
-                className="pointer-events-auto shrink-0 p-1 -mr-1"
+                className="pointer-events-auto shrink-0 p-2 -mr-1"
               >
                 <svg
                   className={`w-4 h-4 text-stone-400 transition-transform duration-200 ${mobileOpen ? "-rotate-180" : ""}`}
@@ -206,9 +216,9 @@ export function VideoCard({ video, priority = false }: VideoCardProps) {
               </button>
             </div>
 
-            {/* 展開時の CTA パネル */}
+            {/* 展開時の CTA パネル: stopPropagation でナビゲーションを遮断 */}
             {mobileOpen && (
-              <div className="pointer-events-auto bg-stone-950/95 px-3 pb-3">
+              <div className="pointer-events-auto bg-stone-950/95 px-3 pb-3" onClick={stopProp}>
                 {salesperson.bio && (
                   <p className="text-stone-300 text-xs line-clamp-2 mb-2.5 pt-1 leading-relaxed">
                     {salesperson.bio}
@@ -219,7 +229,8 @@ export function VideoCard({ video, priority = false }: VideoCardProps) {
             )}
           </div>
         )}
-        {/* useTransition の isPending が同期的に true になるので確実に即表示される */}
+
+        {/* isPending が同期的に true になりタップ即時でスピナー表示 */}
         {isPending && (
           <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
             <div className="w-10 h-10 border-[3px] border-stone-600 border-t-amber-400 rounded-full animate-spin" />

@@ -213,8 +213,11 @@ AvailableSlot          — 空き時間スロット
 DATABASE_URL="postgresql://...neon.tech/neondb?sslmode=require"
 # ⚠️ channel_binding=require は除去すること（Prisma P1000エラーの原因）
 
-AUTH_SECRET="..."                    # NextAuth必須（NEXTAUTH_SECRET ではない）
-NEXTAUTH_URL="http://localhost:3000"
+AUTH_SECRET="..."                    # NextAuth必須。NEXTAUTH_SECRET も同じ値で両方設定すること
+NEXTAUTH_SECRET="..."               # AUTH_SECRET と同じ値（フォールバック用）
+# ⚠️ NEXTAUTH_URL は Vercel 本番に設定しないこと（または https://homereelmatch.vercel.app に設定）
+#    http://localhost:3000 を本番に設定するとクッキーが非セキュアになりログイン不可になる
+NEXTAUTH_URL="http://localhost:3000"  # ローカル開発のみ
 
 YOUTUBE_API_KEY="..."
 
@@ -377,8 +380,8 @@ refactor: VideoPlayer をサーバー/クライアント分離
 
 ### middleware
 
-- `src/proxy.ts` が middleware として機能する（Next.js の規約から外れた配置）
-- `src/middleware.ts` が**存在すると競合**してログインが壊れる — 絶対に作成しないこと
+- `src/proxy.ts` が middleware として機能する（Next.js 16 が独自に認識するファイル名）
+- `src/middleware.ts` が**存在すると競合**してビルドが失敗する — 絶対に作成しないこと
 
 ### Server Component → Client Component への props 受け渡し
 
@@ -429,7 +432,7 @@ initialAssignments={assignments.map((a) => ({
 - クライアントコンポーネントで直接DBアクセス禁止（必ずAPIを経由）
 - 環境変数を `src/` 配下のコードにハードコード禁止
 - `NEXT_PUBLIC_` プレフィックスをシークレットキーに使用禁止
-- `src/middleware.ts` を作成しないこと（proxy.ts と競合）
+- `src/middleware.ts` を作成しないこと（proxy.ts と競合してビルド失敗）
 
 ---
 
@@ -468,7 +471,7 @@ npx vercel --prod
 
 ---
 
-## 現在の状態（2026-06-24）
+## 現在の状態（2026-06-29）
 
 全フェーズ実装・本番デプロイ済み。
 
@@ -504,6 +507,9 @@ npx vercel --prod
 | 接続設定DELETE時に顔出し動画ファイルを削除するバグ修正 | 完了（2026-06-24） |
 | 保存失敗時のエラー表示・行ヘッダー即時更新 | 完了（2026-06-24） |
 | 顔出し動画アップロード Internal Server Error 修正（ffprobe Vercel 対応） | 完了（2026-06-24） |
+| 管理タブ名変更（接続設定→公開設定・動画登録→本編登録）・順序変更 | 完了（2026-06-29） |
+| VideoCard デスクトップホバーオーバーレイのクリック透過修正 | 完了（2026-06-29） |
+| 別端末ログイン失敗修正（AUTH_SECRET + Server Action login） | 完了（2026-06-29） |
 
 ### 直近の主要変更（2026-06-23）
 

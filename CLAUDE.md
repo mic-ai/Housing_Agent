@@ -443,7 +443,7 @@ initialAssignments={assignments.map((a) => ({
 npm run dev
 
 # テスト
-npm run test                         # 全ユニットテスト（154件）
+npm run test                         # 全ユニットテスト（222件）
 npx vitest run src/__tests__/api/    # API テストのみ
 npm run test:e2e                     # E2Eテスト（要DB接続・16件）
 
@@ -471,7 +471,7 @@ npx vercel --prod
 
 ---
 
-## 現在の状態（2026-06-29）
+## 現在の状態（2026-07-01）
 
 全フェーズ実装・本番デプロイ済み。
 
@@ -510,6 +510,12 @@ npx vercel --prod
 | 管理タブ名変更（接続設定→公開設定・動画登録→本編登録）・順序変更 | 完了（2026-06-29） |
 | VideoCard デスクトップホバーオーバーレイのクリック透過修正 | 完了（2026-06-29） |
 | 別端末ログイン失敗修正（AUTH_SECRET + Server Action login） | 完了（2026-06-29） |
+| モバイルハッシュタグフィルターリセットバグ修正 | 完了（2026-07-01） |
+| 営業マン公開プロフィールページ（/salesperson/[id]）追加 | 完了（2026-07-01） |
+| 営業マンダッシュボードにプロフィール画像アップロード追加 | 完了（2026-07-01） |
+| HTTP Basic Auth プレビューゲート（PREVIEW_PASSWORD）追加 | 完了（2026-07-01） |
+| Prismaスキーマ profileDetail 追加（DBマイグレーション未適用） | 部分完了（2026-07-01） |
+| Prisma include 全フィールドSELECTによるクラッシュ修正 | 完了（2026-07-01） |
 
 ### 直近の主要変更（2026-06-23）
 
@@ -618,3 +624,82 @@ npx vercel --prod
 - `DATABASE_URL`: `.env` の `channel_binding=require` を除去済み（Prisma P1000 対策）
 - `LINE_CHANNEL_SECRET` / `LINE_CHANNEL_ACCESS_TOKEN`: Vercel 本番値設定済み・Webhook 検証 200 OK 確認済み（2026-06-19）
 - `GMAIL_USER` / `GMAIL_APP_PASSWORD`: Vercel 設定済み・デプロイ完了（2026-06-19）
+- `PREVIEW_PASSWORD`: Vercel 設定済み（2026-07-01）。HTTP Basic Auth プレビューゲート用。未設定時はゲートなし（本番以外）
+
+### 直近の主要変更（2026-07-01）
+
+#### モバイルハッシュタグフィルターのリセットバグ修正
+- **原因**: Next.js App Router のソフトナビゲーションは Client Component の `useState` をリセットしない
+- **修正1**: `VideoFeedClient` に `key` prop を追加 → フィルターパラメータ変更時に強制リマウント
+  - `key={`${tag}_${q}_${houseMakerId}_${venueId}`}` を `page.tsx` で設定
+- **修正2**: `useIntersectionObserver.ts` の `options` を `useRef` で安定化（毎レンダーで新オブジェクト生成を防ぐ）
+- **修正3**: `VideoFeedClient` の `loading/hasMore/cursor` を `useState` → `useRef` に変更し `loadMore` コールバックを安定化
+
+#### 営業マン公開プロフィールページ追加
+- **新規ファイル**: `src/app/(public)/salesperson/[salespersonId]/page.tsx`
+  - グラデーションヒーローカード・アイコン写真・担当動画グリッド（最大6件）・LINE/メールCTAボタン
+  - `videoSegments` リレーション（Prisma `Salesperson` モデルの `SalespersonVideo` への関係名）を使用
+- **VideoFooter**: プロフィール画像を `<Link href={/salesperson/${sp.id}}>` に変更、「プロフィールを見る」リンク追加
+
+#### 営業マンダッシュボードにプロフィール画像アップロード追加
+- **新規 API**: `POST /api/salesperson/profile/icon` → JPEG/PNG/WebP 5MB以下 → Supabase Storage `face-videos/profile-icons/{id}/` に保存
+- **新規関数**: `src/lib/storage.ts` に `uploadProfileImage()` / `deleteProfileImage()` 追加
+- **ProfileClient**: ファイル選択→ローカルプレビュー（FileReader）→アップロードのフロー実装
+
+#### プレビューゲート（HTTP Basic Auth）追加
+- `src/proxy.ts`（middleware）に `PREVIEW_PASSWORD` 環境変数によるBasic Auth ゲートを追加
+- ゲート対象: 公開ページ全般（`/api/*`, `/login`, `/dashboard`, `/admin` は除外）
+- ユーザー名は何でも可、パスワードのみ検証
+- Edge Runtime 対応: `Buffer` ではなく `atob()` を使用
+- ダッシュボード保護: `getToken()` from `next-auth/jwt`（`auth()` ラッパーは全ルートに使うとクラッシュするため使用禁止）
+
+#### Prisma スキーマ `profileDetail` フィールド追加（マイグレーション未適用）
+- `prisma/schema.prisma` の `Salesperson` モデルに `profileDetail String?` 追加
+- マイグレーションファイル: `prisma/migrations/20260701000000_add_profile_detail/migration.sql`
+- **注意**: 本番 DB への適用は未完了（`npx prisma migrate deploy` を手動実行が必要）
+- 適用後はプロフィール詳細機能（`/salesperson/[id]` の詳細セクション、ダッシュボードの入力欄）を復活させること
+
+#### 重大バグ修正: Prisma `include` によるページクラッシュ
+- **原因**: Prismaの `include: { salesperson: ... }` はスキーマに定義された**全フィールド**をSELECTする
+  - `profileDetail` をスキーマに追加後、DBにカラムが存在しない状態でデプロイ → PostgreSQL エラー → 全ページクラッシュ
+- **症状**: 「This page couldn't load / A server error occurred」（ホーム・動画視聴・全公開ページ）
+- **修正**: 全 salesperson クエリを明示的 `select` に変更し `profileDetail` を除外
+  ```typescript
+  // ❌ NG: スキーマの全フィールドをSELECT（未存在カラムでクラッシュ）
+  include: { salesperson: { include: { company: true } } }
+
+  // ✅ OK: 必要フィールドのみ明示的にSELECT
+  include: {
+    salesperson: {
+      select: { id: true, name: true, profileImage: true, bio: true,
+        company: { select: { id: true, name: true, modelHouseName: true, modelHouseAddress: true } }
+      }
+    }
+  }
+  ```
+- **影響ファイル**: `app/(public)/page.tsx`, `watch/[videoId]/page.tsx`, `api/videos/route.ts`, `salesperson/[id]/page.tsx`
+- **SalespersonDTO**: `profileDetail` を optional（`profileDetail?: string | null`）に変更
+- **ビルドスクリプト**: `prisma migrate deploy` を除去（`prisma generate && next build` に戻す）
+  - `migrate deploy` はビルド時に実行すると DBが `db push` で初期化されていた場合にマイグレーション履歴の整合性問題を起こす可能性がある
+
+### 実装上の重要な知見（2026-07-01 追加）
+
+#### Next.js App Router ソフトナビゲーションと Client Component 状態
+- ソフトナビゲーション（`<Link>` や `router.push()`）では Client Component の `useState` がリセットされない
+- フィルターパラメータ変更時に初期化が必要なコンポーネントには `key` prop を付与してリマウントを強制する
+- 無限スクロールの `loadMore` コールバックが毎レンダーで再生成されると `IntersectionObserver` が再設定されてバグになる → `useRef` で安定化
+
+#### Prisma の `include` と明示的 `select` の使い分け
+- `include: { model: true }` / `include: { model: { include: ... } }` → そのモデルの **全スキーマフィールド** をSELECT
+- スキーマにフィールドを追加した場合、DBにカラムが存在しないとランタイムエラー
+- **ルール**: 特定フィールドを除外したい場合・カラム存在を確認できない場合は必ず明示的 `select` を使うこと
+
+#### Edge Runtime（middleware）での注意点
+- Node.js の `Buffer` は Edge Runtime で使用不可 → base64 デコードは `atob()` を使う
+- `next-auth/jwt` の `getToken()` は Edge Runtime 対応済み
+- NextAuth v5 の `auth()` ラッパーを middleware でルート全体に適用するとページクラッシュが起きるケースがある → `getToken()` を使って必要なルートのみ保護すること
+
+#### Prisma マイグレーションとビルドスクリプト
+- `prisma migrate deploy` をビルドスクリプト（`"build":` フィールド）に入れると、DB の状態次第でビルド失敗やサイレントスキップが起きる
+- **推奨**: `"build": "prisma generate && next build"` のみとし、マイグレーションは手動または別 CI ステップで実行
+- `Salesperson` モデルの `videoSegments` リレーション名に注意（`salespersonVideos` ではない）

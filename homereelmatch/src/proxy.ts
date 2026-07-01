@@ -27,7 +27,7 @@ export default auth((req) => {
     const authHeader = req.headers.get("authorization") ?? "";
     if (!authHeader.startsWith("Basic ")) return basicAuthResponse();
 
-    const decoded = Buffer.from(authHeader.slice(6), "base64").toString("utf-8");
+    const decoded = atob(authHeader.slice(6));
     // Accept any username; only the password matters
     const password = decoded.slice(decoded.indexOf(":") + 1);
     if (password !== previewPassword) return basicAuthResponse();

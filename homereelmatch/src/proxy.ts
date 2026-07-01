@@ -1,8 +1,6 @@
-import { auth } from "@/lib/auth";
-import { NextResponse } from "next/server";
+import { getToken } from "next-auth/jwt";
+import { NextRequest, NextResponse } from "next/server";
 
-// Public pages that are gated by PREVIEW_PASSWORD when set.
-// API routes, /login, /dashboard, /admin are always excluded from the gate.
 function isPreviewGated(pathname: string): boolean {
   if (pathname.startsWith("/api/")) return false;
   if (pathname.startsWith("/login")) return false;
@@ -18,33 +16,35 @@ function basicAuthResponse() {
   });
 }
 
-export default auth((req) => {
-  const path = req.nextUrl.pathname;
+export default async function middleware(request: NextRequest) {
+  const path = request.nextUrl.pathname;
 
   // ── Preview password gate ────────────────────────────────────────────────
   const previewPassword = process.env.PREVIEW_PASSWORD;
   if (previewPassword && isPreviewGated(path)) {
-    const authHeader = req.headers.get("authorization") ?? "";
+    const authHeader = request.headers.get("authorization") ?? "";
     if (!authHeader.startsWith("Basic ")) return basicAuthResponse();
-
     const decoded = atob(authHeader.slice(6));
-    // Accept any username; only the password matters
     const password = decoded.slice(decoded.indexOf(":") + 1);
     if (password !== previewPassword) return basicAuthResponse();
   }
 
   // ── Dashboard auth guard ─────────────────────────────────────────────────
-  const isProtected = path.startsWith("/dashboard");
-  if (isProtected && !req.auth) {
-    return NextResponse.redirect(new URL("/login", req.url));
+  if (path.startsWith("/dashboard")) {
+    const token = await getToken({
+      req: request,
+      secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
+    });
+    if (!token) {
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
   }
 
   return NextResponse.next();
-});
+}
 
 export const config = {
   matcher: [
-    // Run on all paths except Next.js internals and static files
     "/((?!_next/static|_next/image|favicon\\.ico|embed\\.js|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp)).*)",
   ],
 };

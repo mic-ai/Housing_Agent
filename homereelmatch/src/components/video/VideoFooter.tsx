@@ -72,7 +72,11 @@ export function VideoFooter({
           }`}
         >
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-20 h-20 rounded-full overflow-hidden bg-stone-700 flex-shrink-0 flex items-center justify-center ring-2 ring-amber-400/50">
+            <Link
+              href={`/salesperson/${sp.id}`}
+              className="w-20 h-20 rounded-full overflow-hidden bg-stone-700 flex-shrink-0 flex items-center justify-center ring-2 ring-amber-400/50 hover:ring-amber-300 transition-all"
+              aria-label={`${sp.name}のプロフィールを見る`}
+            >
               {sp.profileImage ? (
                 <Image
                   src={sp.profileImage}
@@ -84,10 +88,19 @@ export function VideoFooter({
               ) : (
                 <PersonIcon />
               )}
-            </div>
-            <div className="min-w-0">
+            </Link>
+            <div className="min-w-0 flex-1">
               <p className="text-white text-sm font-medium truncate">{sp.name}</p>
               <p className="text-stone-300 text-xs truncate">{sp.company?.name}</p>
+              <Link
+                href={`/salesperson/${sp.id}`}
+                className="inline-flex items-center gap-1 text-amber-400 hover:text-amber-300 text-xs mt-1 transition-colors"
+              >
+                プロフィールを見る
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
             </div>
           </div>
 

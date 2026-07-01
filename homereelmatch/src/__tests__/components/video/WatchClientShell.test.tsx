@@ -29,6 +29,7 @@ const SALESPERSON_VIDEO: SalespersonVideoDTO = {
     name: "田中太郎",
     profileImage: null,
     bio: null,
+    profileDetail: null,
     company: { id: "co_001", name: "テスト住宅", modelHouseName: null, modelHouseAddress: null },
   },
 };

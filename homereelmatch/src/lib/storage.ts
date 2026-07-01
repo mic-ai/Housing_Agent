@@ -75,3 +75,25 @@ export function buildSalespersonFaceVideoPath(
   const timestamp = Date.now();
   return `${salespersonId}/${type}_${timestamp}.${ext}`;
 }
+
+export async function uploadProfileImage(
+  file: Buffer,
+  salespersonId: string,
+  ext: string,
+  contentType: string
+): Promise<{ path: string; publicUrl: string }> {
+  const admin = requireAdmin();
+  const path = `profile-icons/${salespersonId}/icon_${Date.now()}.${ext}`;
+  const { error } = await admin.storage
+    .from(BUCKET)
+    .upload(path, file, { contentType, upsert: true });
+  if (error) throw new Error(`Storage upload failed: ${error.message}`);
+  const { data } = admin.storage.from(BUCKET).getPublicUrl(path);
+  return { path, publicUrl: data.publicUrl };
+}
+
+export async function deleteProfileImage(path: string): Promise<void> {
+  const admin = requireAdmin();
+  const { error } = await admin.storage.from(BUCKET).remove([path]);
+  if (error) throw new Error(`Storage delete failed: ${error.message}`);
+}

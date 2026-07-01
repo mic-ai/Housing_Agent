@@ -47,6 +47,7 @@ model Salesperson {
   lineId          String?
   profileImage    String?
   bio             String?
+  profileDetail   String?
   company         Company?                  @relation(fields: [companyId], references: [id])
   companyId       String?
   houseMaker      HouseMaker?               @relation(fields: [houseMakerId], references: [id])

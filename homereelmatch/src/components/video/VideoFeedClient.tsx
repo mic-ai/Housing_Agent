@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { VideoCard } from "./VideoCard";
 import { VideoCardSkeleton } from "./VideoCardSkeleton";
 import { useIntersectionObserver } from "@/hooks/useIntersectionObserver";
@@ -57,17 +57,21 @@ export function VideoFeedClient({
   venueId,
 }: VideoFeedClientProps) {
   const [videos, setVideos] = useState<VideoDTO[]>(initialVideos);
-  const [cursor, setCursor] = useState<string | null>(
+  const [loading, setLoading] = useState(false);
+
+  // Use refs for mutable load-state to keep loadMore reference stable
+  const cursorRef = useRef<string | null>(
     initialVideos.length === 20 ? initialVideos[initialVideos.length - 1].id : null
   );
-  const [loading, setLoading] = useState(false);
-  const [hasMore, setHasMore] = useState(initialVideos.length === 20);
+  const hasMoreRef = useRef(initialVideos.length === 20);
+  const loadingRef = useRef(false);
 
   const loadMore = useCallback(async () => {
-    if (loading || !hasMore || !cursor) return;
+    if (loadingRef.current || !hasMoreRef.current || !cursorRef.current) return;
+    loadingRef.current = true;
     setLoading(true);
     try {
-      const params = new URLSearchParams({ cursor, limit: "20" });
+      const params = new URLSearchParams({ cursor: cursorRef.current, limit: "20" });
       if (tag) params.set("tag", tag);
       if (q) params.set("q", q);
       if (houseMakerId) params.set("houseMakerId", houseMakerId);
@@ -75,14 +79,15 @@ export function VideoFeedClient({
       const res = await fetch(`/api/videos?${params}`);
       const json = await res.json();
       setVideos((prev) => [...prev, ...json.data]);
-      setCursor(json.nextCursor);
-      setHasMore(json.nextCursor !== null);
+      cursorRef.current = json.nextCursor;
+      hasMoreRef.current = json.nextCursor !== null;
     } finally {
+      loadingRef.current = false;
       setLoading(false);
     }
-  }, [loading, hasMore, cursor, tag, q, houseMakerId, venueId]);
+  }, [tag, q, houseMakerId, venueId]);
 
-  const sentinelRef = useIntersectionObserver(loadMore, { threshold: 0.1 });
+  const sentinelRef = useIntersectionObserver(loadMore);
 
   if (videos.length === 0) {
     return <EmptyState tag={tag} q={q} />;

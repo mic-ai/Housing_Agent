@@ -4,10 +4,12 @@ import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import Image from "next/image";
 
 const ProfileSchema = z.object({
   name: z.string().min(1, "氏名は必須です"),
-  bio: z.string().max(500).optional(),
+  bio: z.string().max(500, "500文字以内で入力してください").optional(),
+  profileDetail: z.string().max(3000, "3000文字以内で入力してください").optional(),
   houseMakerId: z.string().optional(),
 });
 type ProfileForm = z.infer<typeof ProfileSchema>;
@@ -25,12 +27,110 @@ export type FaceVideo = {
 type Props = {
   initialName: string;
   initialBio: string | null;
+  initialProfileDetail: string | null;
+  initialProfileImage: string | null;
   initialHouseMakerId: string | null;
   houseMakers: HouseMaker[];
   initialFaceVideos: FaceVideo[];
 };
 
+function PersonIcon() {
+  return (
+    <svg className="w-10 h-10 text-stone-500" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z" />
+    </svg>
+  );
+}
+
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
+
+function ProfileImageUpload({
+  currentImageUrl,
+  onUploaded,
+}: {
+  currentImageUrl: string | null;
+  onUploaded: (url: string) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [preview, setPreview] = useState<string | null>(currentImageUrl);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleFile(file: File) {
+    setError(null);
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      setError("JPEG / PNG / WebP 形式の画像を選択してください");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError("ファイルサイズは5MB以下にしてください");
+      return;
+    }
+    // local preview
+    const reader = new FileReader();
+    reader.onload = (e) => setPreview(e.target?.result as string);
+    reader.readAsDataURL(file);
+
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/salesperson/profile/icon", { method: "POST", body: fd });
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error ?? "アップロードに失敗しました");
+        return;
+      }
+      onUploaded(json.data.profileImage);
+    } catch {
+      setError("アップロードに失敗しました");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-5">
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        disabled={uploading}
+        className="w-20 h-20 rounded-full overflow-hidden bg-gray-800 flex items-center justify-center ring-2 ring-gray-700 hover:ring-amber-500 transition-all disabled:opacity-50 flex-shrink-0"
+        aria-label="プロフィール画像を変更"
+      >
+        {preview ? (
+          <Image src={preview} alt="プロフィール画像" width={80} height={80} className="object-cover w-full h-full" />
+        ) : (
+          <PersonIcon />
+        )}
+      </button>
+      <div className="space-y-1">
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading}
+          className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 rounded-lg text-xs text-gray-300 transition-colors border border-gray-700"
+        >
+          {uploading ? "アップロード中..." : "画像を変更"}
+        </button>
+        <p className="text-xs text-gray-500">JPEG / PNG / WebP・5MB以下</p>
+        {error && <p className="text-xs text-red-400">{error}</p>}
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handleFile(file);
+          e.target.value = "";
+        }}
+      />
+    </div>
+  );
+}
 
 function FaceVideoUploadButton({
   rollType,
@@ -152,23 +252,40 @@ function FaceVideoList({
 export default function ProfileClient({
   initialName,
   initialBio,
+  initialProfileDetail,
+  initialProfileImage,
   initialHouseMakerId,
   houseMakers,
   initialFaceVideos,
 }: Props) {
   const [saved, setSaved] = useState(false);
   const [faceVideos, setFaceVideos] = useState<FaceVideo[]>(initialFaceVideos);
+  // profileImage is managed separately via the icon upload endpoint
+  // but we track it here so the preview stays in sync
+  const [_profileImage, setProfileImage] = useState<string | null>(initialProfileImage);
 
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<ProfileForm>({
+  const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<ProfileForm>({
     resolver: zodResolver(ProfileSchema),
-    defaultValues: { name: initialName, bio: initialBio ?? "", houseMakerId: initialHouseMakerId ?? "" },
+    defaultValues: {
+      name: initialName,
+      bio: initialBio ?? "",
+      profileDetail: initialProfileDetail ?? "",
+      houseMakerId: initialHouseMakerId ?? "",
+    },
   });
+
+  const bioValue = watch("bio") ?? "";
+  const profileDetailValue = watch("profileDetail") ?? "";
 
   const onSubmit = async (data: ProfileForm) => {
     const res = await fetch("/api/salesperson/profile", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...data, houseMakerId: data.houseMakerId || null }),
+      body: JSON.stringify({
+        ...data,
+        houseMakerId: data.houseMakerId || null,
+        profileDetail: data.profileDetail || null,
+      }),
     });
     if (res.ok) {
       setSaved(true);
@@ -181,6 +298,15 @@ export default function ProfileClient({
 
   return (
     <div className="space-y-8">
+      {/* プロフィール画像 */}
+      <section className="bg-gray-900 rounded-xl p-6">
+        <h2 className="text-base font-semibold mb-4">プロフィール写真</h2>
+        <ProfileImageUpload
+          currentImageUrl={_profileImage}
+          onUploaded={(url) => setProfileImage(url)}
+        />
+      </section>
+
       {/* 基本情報 */}
       <section className="bg-gray-900 rounded-xl p-6">
         <h2 className="text-base font-semibold mb-4">基本情報</h2>
@@ -189,7 +315,7 @@ export default function ProfileClient({
             <label className="block text-sm text-gray-400 mb-1">氏名</label>
             <input
               {...register("name")}
-              className="w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-amber-500"
             />
             {errors.name && <p className="text-red-400 text-xs mt-1">{errors.name.message}</p>}
           </div>
@@ -198,7 +324,7 @@ export default function ProfileClient({
             <label className="block text-sm text-gray-400 mb-1">所属ハウスメーカー</label>
             <select
               {...register("houseMakerId")}
-              className="w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-amber-500"
             >
               <option value="">未選択</option>
               {houseMakers.map((hm) => (
@@ -208,24 +334,49 @@ export default function ProfileClient({
           </div>
 
           <div>
-            <label className="block text-sm text-gray-400 mb-1">プロフィール</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm text-gray-400">一言プロフィール</label>
+              <span className={`text-xs ${bioValue.length > 450 ? "text-amber-400" : "text-gray-500"}`}>
+                {bioValue.length} / 500
+              </span>
+            </div>
             <textarea
               {...register("bio")}
-              rows={4}
-              placeholder="自己紹介・得意分野など"
-              className="w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+              rows={3}
+              placeholder="動画オーバーレイに表示される短い自己紹介文"
+              className="w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 resize-none"
             />
+            {errors.bio && <p className="text-red-400 text-xs mt-1">{errors.bio.message}</p>}
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm text-gray-400">詳細プロフィール</label>
+              <span className={`text-xs ${profileDetailValue.length > 2700 ? "text-amber-400" : "text-gray-500"}`}>
+                {profileDetailValue.length} / 3000
+              </span>
+            </div>
+            <textarea
+              {...register("profileDetail")}
+              rows={8}
+              placeholder={`プロフィールページに表示される詳細な自己紹介文。\n\n例）経歴・資格・得意な住宅スタイル・お客様へのメッセージなど`}
+              className="w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 resize-y"
+            />
+            {errors.profileDetail && (
+              <p className="text-red-400 text-xs mt-1">{errors.profileDetail.message}</p>
+            )}
+            <p className="text-xs text-gray-500 mt-1">プロフィールページ（公開URL）に表示されます</p>
           </div>
 
           <div className="flex items-center gap-3">
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg text-sm font-medium transition-colors"
+              className="px-5 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 rounded-lg text-sm font-medium transition-colors"
             >
               {isSubmitting ? "保存中..." : "保存する"}
             </button>
-            {saved && <span className="text-green-400 text-sm">保存しました</span>}
+            {saved && <span className="text-green-400 text-sm">保存しました ✓</span>}
           </div>
         </form>
       </section>

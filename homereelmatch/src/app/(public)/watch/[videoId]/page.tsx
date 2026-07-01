@@ -139,6 +139,7 @@ export default async function WatchPage({ params }: WatchPageProps) {
             name: primarySalesperson.name,
             profileImage: primarySalesperson.profileImage,
             bio: primarySalesperson.bio,
+            profileDetail: primarySalesperson.profileDetail,
             company: primarySalesperson.company
               ? {
                   id: primarySalesperson.company.id,

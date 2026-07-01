@@ -11,7 +11,7 @@ export default async function ProfilePage() {
   const [salesperson, houseMakers, faceVideos] = await Promise.all([
     prisma.salesperson.findUnique({
       where: { id: session.user.id },
-      select: { name: true, bio: true, profileImage: true, houseMakerId: true },
+      select: { name: true, bio: true, profileDetail: true, profileImage: true, houseMakerId: true },
     }),
     prisma.houseMaker.findMany({
       where: { isActive: true },
@@ -30,7 +30,11 @@ export default async function ProfilePage() {
     <div className="min-h-screen bg-stone-950 text-white">
       <header className="border-b border-stone-800 px-4 py-4">
         <div className="max-w-2xl mx-auto flex items-center gap-3">
-          <Link href="/dashboard" className="w-9 h-9 flex items-center justify-center rounded-lg text-stone-400 hover:text-white hover:bg-stone-800 transition-colors" aria-label="ダッシュボードへ戻る">
+          <Link
+            href="/dashboard"
+            className="w-9 h-9 flex items-center justify-center rounded-lg text-stone-400 hover:text-white hover:bg-stone-800 transition-colors"
+            aria-label="ダッシュボードへ戻る"
+          >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
@@ -43,6 +47,8 @@ export default async function ProfilePage() {
         <ProfileClient
           initialName={salesperson.name}
           initialBio={salesperson.bio}
+          initialProfileDetail={salesperson.profileDetail}
+          initialProfileImage={salesperson.profileImage}
           initialHouseMakerId={salesperson.houseMakerId}
           houseMakers={houseMakers}
           initialFaceVideos={faceVideos as FaceVideo[]}

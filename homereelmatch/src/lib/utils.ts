@@ -29,6 +29,7 @@ export function mapVideoToDTO(video: {
       name: string;
       profileImage: string | null;
       bio: string | null;
+      profileDetail: string | null;
       company: {
         id: string;
         name: string;

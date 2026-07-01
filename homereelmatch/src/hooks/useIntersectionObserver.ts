@@ -7,6 +7,8 @@ export function useIntersectionObserver(
   options?: IntersectionObserverInit
 ) {
   const ref = useRef<HTMLDivElement>(null);
+  // Keep options stable — callers passing inline literals shouldn't re-trigger the effect
+  const optionsRef = useRef(options);
 
   useEffect(() => {
     const el = ref.current;
@@ -14,11 +16,11 @@ export function useIntersectionObserver(
 
     const observer = new IntersectionObserver(([entry]) => {
       if (entry.isIntersecting) callback();
-    }, options);
+    }, optionsRef.current);
 
     observer.observe(el);
     return () => observer.disconnect();
-  }, [callback, options]);
+  }, [callback]);
 
   return ref;
 }

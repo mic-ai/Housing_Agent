@@ -117,6 +117,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         )}
 
         <VideoFeedClient
+          key={`${params.tag ?? ""}_${params.q ?? ""}_${params.houseMakerId ?? ""}_${params.venueId ?? ""}`}
           initialVideos={initialVideos.map(mapVideoToDTO)}
           tag={params.tag}
           q={params.q}

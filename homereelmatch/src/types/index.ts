@@ -28,6 +28,7 @@ export interface SalespersonDTO {
   name: string;
   profileImage: string | null;
   bio: string | null;
+  profileDetail: string | null;
   company: {
     id: string;
     name: string;

@@ -55,14 +55,18 @@ export default async function SalespersonProfilePage({ params }: Props) {
 
   const sp = await prisma.salesperson.findUnique({
     where: { id: salespersonId },
-    include: {
+    select: {
+      id: true,
+      name: true,
+      profileImage: true,
+      bio: true,
       houseMaker: { select: { id: true, name: true, logoUrl: true } },
       company: { select: { id: true, name: true } },
       videoSegments: {
         where: { video: { isActive: true } },
         orderBy: { createdAt: "asc" },
         take: 6,
-        include: {
+        select: {
           video: {
             select: {
               id: true,
@@ -137,18 +141,6 @@ export default async function SalespersonProfilePage({ params }: Props) {
             )}
           </div>
         </div>
-
-        {/* Detailed profile */}
-        {sp.profileDetail && (
-          <section className="bg-white rounded-2xl shadow-sm border border-amber-100 p-5">
-            <h3 className="text-sm font-semibold text-stone-500 uppercase tracking-wider mb-3">
-              プロフィール詳細
-            </h3>
-            <p className="text-stone-700 text-sm leading-relaxed whitespace-pre-wrap">
-              {sp.profileDetail}
-            </p>
-          </section>
-        )}
 
         {/* Videos */}
         {sp.videoSegments.length > 0 && (

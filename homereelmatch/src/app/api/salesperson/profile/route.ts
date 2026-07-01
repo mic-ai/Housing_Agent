@@ -6,7 +6,6 @@ import { prisma } from "@/lib/prisma";
 const PatchSchema = z.object({
   name: z.string().min(1).optional(),
   bio: z.string().max(500).optional(),
-  profileDetail: z.string().max(3000).optional().nullable(),
   profileImage: z.string().url().optional().nullable(),
   houseMakerId: z.string().optional().nullable(),
 });
@@ -22,7 +21,6 @@ export async function GET(_request: NextRequest): Promise<NextResponse> {
       name: true,
       email: true,
       bio: true,
-      profileDetail: true,
       profileImage: true,
       houseMakerId: true,
       houseMaker: { select: { id: true, name: true, logoUrl: true, isActive: true } },
@@ -48,7 +46,6 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
         id: true,
         name: true,
         bio: true,
-        profileDetail: true,
         profileImage: true,
         houseMakerId: true,
         houseMaker: { select: { id: true, name: true, logoUrl: true, isActive: true } },

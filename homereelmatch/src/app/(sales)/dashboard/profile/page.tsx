@@ -11,7 +11,7 @@ export default async function ProfilePage() {
   const [salesperson, houseMakers, faceVideos] = await Promise.all([
     prisma.salesperson.findUnique({
       where: { id: session.user.id },
-      select: { name: true, bio: true, profileDetail: true, profileImage: true, houseMakerId: true },
+      select: { name: true, bio: true, profileImage: true, houseMakerId: true },
     }),
     prisma.houseMaker.findMany({
       where: { isActive: true },
@@ -47,7 +47,7 @@ export default async function ProfilePage() {
         <ProfileClient
           initialName={salesperson.name}
           initialBio={salesperson.bio}
-          initialProfileDetail={salesperson.profileDetail}
+          initialProfileDetail={null}
           initialProfileImage={salesperson.profileImage}
           initialHouseMakerId={salesperson.houseMakerId}
           houseMakers={houseMakers}

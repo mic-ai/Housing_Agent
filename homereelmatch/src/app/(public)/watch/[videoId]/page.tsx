@@ -70,8 +70,19 @@ export default async function WatchPage({ params }: WatchPageProps) {
       salespersonVideos: {
         include: {
           salesperson: {
-            include: {
-              company: true,
+            select: {
+              id: true,
+              name: true,
+              profileImage: true,
+              bio: true,
+              company: {
+                select: {
+                  id: true,
+                  name: true,
+                  modelHouseName: true,
+                  modelHouseAddress: true,
+                },
+              },
               faceVideos: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] },
             },
           },
@@ -139,7 +150,6 @@ export default async function WatchPage({ params }: WatchPageProps) {
             name: primarySalesperson.name,
             profileImage: primarySalesperson.profileImage,
             bio: primarySalesperson.bio,
-            profileDetail: primarySalesperson.profileDetail,
             company: primarySalesperson.company
               ? {
                   id: primarySalesperson.company.id,

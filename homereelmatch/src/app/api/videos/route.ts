@@ -7,7 +7,24 @@ import { mapVideoToDTO } from "@/lib/utils";
 const videoInclude = {
   videoHashtags: { include: { hashtag: true } },
   salespersonVideos: {
-    include: { salesperson: { include: { company: true } } },
+    include: {
+      salesperson: {
+        select: {
+          id: true,
+          name: true,
+          profileImage: true,
+          bio: true,
+          company: {
+            select: {
+              id: true,
+              name: true,
+              modelHouseName: true,
+              modelHouseAddress: true,
+            },
+          },
+        },
+      },
+    },
   },
   houseMaker: true,
   venue: true,

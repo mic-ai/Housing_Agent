@@ -48,23 +48,9 @@ export default async function SalespersonProfilePage({ params, searchParams }: P
       name: true,
       profileImage: true,
       bio: true,
+      profileDetail: true,
       houseMaker: { select: { id: true, name: true, logoUrl: true } },
       company: { select: { id: true, name: true } },
-      videoSegments: {
-        where: { video: { isActive: true } },
-        orderBy: { createdAt: "asc" },
-        take: 6,
-        select: {
-          video: {
-            select: {
-              id: true,
-              title: true,
-              thumbnailUrl: true,
-              platform: true,
-            },
-          },
-        },
-      },
     },
   });
 
@@ -130,38 +116,15 @@ export default async function SalespersonProfilePage({ params, searchParams }: P
           </div>
         </div>
 
-        {/* Videos */}
-        {sp.videoSegments.length > 0 && (
+        {/* Detailed profile */}
+        {sp.profileDetail && (
           <section className="bg-white rounded-2xl shadow-sm border border-amber-100 p-5">
             <h3 className="text-sm font-semibold text-stone-500 uppercase tracking-wider mb-3">
-              担当動画
+              詳細プロフィール
             </h3>
-            <div className="grid grid-cols-3 gap-2">
-              {sp.videoSegments.map(({ video }) => (
-                <Link
-                  key={video.id}
-                  href={`/watch/${video.id}`}
-                  className="relative aspect-[9/16] rounded-lg overflow-hidden bg-stone-100 block group"
-                >
-                  {video.thumbnailUrl ? (
-                    <Image
-                      src={video.thumbnailUrl}
-                      alt={video.title}
-                      fill
-                      className="object-cover group-hover:scale-105 transition-transform duration-200"
-                      sizes="(max-width: 640px) 33vw, 150px"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <svg className="w-6 h-6 text-stone-400" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M8 5v14l11-7z" />
-                      </svg>
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-stone-950/0 group-hover:bg-stone-950/20 transition-colors" />
-                </Link>
-              ))}
-            </div>
+            <p className="text-stone-600 text-sm leading-relaxed whitespace-pre-wrap">
+              {sp.profileDetail}
+            </p>
           </section>
         )}
 

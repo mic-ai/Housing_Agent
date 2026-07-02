@@ -86,15 +86,17 @@ test.describe("コンタクト申請フロー", () => {
     await expect(page.locator('[class*="aspect"]').or(page.locator('[class*="player"]')).first()).toBeVisible();
   });
 
-  test("P-02: LINEで連絡ボタンからコンタクトページへ遷移できる", async ({ page }) => {
+  test("P-02: プロフィールボタンから営業マンプロフィール（連絡フォーム統合）ページへ遷移できる", async ({ page }) => {
     await page.goto(`/watch/${VIDEO_ID}`);
     await expect(page.getByText("おしゃれなリビングのある家")).toBeVisible({ timeout: 10_000 });
 
-    // VideoFooter の「LINEで連絡」リンクをクリック
-    await page.getByText("LINEで連絡").click();
+    // VideoFooter の「プロフィールを見て連絡する」リンクをクリック（常時クリック可能）
+    await page.getByText("プロフィールを見て連絡する").click();
 
-    await expect(page).toHaveURL(/\/contact\//, { timeout: 10_000 });
+    await expect(page).toHaveURL(/\/salesperson\//, { timeout: 10_000 });
     await expect(page.getByText("テスト営業太郎")).toBeVisible({ timeout: 10_000 });
+    // 統合ページ内にコンタクトフォームが含まれる
+    await expect(page.getByRole("radio", { name: "LINE" })).toBeVisible();
   });
 
   test("P-04: 面談予約ページが開き日時選択が表示される", async ({ page }) => {

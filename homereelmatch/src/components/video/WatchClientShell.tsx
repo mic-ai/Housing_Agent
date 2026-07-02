@@ -1,6 +1,3 @@
-"use client";
-
-import { useState, useCallback } from "react";
 import { CompositePlayer } from "./CompositePlayer";
 import { VideoFooter } from "./VideoFooter";
 import type { Platform, SalespersonVideoDTO, HashtagDTO } from "@/types";
@@ -26,24 +23,14 @@ export function WatchClientShell({
   hashtags,
   salespersonVideo,
 }: WatchClientShellProps) {
-  const [showContact, setShowContact] = useState(false);
-  const handleShowContact = useCallback(() => setShowContact(true), []);
-
   return (
     <>
-      <CompositePlayer
-        platform={platform}
-        url={url}
-        preRollUrl={preRollUrl}
-        postRollUrl={postRollUrl}
-        onShowContact={handleShowContact}
-      />
+      <CompositePlayer platform={platform} url={url} preRollUrl={preRollUrl} postRollUrl={postRollUrl} />
       <VideoFooter
         videoId={videoId}
         title={title}
         hashtags={hashtags}
         salespersonVideo={salespersonVideo}
-        showContact={showContact}
       />
     </>
   );

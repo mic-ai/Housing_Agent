@@ -1,16 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, act } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { WatchClientShell } from "@/components/video/WatchClientShell";
 import type { SalespersonVideoDTO } from "@/types";
-
-// CompositePlayer は onShowContact を即時呼び出せるスタブに差し替え
-vi.mock("@/components/video/CompositePlayer", () => ({
-  CompositePlayer: ({ onShowContact }: { onShowContact?: () => void }) => (
-    <button data-testid="trigger-contact" onClick={onShowContact}>
-      再生終了
-    </button>
-  ),
-}));
 
 // MainVideoPlayer / FaceRollPlayer は不要
 vi.mock("@/components/video/MainVideoPlayer", () => ({ MainVideoPlayer: () => null }));
@@ -43,34 +34,23 @@ const DEFAULT_PROPS = {
   salespersonVideo: SALESPERSON_VIDEO,
 };
 
-describe("WatchClientShell", () => {
-  it("初期状態では営業マンの連絡ボタンが非表示（opacity-0）", () => {
+describe("VideoFooter — プロフィール導線", () => {
+  it("営業マンプロフィールへのリンクが常時クリック可能な状態で表示される", () => {
     render(<WatchClientShell {...DEFAULT_PROPS} />);
-    // 連絡ボタンを含む div が opacity-0 クラスを持つ
-    const contactArea = screen.getByText("LINEで連絡").closest("div[class*='opacity']");
-    expect(contactArea?.className).toContain("opacity-0");
+    const profileLink = screen.getByRole("link", { name: "プロフィールを見て連絡する" });
+    expect(profileLink).toHaveAttribute("href", "/salesperson/sp_001?videoId=vid_001");
+    expect(profileLink.className).not.toContain("pointer-events-none");
   });
 
-  it("onShowContact が呼ばれると連絡ボタンが表示される", async () => {
+  it("アイコン部分も /salesperson/[id] への常時クリック可能なリンクになっている", () => {
     render(<WatchClientShell {...DEFAULT_PROPS} />);
-    const trigger = screen.getByTestId("trigger-contact");
-    await act(async () => { trigger.click(); });
-    const contactArea = screen.getByText("LINEで連絡").closest("div[class*='opacity']");
-    expect(contactArea?.className).toContain("opacity-100");
+    const iconLink = screen.getByRole("link", { name: "田中太郎のプロフィールを見る" });
+    expect(iconLink).toHaveAttribute("href", "/salesperson/sp_001?videoId=vid_001");
   });
 
-  it("salespersonVideo が null のとき連絡エリアを描画しない", () => {
+  it("salespersonVideo が null のときプロフィール導線を描画しない", () => {
     render(<WatchClientShell {...DEFAULT_PROPS} salespersonVideo={null} />);
-    expect(screen.queryByText("LINEで連絡")).toBeNull();
-  });
-});
-
-describe("VideoFooter — showContact prop", () => {
-  it("showContact=false のとき連絡ボタンエリアが opacity-0", () => {
-    render(<WatchClientShell {...DEFAULT_PROPS} />);
-    const contactArea = screen.getByText("LINEで連絡").closest("div[class*='opacity']");
-    expect(contactArea?.className).toContain("opacity-0");
-    expect(contactArea?.className).toContain("pointer-events-none");
+    expect(screen.queryByText("プロフィールを見て連絡する")).toBeNull();
   });
 
   it("動画タイトルは常に表示される", () => {

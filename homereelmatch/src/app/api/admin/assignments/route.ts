@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
     const { salespersonId, videoId } = parsed.data;
 
     const [salesperson, video, existingCount] = await Promise.all([
-      prisma.salesperson.findUnique({ where: { id: salespersonId } }),
+      prisma.salesperson.findUnique({ where: { id: salespersonId }, select: { id: true } }),
       prisma.video.findUnique({ where: { id: videoId } }),
       prisma.salespersonVideo.count({ where: { videoId } }),
     ]);

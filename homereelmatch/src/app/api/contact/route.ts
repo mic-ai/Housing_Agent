@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
 
     const salesperson = await prisma.salesperson.findUnique({
       where: { id: data.salespersonId },
-      include: { company: true },
+      select: { id: true, lineId: true, email: true },
     });
     if (!salesperson) {
       return NextResponse.json({ error: "営業マンが見つかりません" }, { status: 404 });

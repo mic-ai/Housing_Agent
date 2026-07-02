@@ -40,6 +40,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     await prisma.salesperson.update({
       where: { id: session.user.id },
       data: { profileImage: publicUrl },
+      select: { id: true },
     });
 
     return NextResponse.json({ data: { profileImage: publicUrl } });

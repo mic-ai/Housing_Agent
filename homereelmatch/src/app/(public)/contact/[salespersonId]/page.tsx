@@ -15,7 +15,13 @@ export default async function ContactPage({ params, searchParams }: ContactPageP
 
   const salesperson = await prisma.salesperson.findUnique({
     where: { id: salespersonId },
-    include: { company: true },
+    select: {
+      id: true,
+      name: true,
+      profileImage: true,
+      bio: true,
+      company: { select: { name: true } },
+    },
   });
   if (!salesperson) notFound();
 

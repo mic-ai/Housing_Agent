@@ -19,7 +19,14 @@ export async function GET() {
   if (denied) return denied;
 
   const salespersons = await prisma.salesperson.findMany({
-    include: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      lineId: true,
+      bio: true,
+      createdAt: true,
       houseMaker: { select: { id: true, name: true } },
       _count: { select: { videoSegments: true, contactRequests: true } },
     },
@@ -56,7 +63,14 @@ export async function POST(request: NextRequest) {
 
     const salesperson = await prisma.salesperson.create({
       data: { ...rest, password: hashedPassword },
-      include: { houseMaker: { select: { id: true, name: true } } },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        houseMaker: { select: { id: true, name: true } },
+      },
     });
 
     return NextResponse.json({

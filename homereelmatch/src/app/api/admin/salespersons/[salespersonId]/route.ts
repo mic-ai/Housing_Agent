@@ -34,7 +34,14 @@ export async function PATCH(
     const salesperson = await prisma.salesperson.update({
       where: { id: salespersonId },
       data,
-      include: { houseMaker: { select: { id: true, name: true } } },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        bio: true,
+        houseMaker: { select: { id: true, name: true } },
+      },
     });
     return NextResponse.json({ salesperson });
   } catch (error: unknown) {
@@ -57,7 +64,7 @@ export async function DELETE(
 
   const counts = await prisma.salesperson.findUnique({
     where: { id: salespersonId },
-    include: { _count: { select: { contactRequests: true, slots: true } } },
+    select: { _count: { select: { contactRequests: true, slots: true } } },
   });
   if (!counts) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
@@ -65,6 +72,6 @@ export async function DELETE(
     return NextResponse.json({ error: "問い合わせが存在するため削除できません" }, { status: 409 });
   }
 
-  await prisma.salesperson.delete({ where: { id: salespersonId } });
+  await prisma.salesperson.delete({ where: { id: salespersonId }, select: { id: true } });
   return new NextResponse(null, { status: 204 });
 }

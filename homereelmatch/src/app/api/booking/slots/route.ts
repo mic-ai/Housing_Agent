@@ -30,7 +30,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const salesperson = await prisma.salesperson.findUnique({ where: { id: data.salespersonId } });
+    const salesperson = await prisma.salesperson.findUnique({ where: { id: data.salespersonId }, select: { id: true } });
     if (!salesperson) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     const slot = await prisma.availableSlot.create({

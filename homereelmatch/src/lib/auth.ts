@@ -25,6 +25,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const salesperson = await prisma.salesperson.findUnique({
           where: { email: parsed.data.email },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            password: true,
+            companyId: true,
+            role: true,
+          },
         });
         if (!salesperson) return null;
 

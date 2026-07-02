@@ -34,6 +34,7 @@ export default async function middleware(request: NextRequest) {
     const token = await getToken({
       req: request,
       secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
+      secureCookie: request.nextUrl.protocol === "https:",
     });
     if (!token) {
       return NextResponse.redirect(new URL("/login", request.url));

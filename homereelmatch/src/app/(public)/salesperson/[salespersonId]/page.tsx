@@ -30,7 +30,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 function PersonIcon() {
   return (
-    <svg className="w-16 h-16 text-stone-400" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <svg className="w-32 h-32 text-stone-400" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
       <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z" />
     </svg>
   );
@@ -76,33 +76,30 @@ export default async function SalespersonProfilePage({ params, searchParams }: P
       <main className="max-w-lg mx-auto px-4 py-6 space-y-5">
         {/* Hero card */}
         <div className="bg-white rounded-2xl shadow-sm border border-amber-100 overflow-hidden">
-          <div className="h-20 bg-gradient-to-r from-amber-400 to-amber-600" />
-          <div className="px-5 pb-5">
-            <div className="flex items-end gap-4 -mt-10 mb-4">
-              <div className="w-20 h-20 rounded-full overflow-hidden bg-stone-100 flex-shrink-0 ring-4 ring-white flex items-center justify-center">
-                {sp.profileImage ? (
-                  <Image
-                    src={sp.profileImage}
-                    alt={sp.name}
-                    width={80}
-                    height={80}
-                    className="object-cover w-full h-full"
-                    priority
-                  />
-                ) : (
-                  <PersonIcon />
-                )}
-              </div>
-              <div className="pb-1 min-w-0">
-                <h2 className="text-xl font-bold text-stone-800 leading-tight">{sp.name}</h2>
-                {sp.company && (
-                  <p className="text-stone-500 text-sm truncate">{sp.company.name}</p>
-                )}
-              </div>
+          <div className="h-32 bg-gradient-to-r from-amber-400 to-amber-600" />
+          <div className="px-5 pb-5 flex flex-col items-center text-center">
+            <div className="w-60 h-60 rounded-full overflow-hidden bg-stone-100 flex-shrink-0 ring-4 ring-white -mt-28 mb-4 flex items-center justify-center">
+              {sp.profileImage ? (
+                <Image
+                  src={sp.profileImage}
+                  alt={sp.name}
+                  width={240}
+                  height={240}
+                  className="object-cover w-full h-full"
+                  priority
+                />
+              ) : (
+                <PersonIcon />
+              )}
             </div>
 
+            <h2 className="text-xl font-bold text-stone-800 leading-tight">{sp.name}</h2>
+            {sp.company && (
+              <p className="text-stone-500 text-sm truncate">{sp.company.name}</p>
+            )}
+
             {sp.houseMaker && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-700 text-xs font-medium rounded-full border border-amber-200">
+              <span className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-700 text-xs font-medium rounded-full border border-amber-200">
                 <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
                 </svg>
@@ -111,7 +108,7 @@ export default async function SalespersonProfilePage({ params, searchParams }: P
             )}
 
             {sp.bio && (
-              <p className="mt-3 text-stone-600 text-sm leading-relaxed">{sp.bio}</p>
+              <p className="mt-3 text-stone-600 text-sm leading-relaxed text-left self-stretch">{sp.bio}</p>
             )}
           </div>
         </div>

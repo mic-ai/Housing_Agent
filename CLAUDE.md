@@ -471,7 +471,7 @@ npx vercel --prod
 
 ---
 
-## 現在の状態（2026-07-01）
+## 現在の状態（2026-07-02）
 
 全フェーズ実装・本番デプロイ済み。
 
@@ -514,8 +514,9 @@ npx vercel --prod
 | 営業マン公開プロフィールページ（/salesperson/[id]）追加 | 完了（2026-07-01） |
 | 営業マンダッシュボードにプロフィール画像アップロード追加 | 完了（2026-07-01） |
 | HTTP Basic Auth プレビューゲート（PREVIEW_PASSWORD）追加 | 完了（2026-07-01） |
-| Prismaスキーマ profileDetail 追加（DBマイグレーション未適用） | 部分完了（2026-07-01） |
+| Prismaスキーマ profileDetail 追加（DBマイグレーション未適用） | 完了（2026-07-02、マイグレーション適用済み） |
 | Prisma include 全フィールドSELECTによるクラッシュ修正 | 完了（2026-07-01） |
+| 営業マンプロフィールページ 3カード構成へ再編（詳細プロフィール表示・担当動画セクション削除） | 完了（2026-07-02） |
 
 ### 直近の主要変更（2026-06-23）
 
@@ -702,4 +703,33 @@ npx vercel --prod
 #### Prisma マイグレーションとビルドスクリプト
 - `prisma migrate deploy` をビルドスクリプト（`"build":` フィールド）に入れると、DB の状態次第でビルド失敗やサイレントスキップが起きる
 - **推奨**: `"build": "prisma generate && next build"` のみとし、マイグレーションは手動または別 CI ステップで実行
+
+### 直近の主要変更（2026-07-02）
+
+#### profileDetail マイグレーションの本番適用
+- `npx prisma migrate deploy` をローカル端末（`.env` の DATABASE_URL）から実行し、未適用だった `20260623000000_salesperson_company_optional` と `20260701000000_add_profile_detail` の2件を本番 Neon DB に適用
+- これにより `salespersons` テーブルに `profileDetail`（TEXT, nullable）カラムが追加され、2026-07-01 に無効化していた profileDetail 機能を安全に復活できる状態になった
+- **注意**: このサンドボックス環境からは Neon（5432番ポート）への outbound がファイアウォールでブロックされており、Claude Code 自身はマイグレーションを実行できない。DB操作は必ずユーザーのローカル端末または別CIから実行すること
+
+#### 営業マンプロフィールページ（`/salesperson/[salespersonId]`）を3カード構成に再編
+- **カード1**（ヒーローカード、変更なし）: 氏名・ハウスメーカー名・簡易プロフィール（`bio`）
+- **カード2**（変更）: 「担当動画」グリッド（`videoSegments` 一覧・最大6件）を削除し、`profileDetail`（詳細プロフィール）を表示するセクションに置き換え。`profileDetail` が null の場合はカード自体を非表示
+- **カード3**（連絡カード、変更なし）: LINE/メール コンタクトフォーム
+- 影響ファイル: `src/app/(public)/salesperson/[salespersonId]/page.tsx`
+
+#### profileDetail の配線復活（マイグレーション適用に伴い）
+- `GET/PATCH /api/salesperson/profile`: `select` と `PatchSchema` に `profileDetail` を追加（`z.string().max(3000).optional().nullable()`）
+- `src/app/(sales)/dashboard/profile/page.tsx`: `select` に `profileDetail` を追加し、`ProfileClient` への `initialProfileDetail` を `null` 固定から実データ渡しに変更
+- `ProfileClient` 側の詳細プロフィール入力フォーム（3000文字）は既に実装済みだったため、バックエンド配線のみで機能復活
+
+### 実装上の重要な知見（2026-07-02 追加）
+
+#### スキーマフィールドを段階的に有効化する際の順序
+- 新しいカラムをコードで参照する（`select` に追加する）前に、**必ず本番DBへのマイグレーション適用を先に完了させる**こと
+- 順序を誤ると（コードデプロイ→マイグレーション未適用の状態）、2026-07-01 と同様の全ページクラッシュが再発する
+- 安全な手順: ① `prisma migrate deploy` を本番DBに適用 → ② 適用確認（`prisma migrate status`） → ③ 該当フィールドを `select` に追加するコードをデプロイ
+
+#### サンドボックス環境からの本番DB操作の制約
+- Claude Code のサンドボックスは outbound ファイアウォールにより Neon（PostgreSQL, 5432番ポート）へ直接接続できない
+- 本番マイグレーションの適用はユーザーのローカル端末（`npx prisma migrate deploy`）で実行してもらう運用とする
 - `Salesperson` モデルの `videoSegments` リレーション名に注意（`salespersonVideos` ではない）

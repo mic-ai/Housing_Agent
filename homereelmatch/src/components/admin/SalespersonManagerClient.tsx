@@ -10,7 +10,6 @@ interface Salesperson {
   email: string;
   role: "SALESPERSON" | "ADMIN";
   lineId: string | null;
-  bio: string | null;
   houseMaker: HouseMaker | null;
   videoCount: number;
   inquiryCount: number;
@@ -22,7 +21,6 @@ interface EditForm {
   email: string;
   houseMakerId: string;
   role: "SALESPERSON" | "ADMIN";
-  bio: string;
 }
 
 interface Props {
@@ -80,7 +78,6 @@ export function SalespersonManagerClient({ initialHouseMakers }: Props) {
       email: sp.email,
       houseMakerId: sp.houseMaker?.id ?? "",
       role: sp.role,
-      bio: sp.bio ?? "",
     });
     setEditError("");
     setResetTarget(null);
@@ -104,7 +101,6 @@ export function SalespersonManagerClient({ initialHouseMakers }: Props) {
         email: editForm.email,
         houseMakerId: editForm.houseMakerId || null,
         role: editForm.role,
-        bio: editForm.bio || null,
       }),
     });
     const data = await res.json();
@@ -116,7 +112,7 @@ export function SalespersonManagerClient({ initialHouseMakers }: Props) {
     const saved = data.salesperson;
     setSalespersons((prev) =>
       prev.map((s) => s.id === sp.id
-        ? { ...s, name: saved.name, email: saved.email, role: saved.role, bio: saved.bio, houseMaker: saved.houseMaker }
+        ? { ...s, name: saved.name, email: saved.email, role: saved.role, houseMaker: saved.houseMaker }
         : s)
     );
     cancelEdit();
@@ -133,7 +129,6 @@ export function SalespersonManagerClient({ initialHouseMakers }: Props) {
       password: fd.get("password") as string,
       houseMakerId: (fd.get("houseMakerId") as string) || undefined,
       role: fd.get("role") as string,
-      bio: (fd.get("bio") as string) || undefined,
     };
     const res = await fetch("/api/admin/salespersons", {
       method: "POST",
@@ -229,10 +224,6 @@ export function SalespersonManagerClient({ initialHouseMakers }: Props) {
                 <option value="ADMIN">管理者</option>
               </select>
             </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1">自己紹介</label>
-              <input name="bio" className={inputCls} />
-            </div>
           </div>
           {spError && <p className="text-red-400 text-sm">{spError}</p>}
           <div className="flex gap-3">
@@ -304,15 +295,6 @@ export function SalespersonManagerClient({ initialHouseMakers }: Props) {
                         <option value="SALESPERSON">営業マン</option>
                         <option value="ADMIN">管理者</option>
                       </select>
-                    </div>
-                    <div className="col-span-2">
-                      <label className="block text-xs font-medium text-gray-400 mb-1">自己紹介</label>
-                      <textarea
-                        value={editForm.bio}
-                        onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })}
-                        rows={2}
-                        className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm resize-none"
-                      />
                     </div>
                   </div>
                   {editError && <p className="text-red-400 text-sm">{editError}</p>}

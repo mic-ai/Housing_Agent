@@ -517,6 +517,7 @@ npx vercel --prod
 | Prismaスキーマ profileDetail 追加（DBマイグレーション未適用） | 完了（2026-07-02、マイグレーション適用済み） |
 | Prisma include 全フィールドSELECTによるクラッシュ修正 | 完了（2026-07-01） |
 | 営業マンプロフィールページ 3カード構成へ再編（詳細プロフィール表示・担当動画セクション削除） | 完了（2026-07-02） |
+| 管理者の営業マン管理画面から自己紹介（bio）欄を削除 | 完了（2026-07-07） |
 
 ### 直近の主要変更（2026-06-23）
 
@@ -733,3 +734,12 @@ npx vercel --prod
 - Claude Code のサンドボックスは outbound ファイアウォールにより Neon（PostgreSQL, 5432番ポート）へ直接接続できない
 - 本番マイグレーションの適用はユーザーのローカル端末（`npx prisma migrate deploy`）で実行してもらう運用とする
 - `Salesperson` モデルの `videoSegments` リレーション名に注意（`salespersonVideos` ではない）
+
+### 直近の主要変更（2026-07-07）
+
+#### 管理者の営業マン管理画面から自己紹介（bio）欄を削除
+- `SalespersonManagerClient.tsx`（管理者ダッシュボード「営業マン管理」タブ）の新規登録フォーム・編集フォームから「自己紹介」入力欄を削除
+- 関連する `Salesperson.bio` / `EditForm.bio` の state・送信payload・マージ処理も除去
+- **営業マンダッシュボード側**（`/dashboard/profile` の `ProfileClient`、`profileDetail` 詳細プロフィール）は対象外・変更なし。管理画面のみで不要だったための削除
+- バックエンド（`/api/admin/salespersons` 系）の `bio` パラメータは元々 optional のため変更不要
+- 影響ファイル: `src/components/admin/SalespersonManagerClient.tsx`

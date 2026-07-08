@@ -74,7 +74,7 @@ export default async function WatchPage({ params }: WatchPageProps) {
               id: true,
               name: true,
               profileImage: true,
-              bio: true,
+              toneQuote: true,
               company: {
                 select: {
                   id: true,
@@ -149,7 +149,7 @@ export default async function WatchPage({ params }: WatchPageProps) {
             id: primarySalesperson.id,
             name: primarySalesperson.name,
             profileImage: primarySalesperson.profileImage,
-            bio: primarySalesperson.bio,
+            toneQuote: primarySalesperson.toneQuote,
             company: primarySalesperson.company
               ? {
                   id: primarySalesperson.company.id,

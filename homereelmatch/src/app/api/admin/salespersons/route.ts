@@ -11,7 +11,6 @@ const CreateSchema = z.object({
   houseMakerId: z.string().optional(),
   role: z.enum(["SALESPERSON", "ADMIN"]).default("SALESPERSON"),
   lineId: z.string().optional(),
-  bio: z.string().optional(),
 });
 
 export async function GET() {
@@ -25,7 +24,6 @@ export async function GET() {
       email: true,
       role: true,
       lineId: true,
-      bio: true,
       createdAt: true,
       houseMaker: { select: { id: true, name: true } },
       _count: { select: { videoSegments: true, contactRequests: true } },
@@ -40,7 +38,6 @@ export async function GET() {
       email: sp.email,
       role: sp.role,
       lineId: sp.lineId,
-      bio: sp.bio,
       houseMaker: sp.houseMaker,
       videoCount: sp._count.videoSegments,
       inquiryCount: sp._count.contactRequests,

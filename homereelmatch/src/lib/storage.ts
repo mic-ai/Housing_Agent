@@ -76,6 +76,11 @@ export function buildSalespersonFaceVideoPath(
   return `${salespersonId}/${type}_${timestamp}.${ext}`;
 }
 
+export function buildSalespersonIntroVideoPath(salespersonId: string, ext: string): string {
+  const timestamp = Date.now();
+  return `intro-videos/${salespersonId}/intro_${timestamp}.${ext}`;
+}
+
 export async function uploadProfileImage(
   file: Buffer,
   salespersonId: string,

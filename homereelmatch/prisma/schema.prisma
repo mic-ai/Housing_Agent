@@ -39,25 +39,29 @@ enum SalespersonRole {
 }
 
 model Salesperson {
-  id              String                    @id @default(cuid())
-  name            String
-  email           String                    @unique
-  password        String
-  role            SalespersonRole           @default(SALESPERSON)
-  lineId          String?
-  profileImage    String?
-  bio             String?
-  profileDetail   String?
-  company         Company?                  @relation(fields: [companyId], references: [id])
-  companyId       String?
-  houseMaker      HouseMaker?               @relation(fields: [houseMakerId], references: [id])
-  houseMakerId    String?
-  videoSegments   SalespersonVideo[]
-  profileVideos   SalespersonProfileVideo[]
-  faceVideos      SalespersonFaceVideo[]
-  slots           AvailableSlot[]
-  contactRequests ContactRequest[]
-  createdAt       DateTime                  @default(now())
+  id                    String                 @id @default(cuid())
+  name                  String
+  email                 String                 @unique
+  password              String
+  role                  SalespersonRole        @default(SALESPERSON)
+  lineId                String?
+  profileImage          String?
+  profileDetail         String?
+  toneQuote             String?
+  yearsExperience       Int?
+  handoverCount         Int?
+  introVideoUrl         String?
+  introVideoStoragePath String?
+  introVideoDurationSec Int?
+  company               Company?               @relation(fields: [companyId], references: [id])
+  companyId             String?
+  houseMaker            HouseMaker?            @relation(fields: [houseMakerId], references: [id])
+  houseMakerId          String?
+  videoSegments         SalespersonVideo[]
+  faceVideos            SalespersonFaceVideo[]
+  slots                 AvailableSlot[]
+  contactRequests       ContactRequest[]
+  createdAt             DateTime               @default(now())
 
   @@map("salespersons")
 }
@@ -145,19 +149,6 @@ model SalespersonVideo {
 
   @@unique([videoId, salespersonId])
   @@map("salesperson_videos")
-}
-
-model SalespersonProfileVideo {
-  id            String      @id @default(cuid())
-  salesperson   Salesperson @relation(fields: [salespersonId], references: [id], onDelete: Cascade)
-  salespersonId String
-  url           String
-  platform      Platform
-  title         String?
-  sortOrder     Int         @default(0)
-  createdAt     DateTime    @default(now())
-
-  @@map("salesperson_profile_videos")
 }
 
 model Hashtag {

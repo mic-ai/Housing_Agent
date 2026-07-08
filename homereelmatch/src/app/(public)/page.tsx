@@ -23,6 +23,7 @@ interface HomePageProps {
     tag?: string;
     houseMakerId?: string;
     venueId?: string;
+    salespersonId?: string;
   }>;
 }
 
@@ -35,6 +36,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   }
   if (params.houseMakerId) where.houseMakerId = params.houseMakerId;
   if (params.venueId) where.venueId = params.venueId;
+  if (params.salespersonId) {
+    where.salespersonVideos = { some: { salespersonId: params.salespersonId } };
+  }
   if (params.q) {
     where.OR = [
       { title: { contains: params.q, mode: "insensitive" } },
@@ -62,7 +66,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 id: true,
                 name: true,
                 profileImage: true,
-                bio: true,
+                toneQuote: true,
                 company: {
                   select: {
                     id: true,
@@ -134,12 +138,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         )}
 
         <VideoFeedClient
-          key={`${params.tag ?? ""}_${params.q ?? ""}_${params.houseMakerId ?? ""}_${params.venueId ?? ""}`}
+          key={`${params.tag ?? ""}_${params.q ?? ""}_${params.houseMakerId ?? ""}_${params.venueId ?? ""}_${params.salespersonId ?? ""}`}
           initialVideos={initialVideos.map(mapVideoToDTO)}
           tag={params.tag}
           q={params.q}
           houseMakerId={params.houseMakerId}
           venueId={params.venueId}
+          salespersonId={params.salespersonId}
         />
       </main>
 

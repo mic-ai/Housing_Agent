@@ -11,7 +11,6 @@ const PatchSchema = z.object({
   houseMakerId: z.string().nullable().optional(),
   role: z.enum(["SALESPERSON", "ADMIN"]).optional(),
   lineId: z.string().nullable().optional(),
-  bio: z.string().nullable().optional(),
 });
 
 export async function PATCH(
@@ -39,7 +38,6 @@ export async function PATCH(
         name: true,
         email: true,
         role: true,
-        bio: true,
         houseMaker: { select: { id: true, name: true } },
       },
     });

@@ -5,10 +5,12 @@ import { prisma } from "@/lib/prisma";
 
 const PatchSchema = z.object({
   name: z.string().min(1).optional(),
-  bio: z.string().max(500).optional(),
   profileDetail: z.string().max(3000).optional().nullable(),
   profileImage: z.string().url().optional().nullable(),
   houseMakerId: z.string().optional().nullable(),
+  toneQuote: z.string().max(60).optional().nullable(),
+  yearsExperience: z.number().int().min(0).max(80).optional().nullable(),
+  handoverCount: z.number().int().min(0).optional().nullable(),
 });
 
 export async function GET(_request: NextRequest): Promise<NextResponse> {
@@ -21,13 +23,15 @@ export async function GET(_request: NextRequest): Promise<NextResponse> {
       id: true,
       name: true,
       email: true,
-      bio: true,
       profileDetail: true,
       profileImage: true,
       houseMakerId: true,
       houseMaker: { select: { id: true, name: true, logoUrl: true, isActive: true } },
       companyId: true,
       role: true,
+      toneQuote: true,
+      yearsExperience: true,
+      handoverCount: true,
     },
   });
 
@@ -47,11 +51,13 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
       select: {
         id: true,
         name: true,
-        bio: true,
         profileDetail: true,
         profileImage: true,
         houseMakerId: true,
         houseMaker: { select: { id: true, name: true, logoUrl: true, isActive: true } },
+        toneQuote: true,
+        yearsExperience: true,
+        handoverCount: true,
       },
     });
     return NextResponse.json({ data: updated });

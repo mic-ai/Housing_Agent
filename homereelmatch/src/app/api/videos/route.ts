@@ -13,7 +13,7 @@ const videoInclude = {
           id: true,
           name: true,
           profileImage: true,
-          bio: true,
+          toneQuote: true,
           company: {
             select: {
               id: true,

@@ -1,9 +1,12 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ContactForm } from "@/components/contact/ContactForm";
+import { IntroVideoPlayer } from "@/components/video/IntroVideoPlayer";
+import { extractYouTubeId, getYouTubeThumbnail } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
+import type { Platform } from "@/types";
 
 interface Props {
   params: Promise<{ salespersonId: string }>;
@@ -14,15 +17,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { salespersonId } = await params;
   const sp = await prisma.salesperson.findUnique({
     where: { id: salespersonId },
-    select: { name: true, bio: true, profileImage: true },
+    select: { name: true, toneQuote: true, profileImage: true },
   });
   if (!sp) return { title: "営業マンが見つかりません" };
   return {
     title: `${sp.name} | HomeReelMatch`,
-    description: sp.bio ?? `${sp.name}のプロフィールページです。`,
+    description: sp.toneQuote ?? `${sp.name}のプロフィールページです。`,
     openGraph: {
       title: `${sp.name} | HomeReelMatch`,
-      description: sp.bio ?? "",
+      description: sp.toneQuote ?? "",
       images: sp.profileImage ? [sp.profileImage] : [],
     },
   };
@@ -33,6 +36,39 @@ function PersonIcon() {
     <svg className="w-32 h-32 text-stone-400" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
       <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z" />
     </svg>
+  );
+}
+
+function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="bg-white rounded-2xl shadow-sm border border-amber-100 p-5">
+      <h3 className="text-sm font-semibold text-stone-500 uppercase tracking-wider mb-3">{title}</h3>
+      {children}
+    </section>
+  );
+}
+
+function VideoGridItem({
+  video,
+}: {
+  video: { id: string; title: string; thumbnailUrl: string | null; platform: Platform; url: string };
+}) {
+  const ytId = video.platform === "YOUTUBE" ? extractYouTubeId(video.url) : null;
+  const thumb = video.thumbnailUrl ?? (ytId ? getYouTubeThumbnail(ytId) : null);
+
+  return (
+    <Link
+      href={`/watch/${video.id}`}
+      className="relative block rounded-lg overflow-hidden bg-stone-100 aspect-[9/16]"
+    >
+      {thumb ? (
+        <Image src={thumb} alt={video.title} fill sizes="200px" className="object-cover" />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center bg-stone-200 text-stone-500 text-xs p-2 text-center">
+          {video.title}
+        </div>
+      )}
+    </Link>
   );
 }
 
@@ -47,14 +83,39 @@ export default async function SalespersonProfilePage({ params, searchParams }: P
       id: true,
       name: true,
       profileImage: true,
-      bio: true,
       profileDetail: true,
+      toneQuote: true,
+      yearsExperience: true,
+      handoverCount: true,
+      introVideoUrl: true,
       houseMaker: { select: { id: true, name: true, logoUrl: true } },
       company: { select: { id: true, name: true } },
+      videoSegments: {
+        orderBy: { createdAt: "desc" },
+        select: {
+          video: {
+            select: {
+              id: true,
+              title: true,
+              thumbnailUrl: true,
+              platform: true,
+              url: true,
+              videoHashtags: { select: { hashtag: { select: { tagName: true } } } },
+            },
+          },
+        },
+      },
     },
   });
 
   if (!sp) notFound();
+
+  const featuredVideos = sp.videoSegments.slice(0, 6).map((vs) => vs.video);
+  const hasMoreVideos = sp.videoSegments.length > 6;
+  const specialtyTags = Array.from(
+    new Set(sp.videoSegments.flatMap((vs) => vs.video.videoHashtags.map((vh) => vh.hashtag.tagName)))
+  ).slice(0, 8);
+  const hasCareerSummary = sp.yearsExperience !== null || sp.handoverCount !== null || specialtyTags.length > 0;
 
   return (
     <div className="min-h-screen bg-amber-50 text-stone-800">
@@ -107,22 +168,75 @@ export default async function SalespersonProfilePage({ params, searchParams }: P
               </span>
             )}
 
-            {sp.bio && (
-              <p className="mt-3 text-stone-600 text-sm leading-relaxed text-left self-stretch">{sp.bio}</p>
+            {sp.toneQuote && (
+              <blockquote className="mt-4 text-stone-700 text-sm font-medium italic border-l-4 border-amber-300 pl-3 text-left self-stretch">
+                「{sp.toneQuote}」
+              </blockquote>
             )}
           </div>
         </div>
 
+        {/* 自己紹介動画 */}
+        {sp.introVideoUrl && (
+          <SectionCard title="自己紹介動画">
+            <IntroVideoPlayer url={sp.introVideoUrl} />
+          </SectionCard>
+        )}
+
         {/* Detailed profile */}
         {sp.profileDetail && (
-          <section className="bg-white rounded-2xl shadow-sm border border-amber-100 p-5">
-            <h3 className="text-sm font-semibold text-stone-500 uppercase tracking-wider mb-3">
-              詳細プロフィール
-            </h3>
-            <p className="text-stone-600 text-sm leading-relaxed whitespace-pre-wrap">
-              {sp.profileDetail}
-            </p>
-          </section>
+          <SectionCard title="詳細プロフィール（家づくりで大切にしていること）">
+            <p className="text-stone-600 text-sm leading-relaxed whitespace-pre-wrap">{sp.profileDetail}</p>
+          </SectionCard>
+        )}
+
+        {/* この担当が紹介した住宅 */}
+        {featuredVideos.length > 0 && (
+          <SectionCard title="この担当が紹介した住宅">
+            <div className="grid grid-cols-3 gap-2">
+              {featuredVideos.map((video) => (
+                <VideoGridItem key={video.id} video={video} />
+              ))}
+            </div>
+            {hasMoreVideos && (
+              <Link
+                href={`/?salespersonId=${sp.id}`}
+                className="mt-3 inline-block text-sm font-medium text-amber-600 hover:text-amber-700"
+              >
+                すべて見る →
+              </Link>
+            )}
+          </SectionCard>
+        )}
+
+        {/* 経歴サマリー */}
+        {hasCareerSummary && (
+          <SectionCard title="経歴サマリー">
+            <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-stone-600">
+              {sp.yearsExperience !== null && (
+                <p>
+                  経験年数 <span className="font-semibold text-stone-800">{sp.yearsExperience}年</span>
+                </p>
+              )}
+              {sp.handoverCount !== null && (
+                <p>
+                  引き渡し棟数 <span className="font-semibold text-stone-800">{sp.handoverCount}棟</span>
+                </p>
+              )}
+            </div>
+            {specialtyTags.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {specialtyTags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="px-2.5 py-1 bg-amber-50 text-amber-700 text-xs font-medium rounded-full border border-amber-200"
+                  >
+                    #{tag}
+                  </span>
+                ))}
+              </div>
+            )}
+          </SectionCard>
         )}
 
         {/* Contact form */}

@@ -179,9 +179,9 @@ export function VideoCard({ video, priority = false }: VideoCardProps) {
                   <p className="text-stone-400 text-xs truncate">{salesperson.company?.name}</p>
                 </div>
               </div>
-              {salesperson.bio && (
+              {salesperson.toneQuote && (
                 <p className="text-stone-300 text-xs line-clamp-2 mb-2.5 leading-relaxed">
-                  {salesperson.bio}
+                  {salesperson.toneQuote}
                 </p>
               )}
               {/* CTA ボタンのみクリック可能・stopPropagation でカードナビを遮断 */}
@@ -222,9 +222,9 @@ export function VideoCard({ video, priority = false }: VideoCardProps) {
             {/* 展開時の CTA パネル: stopPropagation でナビゲーションを遮断 */}
             {mobileOpen && (
               <div className="pointer-events-auto bg-stone-950/95 px-3 pb-3" onClick={stopProp}>
-                {salesperson.bio && (
+                {salesperson.toneQuote && (
                   <p className="text-stone-300 text-xs line-clamp-2 mb-2.5 pt-1 leading-relaxed">
-                    {salesperson.bio}
+                    {salesperson.toneQuote}
                   </p>
                 )}
                 <CtaButtons salespersonId={salesperson.id} videoId={video.id} />

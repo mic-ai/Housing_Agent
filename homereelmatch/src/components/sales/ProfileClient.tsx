@@ -5,12 +5,15 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import Image from "next/image";
+import { IntroVideoUploader } from "./IntroVideoUploader";
 
 const ProfileSchema = z.object({
   name: z.string().min(1, "氏名は必須です"),
-  bio: z.string().max(500, "500文字以内で入力してください").optional(),
   profileDetail: z.string().max(3000, "3000文字以内で入力してください").optional(),
   houseMakerId: z.string().optional(),
+  toneQuote: z.string().max(60, "60文字以内で入力してください").optional(),
+  yearsExperience: z.string().optional(),
+  handoverCount: z.string().optional(),
 });
 type ProfileForm = z.infer<typeof ProfileSchema>;
 
@@ -26,12 +29,16 @@ export type FaceVideo = {
 
 type Props = {
   initialName: string;
-  initialBio: string | null;
   initialProfileDetail: string | null;
   initialProfileImage: string | null;
   initialHouseMakerId: string | null;
   houseMakers: HouseMaker[];
   initialFaceVideos: FaceVideo[];
+  initialToneQuote: string | null;
+  initialYearsExperience: number | null;
+  initialHandoverCount: number | null;
+  initialIntroVideoUrl: string | null;
+  initialIntroVideoDurationSec: number | null;
 };
 
 function PersonIcon() {
@@ -251,12 +258,16 @@ function FaceVideoList({
 
 export default function ProfileClient({
   initialName,
-  initialBio,
   initialProfileDetail,
   initialProfileImage,
   initialHouseMakerId,
   houseMakers,
   initialFaceVideos,
+  initialToneQuote,
+  initialYearsExperience,
+  initialHandoverCount,
+  initialIntroVideoUrl,
+  initialIntroVideoDurationSec,
 }: Props) {
   const [saved, setSaved] = useState(false);
   const [faceVideos, setFaceVideos] = useState<FaceVideo[]>(initialFaceVideos);
@@ -268,14 +279,16 @@ export default function ProfileClient({
     resolver: zodResolver(ProfileSchema),
     defaultValues: {
       name: initialName,
-      bio: initialBio ?? "",
       profileDetail: initialProfileDetail ?? "",
       houseMakerId: initialHouseMakerId ?? "",
+      toneQuote: initialToneQuote ?? "",
+      yearsExperience: initialYearsExperience?.toString() ?? "",
+      handoverCount: initialHandoverCount?.toString() ?? "",
     },
   });
 
-  const bioValue = watch("bio") ?? "";
   const profileDetailValue = watch("profileDetail") ?? "";
+  const toneQuoteValue = watch("toneQuote") ?? "";
 
   const onSubmit = async (data: ProfileForm) => {
     const res = await fetch("/api/salesperson/profile", {
@@ -285,6 +298,9 @@ export default function ProfileClient({
         ...data,
         houseMakerId: data.houseMakerId || null,
         profileDetail: data.profileDetail || null,
+        toneQuote: data.toneQuote || null,
+        yearsExperience: data.yearsExperience ? Number(data.yearsExperience) : null,
+        handoverCount: data.handoverCount ? Number(data.handoverCount) : null,
       }),
     });
     if (res.ok) {
@@ -335,23 +351,22 @@ export default function ProfileClient({
 
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="block text-sm text-gray-400">一言プロフィール</label>
-              <span className={`text-xs ${bioValue.length > 450 ? "text-amber-400" : "text-gray-500"}`}>
-                {bioValue.length} / 500
+              <label className="block text-sm text-gray-400">スタンス一言</label>
+              <span className={`text-xs ${toneQuoteValue.length > 45 ? "text-amber-400" : "text-gray-500"}`}>
+                {toneQuoteValue.length} / 60
               </span>
             </div>
-            <textarea
-              {...register("bio")}
-              rows={3}
-              placeholder="動画オーバーレイに表示される短い自己紹介文"
-              className="w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 resize-none"
+            <input
+              {...register("toneQuote")}
+              placeholder="動画オーバーレイ・プロフィールページ上部に表示される短い一言"
+              className="w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-amber-500"
             />
-            {errors.bio && <p className="text-red-400 text-xs mt-1">{errors.bio.message}</p>}
+            {errors.toneQuote && <p className="text-red-400 text-xs mt-1">{errors.toneQuote.message}</p>}
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="block text-sm text-gray-400">詳細プロフィール</label>
+              <label className="block text-sm text-gray-400">詳細プロフィール（家づくりで大切にしていること）</label>
               <span className={`text-xs ${profileDetailValue.length > 2700 ? "text-amber-400" : "text-gray-500"}`}>
                 {profileDetailValue.length} / 3000
               </span>
@@ -359,13 +374,35 @@ export default function ProfileClient({
             <textarea
               {...register("profileDetail")}
               rows={8}
-              placeholder={`プロフィールページに表示される詳細な自己紹介文。\n\n例）経歴・資格・得意な住宅スタイル・お客様へのメッセージなど`}
+              placeholder={`プロフィールページに表示される詳細な自己紹介文。\n\n例）経歴・資格・得意な住宅スタイル・家づくりで大切にしていること・お客様へのメッセージなど`}
               className="w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 resize-y"
             />
             {errors.profileDetail && (
               <p className="text-red-400 text-xs mt-1">{errors.profileDetail.message}</p>
             )}
             <p className="text-xs text-gray-500 mt-1">プロフィールページ（公開URL）に表示されます</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">経験年数</label>
+              <input
+                type="number"
+                min={0}
+                max={80}
+                {...register("yearsExperience")}
+                className="w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-amber-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">引き渡し棟数</label>
+              <input
+                type="number"
+                min={0}
+                {...register("handoverCount")}
+                className="w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-amber-500"
+              />
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
@@ -401,6 +438,18 @@ export default function ProfileClient({
             onAdded={(v) => setFaceVideos((prev) => [...prev, v])}
           />
         </div>
+      </section>
+
+      {/* 自己紹介動画 */}
+      <section className="bg-gray-900 rounded-xl p-6">
+        <h2 className="text-base font-semibold mb-1">自己紹介動画</h2>
+        <p className="text-xs text-gray-400 mb-5">
+          プロフィールページ上部に表示される自己紹介動画（30秒以内）
+        </p>
+        <IntroVideoUploader
+          initialUrl={initialIntroVideoUrl}
+          initialDurationSec={initialIntroVideoDurationSec}
+        />
       </section>
     </div>
   );

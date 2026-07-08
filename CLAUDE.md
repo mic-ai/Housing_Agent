@@ -519,6 +519,7 @@ npx vercel --prod
 | 営業マンプロフィールページ 3カード構成へ再編（詳細プロフィール表示・担当動画セクション削除） | 完了（2026-07-02） |
 | 管理者の営業マン管理画面から自己紹介（bio）欄を削除 | 完了（2026-07-07） |
 | 追加要件 Phase 1（0.2 閲覧者の軽量識別 + 機能B 学習コンテンツCMS） | 完了（2026-07-08、本番DBマイグレーション適用済み） |
+| 追加要件 機能A（営業担当プロフィール強化・自己紹介動画アップロード） | 完了（2026-07-10、本番DBマイグレーション適用済み） |
 
 ### 直近の主要変更（2026-06-23）
 
@@ -777,3 +778,18 @@ npx vercel --prod
 #### npx で意図しないバージョンのCLIが実行される問題
 - ローカル端末で `node_modules` にプロジェクト指定バージョンの devDependency（例: `prisma`）が入っていない状態で `npx <cli>` を実行すると、`package.json` のバージョン指定を無視してレジストリから最新版を取得してしまう（例: `prisma@^6.0.0` 指定なのに `npx prisma` が `prisma@7.8.0` のインストールを提案してくる）
 - 対処: `npx` の前に必ず `npm install` を実行し、プロジェクト指定バージョンが `node_modules/.bin` に存在する状態にしてから `npx` を使う
+
+### 直近の主要変更（2026-07-10）
+
+#### 機能A：営業担当プロフィール強化・自己紹介動画アップロード化（プロフィール項目の統合）
+2026-07-08に機能A（プロフィール「人となり」強化）を実装・本番適用したが、ダッシュボードで実際に入力した際に「一言プロフィール(bio)」「詳細プロフィール(profileDetail)」「スタンス一言(toneQuote)」「家づくりで大切にしていること(valuesStatement)」「一問一答」がほぼ同じ内容の繰り返し入力になることが判明し、フィードバックに基づき是正した。
+
+- **短文フィールドを`toneQuote`（スタンス一言）に一本化**: `Salesperson.bio`を廃止。ホーム/視聴ページの動画カード・ホバーオーバーレイ・モバイル展開パネル（`VideoCard.tsx`）、動画一覧API（`api/videos/route.ts`）、`SalespersonDTO`、`mapVideoToDTO`、管理者API（`api/admin/salespersons/**`）など、bioを参照していた全箇所を`toneQuote`に置き換え
+- **長文フィールドを`profileDetail`（詳細プロフィール）に一本化**: `Salesperson.valuesStatement`を廃止し、ラベルを「詳細プロフィール（家づくりで大切にしていること）」に変更
+- **一問一答（`SalespersonQAItem`）機能を全削除**: スキーマ・API（`/api/salesperson/profile/qa`系）・`QAItemEditor.tsx`・公開ページのQAセクションをすべて削除
+- **自己紹介動画をURL登録方式から直接アップロード方式に変更**: 要件定義書は「既存の`SalespersonProfileVideo`（外部URL登録方式）を流用し新規アップロードは作らない」としていたが、`SalespersonProfileVideo`はダッシュボードUIから一度も呼ばれておらず本番データも無かったため、モデルごと廃止し`Salesperson`に`introVideoUrl`/`introVideoStoragePath`/`introVideoDurationSec`を直接追加。既存の顔出し動画アップロード基盤（`uploadFaceVideo`/`deleteFaceVideo`/`getVideoDurationSec`、Supabase Storage）を流用し、30秒上限・単一スロット（アップロードで置き換え）方式の新規API `POST/DELETE /api/salesperson/profile/intro-video` を追加
+- **データ保全マイグレーション**: 新マイグレーション（`20260710000000_consolidate_salesperson_profile_fields`）で、カラムをDROPする前に`bio`→`toneQuote`（60字に切り詰め）、`valuesStatement`→`profileDetail`（末尾に追記）のUPDATE文を実行してから削除。テストデータ以外にも本番の実入力を失わないための措置
+
+#### 実装上の重要な知見（2026-07-10 追加）
+- **要件定義書のフィールド構成をそのまま実装する前に、実際にダッシュボードへ入力してユーザーに確認してもらうと、フィールドの重複・過剰設計に早く気づける**。今回は本番適用後にユーザーが実際に入力してから重複に気づいた。次回以降、新規入力フォームを追加する際は「このフィールドは他のどのフィールドと内容が被りうるか」を実装前に一度整理するとよい
+- **ダッシュボードUIから一度も呼ばれていないAPI/モデルは、要件書の指定（流用方針）より実際の利用実績を優先して再設計してよい**。`SalespersonProfileVideo`はテストコードのみが参照しており本番データも無かったため、モデルごと作り替える判断ができた。逆に`bio`のように動画カード等の広範囲で実際に使われているフィールドは、削除ではなく全参照箇所を洗い出した上での置き換えが必要

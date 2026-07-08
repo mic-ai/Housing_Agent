@@ -62,12 +62,6 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: vi.fn(),
       delete: vi.fn(),
     },
-    salespersonProfileVideo: {
-      findMany: vi.fn(),
-      create: vi.fn(),
-      findUnique: vi.fn(),
-      delete: vi.fn(),
-    },
     houseMaker: {
       findMany: vi.fn(),
     },
@@ -146,6 +140,9 @@ vi.mock("@/lib/storage", () => ({
   ),
   buildSalespersonFaceVideoPath: vi.fn((spId: string, type: string, ext: string) =>
     `${spId}/${type}_123.${ext}`
+  ),
+  buildSalespersonIntroVideoPath: vi.fn((spId: string, ext: string) =>
+    `intro-videos/${spId}/intro_123.${ext}`
   ),
 }));
 

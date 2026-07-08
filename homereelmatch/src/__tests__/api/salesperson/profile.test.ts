@@ -13,7 +13,7 @@ const SALESPERSON = {
   id: "sp_001",
   name: "営業太郎",
   email: "sp@example.com",
-  bio: "よろしくお願いします",
+  toneQuote: "よろしくお願いします",
   profileImage: null,
   houseMakerId: "hm_001",
   houseMaker: { id: "hm_001", name: "積水ハウス", logoUrl: null, isActive: true },
@@ -67,22 +67,21 @@ describe("PATCH /api/salesperson/profile", () => {
     expect(res.status).toBe(401);
   });
 
-  it("名前・bio・houseMakerIdを更新できる", async () => {
+  it("名前・houseMakerIdを更新できる", async () => {
     vi.mocked(auth).mockResolvedValue(SP_SESSION as never);
     vi.mocked(prisma.salesperson.update).mockResolvedValue({
       ...SALESPERSON,
       name: "新名前",
-      bio: "新プロフィール",
       houseMakerId: "hm_002",
     } as never);
-    const res = await PATCH(makePatchReq({ name: "新名前", bio: "新プロフィール", houseMakerId: "hm_002" }));
+    const res = await PATCH(makePatchReq({ name: "新名前", houseMakerId: "hm_002" }));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.data.name).toBe("新名前");
     expect(prisma.salesperson.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: "sp_001" },
-        data: expect.objectContaining({ name: "新名前", bio: "新プロフィール", houseMakerId: "hm_002" }),
+        data: expect.objectContaining({ name: "新名前", houseMakerId: "hm_002" }),
       })
     );
   });
@@ -90,6 +89,42 @@ describe("PATCH /api/salesperson/profile", () => {
   it("不正なリクエストは400を返す", async () => {
     vi.mocked(auth).mockResolvedValue(SP_SESSION as never);
     const res = await PATCH(makePatchReq({ name: "" }));
+    expect(res.status).toBe(400);
+  });
+
+  it("詳細プロフィール・スタンス一言・経験年数・引き渡し棟数を更新できる", async () => {
+    vi.mocked(auth).mockResolvedValue(SP_SESSION as never);
+    vi.mocked(prisma.salesperson.update).mockResolvedValue({
+      ...SALESPERSON,
+      profileDetail: "誠実に向き合います",
+      toneQuote: "一緒に理想の家を",
+      yearsExperience: 10,
+      handoverCount: 120,
+    } as never);
+    const res = await PATCH(
+      makePatchReq({
+        profileDetail: "誠実に向き合います",
+        toneQuote: "一緒に理想の家を",
+        yearsExperience: 10,
+        handoverCount: 120,
+      })
+    );
+    expect(res.status).toBe(200);
+    expect(prisma.salesperson.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          profileDetail: "誠実に向き合います",
+          toneQuote: "一緒に理想の家を",
+          yearsExperience: 10,
+          handoverCount: 120,
+        }),
+      })
+    );
+  });
+
+  it("スタンス一言が60字を超える場合は400を返す", async () => {
+    vi.mocked(auth).mockResolvedValue(SP_SESSION as never);
+    const res = await PATCH(makePatchReq({ toneQuote: "あ".repeat(61) }));
     expect(res.status).toBe(400);
   });
 });

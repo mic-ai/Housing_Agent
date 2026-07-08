@@ -40,7 +40,7 @@ async function main() {
       password,
       role: "SALESPERSON",
       companyId: company.id,
-      bio: "住宅営業歴10年のベテランです。",
+      toneQuote: "住宅営業歴10年のベテランです。",
     },
   });
 

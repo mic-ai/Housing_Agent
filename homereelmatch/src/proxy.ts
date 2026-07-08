@@ -1,5 +1,6 @@
 import { getToken } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
+import { VIEWER_TOKEN_COOKIE, VIEWER_TOKEN_MAX_AGE } from "@/lib/viewer-cookie";
 
 function isPreviewGated(pathname: string): boolean {
   if (pathname.startsWith("/api/")) return false;
@@ -41,7 +42,16 @@ export default async function middleware(request: NextRequest) {
     }
   }
 
-  return NextResponse.next();
+  // ── 閲覧者の軽量識別トークン発行 ─────────────────────────────────────────
+  const response = NextResponse.next();
+  if (!request.cookies.get(VIEWER_TOKEN_COOKIE)) {
+    response.cookies.set(VIEWER_TOKEN_COOKIE, crypto.randomUUID(), {
+      httpOnly: false,
+      maxAge: VIEWER_TOKEN_MAX_AGE,
+      path: "/",
+    });
+  }
+  return response;
 }
 
 export const config = {

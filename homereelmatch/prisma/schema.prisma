@@ -77,13 +77,14 @@ model SalespersonFaceVideo {
 }
 
 model HouseMaker {
-  id           String        @id @default(cuid())
-  name         String        @unique
-  logoUrl      String?
-  isActive     Boolean       @default(true)
-  videos       Video[]
-  salespersons Salesperson[]
-  createdAt    DateTime      @default(now())
+  id             String                 @id @default(cuid())
+  name           String                 @unique
+  logoUrl        String?
+  isActive       Boolean                @default(true)
+  videos         Video[]
+  salespersons   Salesperson[]
+  comparisonRows ArticleComparisonRow[]
+  createdAt      DateTime               @default(now())
 
   @@map("house_makers")
 }
@@ -237,4 +238,89 @@ model AvailableSlot {
   createdAt     DateTime    @default(now())
 
   @@map("available_slots")
+}
+
+// --- 学習コンテンツ（CMS管理） ---
+
+enum ArticleDifficulty {
+  BEGINNER // 入門
+  BASIC // 基礎
+}
+
+enum ArticleStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model LearningPhase {
+  id          String    @id @default(cuid())
+  key         String    @unique // "info_basic" | "maker_selection"
+  title       String
+  order       Int
+  description String?
+  isActive    Boolean   @default(true)
+  articles    Article[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("learning_phases")
+}
+
+model Article {
+  id                String                  @id @default(cuid())
+  phaseId           String
+  phase             LearningPhase           @relation(fields: [phaseId], references: [id])
+  order             Int
+  title             String
+  bodyMarkdown      String                  @db.Text
+  estimatedMinutes  Int
+  difficulty        ArticleDifficulty
+  translateBoxLabel String?
+  translateBoxValue String?
+  status            ArticleStatus           @default(DRAFT)
+  publishedAt       DateTime?
+  comparisonRows    ArticleComparisonRow[]
+  progress          ViewerArticleProgress[]
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  @@index([phaseId, order])
+  @@map("articles")
+}
+
+model ArticleComparisonRow {
+  id            String      @id @default(cuid())
+  articleId     String
+  article       Article     @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  houseMakerId  String?
+  houseMaker    HouseMaker? @relation(fields: [houseMakerId], references: [id])
+  priceRangeTag String? // 動画フィルター引き継ぎ用（既存Hashtagの値と一致させる運用）
+  featureTag    String? // 同上
+  order         Int         @default(0)
+
+  @@map("article_comparison_rows")
+}
+
+// --- 閲覧ユーザーの軽量識別・進捗管理 ---
+
+model ViewerProfile {
+  id              String                   @id @default(cuid())
+  viewerToken     String                   @unique
+  createdAt       DateTime                 @default(now())
+  lastSeenAt      DateTime                 @updatedAt
+  articleProgress ViewerArticleProgress[]
+
+  @@map("viewer_profiles")
+}
+
+model ViewerArticleProgress {
+  id          String        @id @default(cuid())
+  viewerId    String
+  viewer      ViewerProfile @relation(fields: [viewerId], references: [id], onDelete: Cascade)
+  articleId   String
+  article     Article       @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  completedAt DateTime?
+
+  @@unique([viewerId, articleId])
+  @@map("viewer_article_progress")
 }

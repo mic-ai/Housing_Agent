@@ -6,6 +6,7 @@ import { HouseMakerManagerClient } from "./HouseMakerManagerClient";
 import { VenueManagerClient } from "./VenueManagerClient";
 import { AssignmentManagerClient } from "./AssignmentManagerClient";
 import { VideoManagerClient } from "./VideoManagerClient";
+import { LearningContentManagerClient } from "./LearningContentManagerClient";
 
 interface FaceVideo {
   id: string;
@@ -47,7 +48,7 @@ interface AdminDashboardClientProps {
   initialHouseMakers: { id: string; name: string }[];
 }
 
-type Tab = "salesperson" | "housemaker" | "venue" | "assignment" | "video";
+type Tab = "salesperson" | "housemaker" | "venue" | "assignment" | "video" | "learning";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "assignment", label: "公開設定" },
@@ -55,6 +56,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "salesperson", label: "営業マン管理" },
   { id: "housemaker", label: "ハウスメーカー" },
   { id: "venue", label: "会場管理" },
+  { id: "learning", label: "学習コンテンツ" },
 ];
 
 export function AdminDashboardClient({
@@ -103,6 +105,9 @@ export function AdminDashboardClient({
         </div>
         <div className={activeTab === "video" ? "" : "hidden"}>
           <VideoManagerClient />
+        </div>
+        <div className={activeTab === "learning" ? "" : "hidden"}>
+          <LearningContentManagerClient />
         </div>
       </div>
     </div>

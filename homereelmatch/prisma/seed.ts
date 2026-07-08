@@ -155,6 +155,28 @@ async function main() {
     },
   });
 
+  await prisma.learningPhase.upsert({
+    where: { key: "info_basic" },
+    update: {},
+    create: {
+      key: "info_basic",
+      title: "① 情報収集の基礎",
+      order: 0,
+      description: "立地・相場価格・ローンの借り方など、家づくりの最初の一歩を学びます。",
+    },
+  });
+
+  await prisma.learningPhase.upsert({
+    where: { key: "maker_selection" },
+    update: {},
+    create: {
+      key: "maker_selection",
+      title: "② メーカー選びの基礎",
+      order: 1,
+      description: "ハウスメーカーをどう比較・検討すればよいかを学びます。",
+    },
+  });
+
   console.log("Seed completed:", { company: company.name, video: video.title, user: user.name, houseMaker: houseMaker.name, venue: venue.name });
 }
 

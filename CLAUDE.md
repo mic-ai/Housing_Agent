@@ -518,6 +518,7 @@ npx vercel --prod
 | Prisma include 全フィールドSELECTによるクラッシュ修正 | 完了（2026-07-01） |
 | 営業マンプロフィールページ 3カード構成へ再編（詳細プロフィール表示・担当動画セクション削除） | 完了（2026-07-02） |
 | 管理者の営業マン管理画面から自己紹介（bio）欄を削除 | 完了（2026-07-07） |
+| 追加要件 Phase 1（0.2 閲覧者の軽量識別 + 機能B 学習コンテンツCMS） | 完了（2026-07-08、本番DBマイグレーション適用済み） |
 
 ### 直近の主要変更（2026-06-23）
 
@@ -743,3 +744,36 @@ npx vercel --prod
 - **営業マンダッシュボード側**（`/dashboard/profile` の `ProfileClient`、`profileDetail` 詳細プロフィール）は対象外・変更なし。管理画面のみで不要だったための削除
 - バックエンド（`/api/admin/salespersons` 系）の `bio` パラメータは元々 optional のため変更不要
 - 影響ファイル: `src/components/admin/SalespersonManagerClient.tsx`
+
+### 直近の主要変更（2026-07-08）
+
+#### 追加要件 Phase 1：0.2 閲覧者の軽量識別 + 機能B 学習コンテンツCMS
+`requirements_addon_v1.md` / `CLAUDE_addon_v1.md` で定義された追加要件（購入検討者向け段階的知識コンテンツ・営業担当プロフィール強化）のうち、優先度「高」の2機能を第1弾として実装。機能A（プロフィール強化）・機能C（比較表→動画フィルター連携）・機能D（コンタクト前ハブ）は未実装（段階的実装の方針により後続フェーズで対応）。
+
+- **Prismaモデル追加**: `LearningPhase`, `Article`, `ArticleComparisonRow`, `ViewerProfile`, `ViewerArticleProgress`（`HouseMaker` に `comparisonRows` 逆リレーションを追加）
+- **閲覧者識別基盤**: `src/proxy.ts` で `hrm_viewer_token` Cookie（`httpOnly: false`, 1年）を自動発行。`src/lib/viewer.ts` に `getViewerToken()` / `ensureViewerProfile()` を追加
+- **公開API**: `GET /api/phases`, `GET /api/articles?phaseKey=`, `GET /api/articles/[articleId]`（`PUBLISHED` のみ、`DRAFT` は404）, `POST /api/viewer/progress`
+- **管理API**: `GET/POST /api/admin/phases`, `PATCH/DELETE /api/admin/phases/[id]`, `GET/POST /api/admin/articles`, `GET/PATCH/DELETE /api/admin/articles/[articleId]`（`comparisonRows` はPATCH時に `deleteMany: {} , create: [...]` のネスト書き込みで全置換）
+- **管理画面**: `AdminDashboardClient` に「学習コンテンツ」タブを追加、`LearningContentManagerClient.tsx` でフェーズ・記事CRUD＋比較表編集＋プレビュー（`ArticleViewer` を `previewMode` で再利用）
+- **公開ページ**: `/journey`（`PhaseTimeline`、フェーズごとの進捗表示）、`/journey/[phaseKey]/[articleOrder]`（`ArticleViewer` + `ComparisonTable`）
+- **Markdown安全表示**: `react-markdown` + `remark-gfm` + `rehype-sanitize` を新規導入。`Article.bodyMarkdown` は保存時無加工・表示時サニタイズの方針
+- **テスト**: `viewer-init.test.ts`, `articles.test.ts`, `admin/articles.test.ts` を追加（計17件）
+
+#### 本番DBマイグレーション適用時に発覚した既存の問題と対処
+- **Prisma migration drift**: 過去に `prisma db push` で本番Neon DBへ直接反映され、マイグレーション履歴に記録されていなかった変更（`salesperson_face_videos`/`salesperson_profile_videos`テーブル、`salespersons.houseMakerId`、`videos.sortOrder`、`salespersons.password`のデフォルト値差分）が発覚し、`prisma migrate dev` が「Drift detected」としてDBリセットを提案してきた
+  - **対処**: `prisma migrate reset`（データ全消去）は絶対に使わない。既存差分を再現するベースライン用マイグレーション（`20260705000000_baseline_existing_drift`）を作成し、`prisma migrate resolve --applied <name>` でSQLを実行せず「適用済み」として記録するだけで解消した
+  - 続けて `prisma migrate dev --name add_learning_content` を実行すると、上記に加えて `salespersons_companyId_fkey` の `onDelete` 差分（`RESTRICT`→スキーマ既定の`SET NULL`）も自動検出され、`20260708045004_add_learning_content` として追加生成・適用された（データを破壊しない安全な変更）
+- **`prisma/migrations/migration_lock.toml` が存在しなかった**: 過去のマイグレーションがすべてサンドボックス環境（Neonへのoutbound不可）で手動作成されており、`prisma migrate dev` を一度も実際に実行していなかったため生成されていなかった。2026-07-08に手動作成して解消
+- **`package.json` に `tsx` が未記載**: `db:seed` スクリプト（`tsx prisma/seed.ts`）が依存しているにもかかわらず `devDependencies` に無く、`npm run db:seed` が「'tsx' は認識されていません」で失敗する状態だった。`devDependencies` に追加して解消
+- **ローカル開発時のService Worker残留**: `http://localhost:3000` で別プロジェクトのService Workerがブラウザに登録されたまま残っていると、`next dev` が正常起動していても古いアプリのキャッシュが表示されてしまう（ログに `GET /sw.js 404` が繰り返し出るのが症状）。シークレットウィンドウで開くか、DevTools → Application → Service Workers で Unregister すると解消する
+
+### 実装上の重要な知見（2026-07-08 追加）
+
+#### サンドボックスで手動作成したマイグレーションの検証手順
+- サンドボックス環境はNeonへのoutboundが不可なため、新規マイグレーションのSQLは既存マイグレーションファイルのスタイルを踏襲して手動作成し、`npx prisma validate` / `npx prisma generate`（DB接続不要）で構文・スキーマ整合性のみ事前検証する
+- 実際のDB適用と整合性確認は必ずユーザーのローカル端末で行う。適用時に `Drift detected` が出ても慌てず、`prisma migrate reset` を提案されても絶対に応じない（本番データ消失につながる）
+- Drift の原因は大抵「過去に `db push` で直接反映され、migrate履歴に記録されていない変更」。ベースライン用マイグレーション＋`prisma migrate resolve --applied` で記録のみ更新すれば、データを一切失わずに解消できる
+
+#### npx で意図しないバージョンのCLIが実行される問題
+- ローカル端末で `node_modules` にプロジェクト指定バージョンの devDependency（例: `prisma`）が入っていない状態で `npx <cli>` を実行すると、`package.json` のバージョン指定を無視してレジストリから最新版を取得してしまう（例: `prisma@^6.0.0` 指定なのに `npx prisma` が `prisma@7.8.0` のインストールを提案してくる）
+- 対処: `npx` の前に必ず `npm install` を実行し、プロジェクト指定バージョンが `node_modules/.bin` に存在する状態にしてから `npx` を使う

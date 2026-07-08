@@ -108,6 +108,31 @@ vi.mock("@/lib/prisma", () => ({
     appointment: {
       create: vi.fn(),
     },
+    learningPhase: {
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+    },
+    article: {
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+    },
+    articleComparisonRow: {
+      deleteMany: vi.fn(),
+      create: vi.fn(),
+    },
+    viewerProfile: {
+      upsert: vi.fn(),
+      findUnique: vi.fn(),
+    },
+    viewerArticleProgress: {
+      upsert: vi.fn(),
+    },
   },
 }));
 

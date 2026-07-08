@@ -103,3 +103,52 @@ export interface EmbedVideoDTO {
   title: string;
   hashtags: string[];
 }
+
+export type ArticleDifficulty = "BEGINNER" | "BASIC";
+export type ArticleStatus = "DRAFT" | "PUBLISHED";
+
+export interface LearningPhaseDTO {
+  id: string;
+  key: string;
+  title: string;
+  order: number;
+  description: string | null;
+}
+
+export interface ArticleListItemDTO {
+  id: string;
+  order: number;
+  title: string;
+  estimatedMinutes: number;
+  difficulty: ArticleDifficulty;
+}
+
+export interface ArticleComparisonRowDTO {
+  id: string;
+  priceRangeTag: string | null;
+  featureTag: string | null;
+  order: number;
+  houseMaker: { id: string; name: string; logoUrl: string | null } | null;
+}
+
+export interface ArticleDetailDTO {
+  id: string;
+  phaseId: string;
+  order: number;
+  title: string;
+  bodyMarkdown: string;
+  estimatedMinutes: number;
+  difficulty: ArticleDifficulty;
+  translateBoxLabel: string | null;
+  translateBoxValue: string | null;
+  status: ArticleStatus;
+  phase: { id: string; key: string; title: string };
+  comparisonRows: ArticleComparisonRowDTO[];
+}
+
+export interface ViewerArticleProgressDTO {
+  id: string;
+  viewerId: string;
+  articleId: string;
+  completedAt: string | null;
+}

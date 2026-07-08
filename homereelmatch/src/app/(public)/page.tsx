@@ -117,7 +117,12 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         {!params.q && (
           <div className="mb-3 space-y-2">
             <Suspense fallback={null}>
-              <HashtagCloud activeTag={params.tag} />
+              <HashtagCloud
+                activeTag={params.tag}
+                houseMakerId={params.houseMakerId}
+                venueId={params.venueId}
+                salespersonId={params.salespersonId}
+              />
             </Suspense>
             <Suspense fallback={null}>
               <FilterBar

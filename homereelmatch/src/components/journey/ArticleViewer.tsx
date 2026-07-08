@@ -68,7 +68,9 @@ export function ArticleViewer({ article, prevHref, nextHref, previewMode = false
         </div>
       )}
 
-      {article.comparisonRows.length > 0 && <ComparisonTable rows={article.comparisonRows} />}
+      {article.comparisonRows.length > 0 && (
+        <ComparisonTable rows={article.comparisonRows} interactive={!previewMode} />
+      )}
 
       <div className="flex items-center justify-between pt-4 border-t border-stone-200">
         {prevHref ? (

@@ -9,6 +9,11 @@ interface HouseMakerOption {
   name: string;
 }
 
+interface HashtagOption {
+  id: string;
+  tagName: string;
+}
+
 interface AdminPhase {
   id: string;
   key: string;
@@ -57,12 +62,14 @@ function ArticleEditPanel({
   article,
   phase,
   houseMakers,
+  hashtags,
   onSaved,
   onClose,
 }: {
   article: AdminArticleDetail;
   phase: AdminPhase;
   houseMakers: HouseMakerOption[];
+  hashtags: HashtagOption[];
   onSaved: (updated: AdminArticleListItem) => void;
   onClose: () => void;
 }) {
@@ -258,12 +265,16 @@ function ArticleEditPanel({
                 placeholder="価格帯"
                 className="w-24 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-white text-xs"
               />
-              <input
+              <select
                 value={row.featureTag ?? ""}
-                onChange={(e) => updateRow(i, { featureTag: e.target.value })}
-                placeholder="特徴タグ"
+                onChange={(e) => updateRow(i, { featureTag: e.target.value || null })}
                 className="w-28 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-white text-xs"
-              />
+              >
+                <option value="">特徴タグ未選択</option>
+                {hashtags.map((tag) => (
+                  <option key={tag.id} value={tag.tagName}>{tag.tagName}</option>
+                ))}
+              </select>
               <button
                 type="button"
                 onClick={() => removeRow(i)}
@@ -325,7 +336,15 @@ function ArticleEditPanel({
   );
 }
 
-function PhaseArticles({ phase, houseMakers }: { phase: AdminPhase; houseMakers: HouseMakerOption[] }) {
+function PhaseArticles({
+  phase,
+  houseMakers,
+  hashtags,
+}: {
+  phase: AdminPhase;
+  houseMakers: HouseMakerOption[];
+  hashtags: HashtagOption[];
+}) {
   const [articles, setArticles] = useState<AdminArticleListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -530,6 +549,7 @@ function PhaseArticles({ phase, houseMakers }: { phase: AdminPhase; houseMakers:
                   article={editingDetail}
                   phase={phase}
                   houseMakers={houseMakers}
+                  hashtags={hashtags}
                   onSaved={(updated) => {
                     setArticles((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
                     setEditingDetail((prev) =>
@@ -553,6 +573,7 @@ export function LearningContentManagerClient() {
   const [phases, setPhases] = useState<AdminPhase[]>([]);
   const [loading, setLoading] = useState(true);
   const [houseMakers, setHouseMakers] = useState<HouseMakerOption[]>([]);
+  const [hashtags, setHashtags] = useState<HashtagOption[]>([]);
   const [selectedPhaseId, setSelectedPhaseId] = useState<string | null>(null);
   const [newKey, setNewKey] = useState("");
   const [newTitle, setNewTitle] = useState("");
@@ -573,6 +594,9 @@ export function LearningContentManagerClient() {
     load();
     fetch("/api/house-makers").then(async (res) => {
       if (res.ok) setHouseMakers((await res.json()).data ?? []);
+    });
+    fetch("/api/hashtags?limit=100").then(async (res) => {
+      if (res.ok) setHashtags((await res.json()).data ?? []);
     });
   }, [load]);
 
@@ -704,7 +728,7 @@ export function LearningContentManagerClient() {
 
       {selectedPhase && (
         <div className="bg-gray-800/40 rounded-xl p-4 border border-gray-700">
-          <PhaseArticles phase={selectedPhase} houseMakers={houseMakers} />
+          <PhaseArticles phase={selectedPhase} houseMakers={houseMakers} hashtags={hashtags} />
         </div>
       )}
     </div>

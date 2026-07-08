@@ -61,6 +61,7 @@ model Salesperson {
   faceVideos            SalespersonFaceVideo[]
   slots                 AvailableSlot[]
   contactRequests       ContactRequest[]
+  viewerViews           ViewerSalespersonView[]
   createdAt             DateTime               @default(now())
 
   @@map("salespersons")
@@ -88,6 +89,7 @@ model HouseMaker {
   videos         Video[]
   salespersons   Salesperson[]
   comparisonRows ArticleComparisonRow[]
+  savedByViewers ViewerSavedMaker[]
   createdAt      DateTime               @default(now())
 
   @@map("house_makers")
@@ -120,6 +122,7 @@ model Video {
   sortOrder         Int                @default(0)
   salespersonVideos SalespersonVideo[]
   videoHashtags     VideoHashtag[]
+  viewerViews       ViewerSalespersonView[]
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
 
@@ -295,11 +298,13 @@ model ArticleComparisonRow {
 // --- 閲覧ユーザーの軽量識別・進捗管理 ---
 
 model ViewerProfile {
-  id              String                   @id @default(cuid())
-  viewerToken     String                   @unique
-  createdAt       DateTime                 @default(now())
-  lastSeenAt      DateTime                 @updatedAt
-  articleProgress ViewerArticleProgress[]
+  id               String                   @id @default(cuid())
+  viewerToken      String                   @unique
+  createdAt        DateTime                 @default(now())
+  lastSeenAt       DateTime                 @updatedAt
+  articleProgress  ViewerArticleProgress[]
+  salespersonViews ViewerSalespersonView[]
+  savedMakers      ViewerSavedMaker[]
 
   @@map("viewer_profiles")
 }
@@ -314,4 +319,31 @@ model ViewerArticleProgress {
 
   @@unique([viewerId, articleId])
   @@map("viewer_article_progress")
+}
+
+model ViewerSalespersonView {
+  id            String        @id @default(cuid())
+  viewerId      String
+  viewer        ViewerProfile @relation(fields: [viewerId], references: [id], onDelete: Cascade)
+  salespersonId String
+  salesperson   Salesperson   @relation(fields: [salespersonId], references: [id])
+  videoId       String?
+  video         Video?        @relation(fields: [videoId], references: [id])
+  viewCount     Int           @default(1)
+  lastViewedAt  DateTime      @updatedAt
+
+  @@unique([viewerId, salespersonId])
+  @@map("viewer_salesperson_views")
+}
+
+model ViewerSavedMaker {
+  id           String        @id @default(cuid())
+  viewerId     String
+  viewer       ViewerProfile @relation(fields: [viewerId], references: [id], onDelete: Cascade)
+  houseMakerId String
+  houseMaker   HouseMaker    @relation(fields: [houseMakerId], references: [id])
+  createdAt    DateTime      @default(now())
+
+  @@unique([viewerId, houseMakerId])
+  @@map("viewer_saved_makers")
 }

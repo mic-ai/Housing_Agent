@@ -127,6 +127,16 @@ vi.mock("@/lib/prisma", () => ({
     viewerArticleProgress: {
       upsert: vi.fn(),
     },
+    viewerSalespersonView: {
+      findMany: vi.fn(),
+      upsert: vi.fn(),
+    },
+    viewerSavedMaker: {
+      findMany: vi.fn(),
+      upsert: vi.fn(),
+      findUnique: vi.fn(),
+      delete: vi.fn(),
+    },
   },
 }));
 

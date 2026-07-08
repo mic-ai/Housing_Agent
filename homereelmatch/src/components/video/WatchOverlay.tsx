@@ -7,15 +7,26 @@ interface WatchOverlayProps {
   videoId: string;
   videoTitle: string;
   videoUrl: string;
+  salespersonId?: string;
 }
 
-export function WatchOverlay({ videoId, videoTitle, videoUrl }: WatchOverlayProps) {
+export function WatchOverlay({ videoId, videoTitle, videoUrl, salespersonId }: WatchOverlayProps) {
   const [copied, setCopied] = useState(false);
 
   // Increment view count once per mount (fire-and-forget)
   useEffect(() => {
     fetch(`/api/videos/${videoId}/view`, { method: "POST" }).catch(() => {});
   }, [videoId]);
+
+  // Record viewer→salesperson view history for /consult (fire-and-forget)
+  useEffect(() => {
+    if (!salespersonId) return;
+    fetch("/api/viewer/salesperson-views", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ salespersonId, videoId }),
+    }).catch(() => {});
+  }, [salespersonId, videoId]);
 
   const handleShare = useCallback(async () => {
     const shareData = { title: videoTitle, url: videoUrl };

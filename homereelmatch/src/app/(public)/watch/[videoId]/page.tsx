@@ -189,6 +189,7 @@ export default async function WatchPage({ params }: WatchPageProps) {
               videoId={video.id}
               videoTitle={video.title}
               videoUrl={canonicalUrl}
+              salespersonId={primarySalesperson?.id}
             />
             <WatchClientShell
               platform={video.platform}

@@ -152,3 +152,17 @@ export interface ViewerArticleProgressDTO {
   articleId: string;
   completedAt: string | null;
 }
+
+export interface ViewerSalespersonViewDTO {
+  id: string;
+  viewerId: string;
+  salespersonId: string;
+  videoId: string | null;
+  viewCount: number;
+}
+
+export interface ViewerSavedMakerDTO {
+  id: string;
+  viewerId: string;
+  houseMakerId: string;
+}

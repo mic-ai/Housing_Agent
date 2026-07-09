@@ -11,10 +11,12 @@ export default async function JourneyArticlePage({
   const order = Number(articleOrder);
   if (!Number.isInteger(order)) notFound();
 
-  const phase = await prisma.learningPhase.findUnique({
-    where: { key: phaseKey },
+  const phases = await prisma.learningPhase.findMany({
+    where: { isActive: true },
+    orderBy: { order: "asc" },
     select: {
       key: true,
+      title: true,
       articles: {
         where: { status: "PUBLISHED" },
         orderBy: { order: "asc" },
@@ -22,7 +24,10 @@ export default async function JourneyArticlePage({
       },
     },
   });
-  if (!phase) notFound();
+
+  const phaseIndex = phases.findIndex((p) => p.key === phaseKey);
+  if (phaseIndex === -1) notFound();
+  const phase = phases[phaseIndex];
 
   const currentIndex = phase.articles.findIndex((a) => a.order === order);
   if (currentIndex === -1) notFound();
@@ -56,14 +61,32 @@ export default async function JourneyArticlePage({
   if (!article || article.status !== "PUBLISHED") notFound();
 
   const prevArticle = phase.articles[currentIndex - 1] ?? null;
-  const nextArticle = phase.articles[currentIndex + 1] ?? null;
+  const nextArticleInPhase = phase.articles[currentIndex + 1] ?? null;
+
+  let nextHref: string;
+  let completionMessage: string | null = null;
+
+  if (nextArticleInPhase) {
+    nextHref = `/journey/${phase.key}/${nextArticleInPhase.order}`;
+  } else {
+    const nextPhase = phases[phaseIndex + 1];
+    const nextPhaseFirstArticle = nextPhase?.articles[0] ?? null;
+    if (nextPhase && nextPhaseFirstArticle) {
+      nextHref = `/journey/${nextPhase.key}/${nextPhaseFirstArticle.order}`;
+      completionMessage = `${phase.title} 完了！次は${nextPhase.title}へ`;
+    } else {
+      nextHref = "/";
+      completionMessage = `${phase.title} 完了！気になる動画を探してみましょう`;
+    }
+  }
 
   return (
     <main className="px-4 py-8">
       <ArticleViewer
         article={article}
         prevHref={prevArticle ? `/journey/${phase.key}/${prevArticle.order}` : null}
-        nextHref={nextArticle ? `/journey/${phase.key}/${nextArticle.order}` : null}
+        nextHref={nextHref}
+        completionMessage={completionMessage}
       />
     </main>
   );

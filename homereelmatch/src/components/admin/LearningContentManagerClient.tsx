@@ -167,7 +167,7 @@ function ArticleEditPanel({
           ← 編集に戻る
         </button>
         <div className="bg-white rounded-xl p-6">
-          <ArticleViewer article={previewArticle} prevHref={null} nextHref={null} previewMode />
+          <ArticleViewer article={previewArticle} prevHref={null} nextHref="/journey" previewMode />
         </div>
       </div>
     );

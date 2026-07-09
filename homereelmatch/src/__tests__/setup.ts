@@ -130,6 +130,7 @@ vi.mock("@/lib/prisma", () => ({
     viewerSalespersonView: {
       findMany: vi.fn(),
       upsert: vi.fn(),
+      count: vi.fn(),
     },
     viewerSavedMaker: {
       findMany: vi.fn(),

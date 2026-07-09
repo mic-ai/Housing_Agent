@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { JourneyNudge } from "@/components/journey/JourneyNudge";
+import type { JourneyStageItem } from "@/lib/journey";
 
 const TABS = [
   {
@@ -65,12 +67,20 @@ function BottomNav({ pathname }: { pathname: string }) {
   );
 }
 
-export function PublicChrome({ children }: { children: React.ReactNode }) {
+export function PublicChrome({
+  children,
+  stages,
+}: {
+  children: React.ReactNode;
+  stages: JourneyStageItem[];
+}) {
   const pathname = usePathname();
   const showNav = !pathname.startsWith("/watch/");
+  const showNudge = pathname === "/" || pathname.startsWith("/consult");
 
   return (
     <>
+      {showNudge && <JourneyNudge stages={stages} />}
       <div className={showNav ? "pb-16" : ""}>{children}</div>
       {showNav && <BottomNav pathname={pathname} />}
     </>

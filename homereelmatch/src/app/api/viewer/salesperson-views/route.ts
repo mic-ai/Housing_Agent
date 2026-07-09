@@ -29,12 +29,13 @@ export async function POST(request: NextRequest) {
     if (!viewerToken) return NextResponse.json({ error: "viewerToken cookie is missing" }, { status: 400 });
 
     const viewer = await ensureViewerProfile(viewerToken);
+    const priorViewCount = await prisma.viewerSalespersonView.count({ where: { viewerId: viewer.id } });
     const data = await prisma.viewerSalespersonView.upsert({
       where: { viewerId_salespersonId: { viewerId: viewer.id, salespersonId: body.salespersonId } },
       update: { viewCount: { increment: 1 }, videoId: body.videoId },
       create: { viewerId: viewer.id, salespersonId: body.salespersonId, videoId: body.videoId },
     });
-    return NextResponse.json({ data });
+    return NextResponse.json({ data, firstView: priorViewCount === 0 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.errors }, { status: 400 });

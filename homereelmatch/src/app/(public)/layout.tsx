@@ -1,5 +1,7 @@
 import { PublicChrome } from "@/components/layout/PublicChrome";
+import { getJourneyOverview } from "@/lib/journey";
 
-export default function PublicLayout({ children }: { children: React.ReactNode }) {
-  return <PublicChrome>{children}</PublicChrome>;
+export default async function PublicLayout({ children }: { children: React.ReactNode }) {
+  const { stages } = await getJourneyOverview();
+  return <PublicChrome stages={stages}>{children}</PublicChrome>;
 }

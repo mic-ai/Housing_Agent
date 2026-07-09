@@ -1,11 +1,15 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { SearchBar } from "@/components/search/SearchBar";
 import { HashtagCloud } from "@/components/search/HashtagCloud";
 import { FilterBar } from "@/components/search/FilterBar";
 import { VideoFeedClient } from "@/components/video/VideoFeedClient";
+import { FirstRunJourneyCard } from "@/components/journey/FirstRunJourneyCard";
 import { mapVideoToDTO } from "@/lib/utils";
+import { getJourneyOverview } from "@/lib/journey";
+import { JOURNEY_INTRO_DISMISSED_COOKIE } from "@/lib/viewer-cookie";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -51,6 +55,11 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       },
     ];
   }
+
+  const cookieStore = await cookies();
+  const introDismissed = cookieStore.get(JOURNEY_INTRO_DISMISSED_COOKIE)?.value === "1";
+  const { hasAnyProgress } = await getJourneyOverview();
+  const showFirstRunCard = !params.q && !introDismissed && !hasAnyProgress;
 
   const [initialVideos, houseMakers, venues] = await Promise.all([
     prisma.video.findMany({
@@ -114,6 +123,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-4">
+        {showFirstRunCard && <FirstRunJourneyCard />}
+
         {!params.q && (
           <div className="mb-3 space-y-2">
             <Suspense fallback={null}>

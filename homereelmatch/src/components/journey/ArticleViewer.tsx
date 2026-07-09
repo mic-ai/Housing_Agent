@@ -22,13 +22,21 @@ const markdownComponents: Components = {
 interface ArticleViewerProps {
   article: ArticleDetailDTO;
   prevHref: string | null;
-  nextHref: string | null;
+  nextHref: string;
+  completionMessage?: string | null;
   previewMode?: boolean;
 }
 
-export function ArticleViewer({ article, prevHref, nextHref, previewMode = false }: ArticleViewerProps) {
+export function ArticleViewer({
+  article,
+  prevHref,
+  nextHref,
+  completionMessage = null,
+  previewMode = false,
+}: ArticleViewerProps) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
 
   async function handleComplete() {
     if (previewMode || submitting) return;
@@ -39,11 +47,26 @@ export function ArticleViewer({ article, prevHref, nextHref, previewMode = false
       body: JSON.stringify({ articleId: article.id }),
     });
     setSubmitting(false);
-    router.push(nextHref ?? "/journey");
+    if (completionMessage) {
+      setToast(completionMessage);
+      setTimeout(() => router.push(nextHref), 1400);
+    } else {
+      router.push(nextHref);
+    }
   }
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
+      {toast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-amber-600 text-white text-sm font-medium px-4 py-2 rounded-full shadow-lg whitespace-nowrap"
+        >
+          {toast}
+        </div>
+      )}
+
       {previewMode && (
         <span className="inline-block bg-amber-100 text-amber-800 text-xs font-medium px-3 py-1 rounded-full">
           プレビュー表示

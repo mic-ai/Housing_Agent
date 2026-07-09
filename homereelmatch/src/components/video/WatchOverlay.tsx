@@ -12,20 +12,29 @@ interface WatchOverlayProps {
 
 export function WatchOverlay({ videoId, videoTitle, videoUrl, salespersonId }: WatchOverlayProps) {
   const [copied, setCopied] = useState(false);
+  const [showConsultNudge, setShowConsultNudge] = useState(false);
 
   // Increment view count once per mount (fire-and-forget)
   useEffect(() => {
     fetch(`/api/videos/${videoId}/view`, { method: "POST" }).catch(() => {});
   }, [videoId]);
 
-  // Record viewer→salesperson view history for /consult (fire-and-forget)
+  // Record viewer→salesperson view history for /consult; nudge toward /consult on the viewer's first ever salesperson view
   useEffect(() => {
     if (!salespersonId) return;
     fetch("/api/viewer/salesperson-views", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ salespersonId, videoId }),
-    }).catch(() => {});
+    })
+      .then((res) => res.json())
+      .then((json) => {
+        if (json?.firstView) {
+          setShowConsultNudge(true);
+          setTimeout(() => setShowConsultNudge(false), 4000);
+        }
+      })
+      .catch(() => {});
   }, [salespersonId, videoId]);
 
   const handleShare = useCallback(async () => {
@@ -92,6 +101,18 @@ export function WatchOverlay({ videoId, videoTitle, videoUrl, salespersonId }: W
         >
           URLをコピーしました
         </div>
+      )}
+
+      {/* First salesperson-linked video watched — nudge toward /consult */}
+      {showConsultNudge && (
+        <Link
+          href="/consult"
+          role="status"
+          aria-live="polite"
+          className="absolute top-16 left-4 right-4 z-40 bg-amber-600/95 backdrop-blur-sm text-white text-xs font-medium px-4 py-2.5 rounded-full text-center shadow-lg"
+        >
+          気になる担当が見つかったら相談してみましょう →
+        </Link>
       )}
     </>
   );

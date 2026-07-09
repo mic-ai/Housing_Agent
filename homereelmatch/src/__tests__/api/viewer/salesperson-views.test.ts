@@ -70,6 +70,7 @@ describe("POST /api/viewer/salesperson-views", () => {
   it("初回は新規作成し、既存の場合はviewCountを増分する", async () => {
     mockCookie("token-abc");
     vi.mocked(prisma.viewerProfile.upsert).mockResolvedValue({ id: "vp1" } as never);
+    vi.mocked(prisma.viewerSalespersonView.count).mockResolvedValue(0 as never);
     vi.mocked(prisma.viewerSalespersonView.upsert).mockResolvedValue({
       id: "v1",
       viewerId: "vp1",
@@ -86,5 +87,24 @@ describe("POST /api/viewer/salesperson-views", () => {
         create: { viewerId: "vp1", salespersonId: "sp1", videoId: "vid1" },
       })
     );
+    const body = await res.json();
+    expect(body.firstView).toBe(true);
+  });
+
+  it("2件目以降の視聴ではfirstViewがfalseになる", async () => {
+    mockCookie("token-abc");
+    vi.mocked(prisma.viewerProfile.upsert).mockResolvedValue({ id: "vp1" } as never);
+    vi.mocked(prisma.viewerSalespersonView.count).mockResolvedValue(1 as never);
+    vi.mocked(prisma.viewerSalespersonView.upsert).mockResolvedValue({
+      id: "v1",
+      viewerId: "vp1",
+      salespersonId: "sp2",
+      videoId: "vid2",
+      viewCount: 1,
+    } as never);
+    const res = await POST(makePostReq({ salespersonId: "sp2", videoId: "vid2" }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.firstView).toBe(false);
   });
 });

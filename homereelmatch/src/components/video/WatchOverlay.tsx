@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { CelebrationOverlay } from "@/components/journey/CelebrationOverlay";
 
 interface WatchOverlayProps {
   videoId: string;
@@ -31,7 +32,6 @@ export function WatchOverlay({ videoId, videoTitle, videoUrl, salespersonId }: W
       .then((json) => {
         if (json?.firstView) {
           setShowConsultNudge(true);
-          setTimeout(() => setShowConsultNudge(false), 4000);
         }
       })
       .catch(() => {});
@@ -103,16 +103,16 @@ export function WatchOverlay({ videoId, videoTitle, videoUrl, salespersonId }: W
         </div>
       )}
 
-      {/* First salesperson-linked video watched — nudge toward /consult */}
+      {/* First salesperson-linked video watched — celebrate and nudge toward /consult */}
       {showConsultNudge && (
-        <Link
-          href="/consult"
-          role="status"
-          aria-live="polite"
-          className="absolute top-16 left-4 right-4 z-40 bg-amber-600/95 backdrop-blur-sm text-white text-xs font-medium px-4 py-2.5 rounded-full text-center shadow-lg"
-        >
-          気になる担当が見つかったら相談してみましょう →
-        </Link>
+        <CelebrationOverlay
+          variant="emerald"
+          title="気になる担当が見つかりました！"
+          subtitle="相談は無料。気軽に聞いてみましょう"
+          primaryHref="/consult"
+          primaryLabel="相談してみる →"
+          onDismiss={() => setShowConsultNudge(false)}
+        />
       )}
     </>
   );

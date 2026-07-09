@@ -70,9 +70,11 @@ function BottomNav({ pathname }: { pathname: string }) {
 export function PublicChrome({
   children,
   stages,
+  progressFraction,
 }: {
   children: React.ReactNode;
   stages: JourneyStageItem[];
+  progressFraction: number;
 }) {
   const pathname = usePathname();
   const showNav = !pathname.startsWith("/watch/");
@@ -80,7 +82,7 @@ export function PublicChrome({
 
   return (
     <>
-      {showNudge && <JourneyNudge stages={stages} />}
+      {showNudge && <JourneyNudge stages={stages} progressFraction={progressFraction} />}
       <div className={showNav ? "pb-16" : ""}>{children}</div>
       {showNav && <BottomNav pathname={pathname} />}
     </>

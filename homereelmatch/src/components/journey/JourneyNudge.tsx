@@ -2,10 +2,17 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { JourneyStepper } from "./JourneyStepper";
+import { JourneyPathMap } from "./JourneyPathMap";
+import { JourneyRingBadge } from "./JourneyRingBadge";
 import type { JourneyStageItem } from "@/lib/journey";
 
-export function JourneyNudge({ stages }: { stages: JourneyStageItem[] }) {
+export function JourneyNudge({
+  stages,
+  progressFraction,
+}: {
+  stages: JourneyStageItem[];
+  progressFraction: number;
+}) {
   const [expanded, setExpanded] = useState(false);
   const current = stages.find((s) => s.status === "current");
   if (!current) return null;
@@ -19,8 +26,9 @@ export function JourneyNudge({ stages }: { stages: JourneyStageItem[] }) {
           type="button"
           onClick={() => setExpanded((v) => !v)}
           aria-expanded={expanded}
-          className="flex items-center gap-1.5 min-w-0 flex-1 text-left"
+          className="flex items-center gap-2 min-w-0 flex-1 text-left"
         >
+          <JourneyRingBadge fraction={progressFraction} />
           <span className="text-xs text-stone-600 truncate">
             <span className="font-semibold text-amber-700">{current.label}</span>
             {current.progressLabel && <span className="ml-1 text-stone-400">({current.progressLabel})</span>}
@@ -42,7 +50,11 @@ export function JourneyNudge({ stages }: { stages: JourneyStageItem[] }) {
           </Link>
         )}
       </div>
-      {expanded && <JourneyStepper stages={stages} />}
+      {expanded && (
+        <div className="max-w-2xl mx-auto px-4 pb-4">
+          <JourneyPathMap stages={stages} />
+        </div>
+      )}
     </div>
   );
 }

@@ -15,6 +15,19 @@ export interface JourneyStageItem {
 export interface JourneyOverview {
   stages: JourneyStageItem[];
   hasAnyProgress: boolean;
+  progressFraction: number;
+}
+
+function stageFraction(stage: JourneyStageItem): number {
+  if (stage.status === "done") return 1;
+  if (stage.status === "current") {
+    if (stage.progressLabel) {
+      const [completed, total] = stage.progressLabel.split("/").map(Number);
+      if (total > 0) return completed / total;
+    }
+    return 0.5;
+  }
+  return 0;
 }
 
 export const getJourneyOverview = cache(async (): Promise<JourneyOverview> => {
@@ -93,6 +106,8 @@ export const getJourneyOverview = cache(async (): Promise<JourneyOverview> => {
   });
 
   const hasAnyProgress = completedArticleIds.size > 0 || hasSalespersonView;
+  const progressFraction =
+    stages.length > 0 ? stages.reduce((sum, s) => sum + stageFraction(s), 0) / stages.length : 0;
 
-  return { stages, hasAnyProgress };
+  return { stages, hasAnyProgress, progressFraction };
 });

@@ -64,19 +64,21 @@ export default async function JourneyArticlePage({
   const nextArticleInPhase = phase.articles[currentIndex + 1] ?? null;
 
   let nextHref: string;
-  let completionMessage: string | null = null;
+  let completionTitle: string | null = null;
+  let completionSubtitle: string | null = null;
 
   if (nextArticleInPhase) {
     nextHref = `/journey/${phase.key}/${nextArticleInPhase.order}`;
   } else {
     const nextPhase = phases[phaseIndex + 1];
     const nextPhaseFirstArticle = nextPhase?.articles[0] ?? null;
+    completionTitle = `${phase.title} 完了！`;
     if (nextPhase && nextPhaseFirstArticle) {
       nextHref = `/journey/${nextPhase.key}/${nextPhaseFirstArticle.order}`;
-      completionMessage = `${phase.title} 完了！次は${nextPhase.title}へ`;
+      completionSubtitle = `次は${nextPhase.title}へ`;
     } else {
       nextHref = "/";
-      completionMessage = `${phase.title} 完了！気になる動画を探してみましょう`;
+      completionSubtitle = "気になる動画を探してみましょう";
     }
   }
 
@@ -86,7 +88,8 @@ export default async function JourneyArticlePage({
         article={article}
         prevHref={prevArticle ? `/journey/${phase.key}/${prevArticle.order}` : null}
         nextHref={nextHref}
-        completionMessage={completionMessage}
+        completionTitle={completionTitle}
+        completionSubtitle={completionSubtitle}
       />
     </main>
   );

@@ -7,6 +7,7 @@ import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
 import type { ArticleDetailDTO } from "@/types";
 import { ComparisonTable } from "./ComparisonTable";
+import { CelebrationOverlay } from "./CelebrationOverlay";
 
 const markdownComponents: Components = {
   h1: (props) => <h2 className="text-xl font-bold text-stone-900 mt-6 mb-2" {...props} />,
@@ -23,7 +24,8 @@ interface ArticleViewerProps {
   article: ArticleDetailDTO;
   prevHref: string | null;
   nextHref: string;
-  completionMessage?: string | null;
+  completionTitle?: string | null;
+  completionSubtitle?: string | null;
   previewMode?: boolean;
 }
 
@@ -31,12 +33,13 @@ export function ArticleViewer({
   article,
   prevHref,
   nextHref,
-  completionMessage = null,
+  completionTitle = null,
+  completionSubtitle = null,
   previewMode = false,
 }: ArticleViewerProps) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const [showCelebration, setShowCelebration] = useState(false);
 
   async function handleComplete() {
     if (previewMode || submitting) return;
@@ -47,9 +50,8 @@ export function ArticleViewer({
       body: JSON.stringify({ articleId: article.id }),
     });
     setSubmitting(false);
-    if (completionMessage) {
-      setToast(completionMessage);
-      setTimeout(() => router.push(nextHref), 1400);
+    if (completionTitle) {
+      setShowCelebration(true);
     } else {
       router.push(nextHref);
     }
@@ -57,14 +59,13 @@ export function ArticleViewer({
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      {toast && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-amber-600 text-white text-sm font-medium px-4 py-2 rounded-full shadow-lg whitespace-nowrap"
-        >
-          {toast}
-        </div>
+      {showCelebration && completionTitle && (
+        <CelebrationOverlay
+          title={completionTitle}
+          subtitle={completionSubtitle ?? undefined}
+          primaryHref={nextHref}
+          onDismiss={() => setShowCelebration(false)}
+        />
       )}
 
       {previewMode && (

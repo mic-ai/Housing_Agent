@@ -525,6 +525,7 @@ npx vercel --prod
 | 公開ページ共通の下部ナビゲーション（ホーム/学習/相談タブ） | 完了（2026-07-11、要件定義書スコープ外・ユーザーフィードバックで追加） |
 | 本番全断バグ修正（コミットのpush漏れによる新DB×旧コードのミスマッチ） | 完了（2026-07-12） |
 | 学習ジャーニー可視化のUX刷新（ロードマップ表示・リング進捗バッジ・祝福オーバーレイ） | 完了（2026-07-12、要件定義書スコープ外・ユーザーフィードバックで追加） |
+| セキュリティ監査・脆弱性修正（IDOR・XSS・LINE署名検証・PII暗号化fail-closed・Basic Auth定数時間比較・アップロードMagic Byte検証） | 完了（2026-07-15、本番push・デプロイ済み） |
 
 ### 直近の主要変更（2026-06-23）
 
@@ -867,3 +868,23 @@ npx vercel --prod
 - **React `cache()`によるリクエスト内メモ化**: 同一リクエスト内で`layout.tsx`と個別の`page.tsx`が同じ非同期関数（例: `getJourneyOverview()`）を呼び出しても、`cache()`でラップしておけばDB問い合わせは1回に重複排除される。Next.js App Routerでlayoutとpageにまたがるデータを二重取得せずに共有する標準パターン
 - **UI改善が「地味に見える」というフィードバックは、変更が状況依存（初回ユーザーのみ・完了の瞬間だけ等）で静止画1枚には映らないタイミングで起きやすい**。見た目の議論をする前に、ユーザーがどの環境（本番かローカルか）・どのCookie状態（進捗あり/なし）で検証しているかを先に確認するとすれ違いを防げる
 - **「もっとドラマチックなUI改善を」という抽象的な要望を受けたときは、Planエージェントに複数方向性とASCIIモックアップを出させてAskUserQuestionのプレビュー機能で選んでもらう**、という往復が今回2回とも機能した。多め機能追加ではなく既存コンポーネントの視覚的な作り直し（アイコン・アニメーション・進捗の魅せ方）が主戦場になるため、テキストだけの提案より簡易モックアップがあると意思決定が速い
+
+### 直近の主要変更（2026-07-15）
+
+#### セキュリティ監査・脆弱性修正
+汎用エージェントによる読み取り専用のセキュリティ監査（認証・認可・暗号化・CORS・アップロード検証・秘密情報管理を対象）を実施し、検出した8件（HIGH 2件・MEDIUM 3件・LOW 4件）すべてに対応した。コミット`e82172a`で本番push・デプロイ済み。
+
+- **[HIGH] IDOR — 動画API(`/api/videos`, `/api/videos/[videoId]`)にオーナーシップ・ロールチェックがなかった**: `POST`は`requireSalesperson()`（セッション有無のみ）で任意の営業マンが動画登録できてしまい、CLAUDE.md記載の「動画登録はADMINのみ」という運用ポリシーがAPIレベルでは未実装だった。`requireAdmin()`に変更。`PATCH`/`DELETE`は`requireOwnedVideo()`ヘルパーを新設し、ADMINはバイパス、SALESPERSONは`SalespersonVideo`に割り当てが存在する場合のみ許可（`contact/[contactRequestId]/route.ts`等の既存パターンを踏襲）
+- **[HIGH] JSON-LD経由のStored XSS**: `watch/[videoId]/page.tsx`・`Breadcrumb.tsx`・`app/layout.tsx`が`JSON.stringify()`の結果を`dangerouslySetInnerHTML`で`<script type="application/ld+json">`に埋め込んでおり、`JSON.stringify`は`<`をエスケープしないため動画タイトル等に`</script><script>...`を仕込まれるとタグを閉じられてしまう。上記IDORと組み合わさると任意の営業マンが公開ページにXSSを仕込める経路だった。`src/lib/utils.ts`に`safeJsonLd()`（`<`→`<`エスケープ）を追加し3箇所を置き換え
+- **[MEDIUM] LINE Webhook署名検証がテスト済み実装とは別の重複実装だった**: `api/line/webhook/route.ts`が独自の`verifySignature()`を持ち、`LINE_CHANNEL_SECRET`未設定時に空文字列キーでHMAC計算してしまう（フォージ可能）バグがあった。`lib/line.ts`の`validateLineSignature()`（未設定なら`false`を返しfail-closed）に統一し、`crypto.timingSafeEqual`で比較するよう変更
+- **[MEDIUM] `ENCRYPTION_KEY`未設定時、本番でもPIIを平文保存していた**: `encrypt.ts`の`encryptJson()`が警告ログのみで処理続行していたのを、`NODE_ENV === "production"`では例外を投げてfail-closedに変更（呼び出し元の`POST /api/contact`は既存try/catchで500を返す）
+- **[LOW] Basic Authプレビューゲートのパスワード比較が非定数時間**: Edge Runtimeは`crypto.timingSafeEqual`が使えないため、`TextEncoder`でバイト列化しXORを早期returnなしで積算する自前の`timingSafeEqualString()`を実装
+- **[LOW] `/admin`がmiddlewareの`getToken()`認証ガード対象外だった**: `/dashboard`のみが対象で、`/admin`は各ページの`auth()`呼び出しのみに依存していた（現状は事故なしだが新規`/admin/*`ルート追加時に無防備になるリスク）。ガード対象に`/admin`を追加（defense-in-depth。ロールチェック自体は引き続き各ページ側）
+- **[LOW] 通知メール（LINE通知は対象外、Resend/Gmail経由のHTMLメールのみ）でユーザー入力が未エスケープ**: `lib/email.ts`に`escapeHtml()`を追加し、`userName`/`videoTitle`/`salespersonName`/`companyName`等をエスケープ
+- **[LOW] アップロードファイルがクライアント申告の`File.type`のみで検証されマジックバイト未検証**: 新規`src/lib/file-sniff.ts`（`looksLikeAllowedVideo()`= mp4/movのftyp box・webmのEBMLヘッダ、`looksLikeAllowedImage()`= JPEG/PNG/WebPシグネチャ）を追加し、顔出し動画・自己紹介動画・プロフィール画像の全アップロードルート（`salesperson/profile/face-videos`, `intro-video`, `icon`, 管理者用`face-videos/upload`）に配線
+
+#### 実装上の重要な知見（2026-07-15 追加）
+- **セキュリティ監査で見つかったAPIの挙動変更（IDOR修正等）は、既存テストが「修正前の脆弱な挙動」を正として書かれていることがある**。今回`src/__tests__/api/videos/auth.test.ts`は「SALESPERSONが任意の動画を作成・更新できる（201/200が返る）」ことをテストしており、修正後は意図的にテストごと書き換えが必要だった。修正対象のAPIが実際にどのフロントエンドから呼ばれているか（`grep`でコンポーネントからの呼び出し元を確認）を先に洗い出すと、意図された権限モデルを取り違えずに直せる
+- **アップロード系エンドポイントにマジックバイト検証を追加すると、既存テストの`new File(["x"], ...)`のようなダミーコンテンツが軒並み拒否されるようになる**。ISO container（mp4/mov）は`bytes[4:8] === "ftyp"`、WebMは`bytes[0:4] === 1A 45 DF A3`という最小限のシグネチャで足りるため、テスト側は本物のバイナリでなく12バイト程度の最小マジックバイト定数を用意すれば十分
+- **Edge Runtime（`src/proxy.ts`）ではNode.jsの`crypto`モジュール（`timingSafeEqual`含む）が使えない**。定数時間比較が必要な場合は`TextEncoder`でバイト化しXORを早期returnなしで積算する自前実装が必要（`atob()`を使う既存のBase64デコード回避策と同じ制約）
+- **このプロジェクトはVercelのGitHub連携による自動デプロイのため、「デプロイ」の実体は`git push origin main`である**。過去の本番全断インシデント（2026-07-12）と同じ理屈で、コミットだけでは本番に反映されない。また本サンドボックスからは`vercel` CLI（`npx vercel ls`等）がoutbound制限でタイムアウトし、デプロイ状況の直接確認はできないため、push後の動作確認はユーザーに依頼する運用とする

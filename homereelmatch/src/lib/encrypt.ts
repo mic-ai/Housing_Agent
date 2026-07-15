@@ -24,7 +24,8 @@ export function encryptJson(data: Record<string, unknown>): Record<string, unkno
   const key = getKey();
   if (!key) {
     if (process.env.NODE_ENV === "production") {
-      console.error("ENCRYPTION_KEY not set in production. Storing PII in plaintext.");
+      // Fail closed: never silently persist PII in plaintext in production.
+      throw new Error("ENCRYPTION_KEY not set or invalid in production. Refusing to store PII in plaintext.");
     }
     return data;
   }

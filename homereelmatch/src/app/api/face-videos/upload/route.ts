@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { uploadFaceVideo, buildFaceVideoPath } from "@/lib/storage";
 import { getVideoDurationSec } from "@/lib/video-duration";
+import { looksLikeAllowedVideo } from "@/lib/file-sniff";
 import { requireSalesperson } from "@/lib/admin";
 import { auth } from "@/lib/auth";
 
@@ -68,6 +69,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
+    if (!looksLikeAllowedVideo(buffer)) {
+      return NextResponse.json({ error: "Invalid file content" }, { status: 400 });
+    }
     const ext = extFromMime(file.type);
 
     // Duration validation（ffprobe が使えない環境では null → スキップ）

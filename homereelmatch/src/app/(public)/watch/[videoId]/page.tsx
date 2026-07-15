@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { WatchClientShell } from "@/components/video/WatchClientShell";
 import { WatchOverlay } from "@/components/video/WatchOverlay";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
-import { extractYouTubeId } from "@/lib/utils";
+import { extractYouTubeId, safeJsonLd } from "@/lib/utils";
 import type { Metadata } from "next";
 
 interface WatchPageProps {
@@ -166,7 +166,7 @@ export default async function WatchPage({ params }: WatchPageProps) {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(videoJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(videoJsonLd) }}
       />
       <main className="min-h-screen bg-black">
         {/* パンくずリスト（SEO用・視覚的にも表示） */}

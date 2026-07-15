@@ -67,6 +67,7 @@ vi.mock("@/lib/prisma", () => ({
     },
     salespersonVideo: {
       findUnique: vi.fn(),
+      findFirst: vi.fn(),
       findMany: vi.fn(),
       upsert: vi.fn(),
       delete: vi.fn(),

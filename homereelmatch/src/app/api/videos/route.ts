@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { requireSalesperson } from "@/lib/admin";
+import { requireAdmin } from "@/lib/admin";
 import { mapVideoToDTO } from "@/lib/utils";
 
 const videoInclude = {
@@ -109,7 +109,7 @@ const CreateVideoSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  const denied = await requireSalesperson();
+  const denied = await requireAdmin();
   if (denied) return denied;
 
   try {

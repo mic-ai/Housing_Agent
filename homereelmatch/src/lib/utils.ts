@@ -2,6 +2,15 @@ export function cn(...inputs: (string | undefined | null | false)[]) {
   return inputs.filter(Boolean).join(" ");
 }
 
+/**
+ * JSON.stringify を <script type="application/ld+json"> に安全に埋め込むためのシリアライズ。
+ * JSON.stringify は "<" をエスケープしないため、ユーザー入力に "</script>" が含まれると
+ * HTMLパーサーがscriptタグを早期に閉じてXSSにつながる。
+ */
+export function safeJsonLd(value: unknown): string {
+  return JSON.stringify(value).replace(/</g, "\\u003c");
+}
+
 export function mapVideoToDTO(video: {
   id: string;
   platform: "YOUTUBE" | "INSTAGRAM";

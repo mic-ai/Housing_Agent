@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach, beforeEach } from "vitest";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { encryptJson, decryptJson } from "@/lib/encrypt";
 
 const VALID_KEY = "a".repeat(64); // 32 bytes as 64 hex chars
@@ -65,13 +65,36 @@ describe("encryptJson / decryptJson — round-trip", () => {
 });
 
 describe("encryptJson — ENCRYPTION_KEY 未設定時", () => {
-  it("平文のままオブジェクトを返す（_encrypted キーなし）", () => {
+  it("開発環境では平文のままオブジェクトを返す（_encrypted キーなし）", () => {
     withKey(undefined, () => {
       const data = { name: "田中太郎" };
       const result = encryptJson(data);
       expect(result).toEqual(data);
       expect(result).not.toHaveProperty("_encrypted");
     });
+  });
+
+  it("本番環境では平文保存せず例外を投げる（fail closed）", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    try {
+      withKey(undefined, () => {
+        expect(() => encryptJson({ name: "田中太郎" })).toThrow();
+      });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("本番環境でも ENCRYPTION_KEY が正しければ暗号化される", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    try {
+      withKey(VALID_KEY, () => {
+        const result = encryptJson({ name: "田中太郎" });
+        expect(result).toHaveProperty("_encrypted");
+      });
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });
 

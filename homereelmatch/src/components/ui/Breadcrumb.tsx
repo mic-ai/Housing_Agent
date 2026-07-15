@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { safeJsonLd } from "@/lib/utils";
 
 export interface BreadcrumbItem {
   name: string;
@@ -27,7 +28,7 @@ export function Breadcrumb({ items, appUrl }: BreadcrumbProps) {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
       />
       <nav aria-label="パンくずリスト" className="text-xs text-stone-400">
         <ol className="flex flex-wrap items-center gap-1">

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { extractYouTubeId, formatDate, formatDateTime } from "@/lib/utils";
+import { extractYouTubeId, formatDate, formatDateTime, safeJsonLd } from "@/lib/utils";
 
 describe("extractYouTubeId", () => {
   it("標準URLからIDを抽出する", () => {
@@ -44,5 +44,24 @@ describe("formatDateTime", () => {
     const result = formatDateTime(date);
     expect(result).toMatch(/2026/);
     expect(result.length).toBeGreaterThan(formatDate(date).length);
+  });
+});
+
+describe("safeJsonLd", () => {
+  it("</script>を含むユーザー入力があってもscriptタグを閉じない", () => {
+    const malicious = { title: "</script><script>alert(1)</script>" };
+    const result = safeJsonLd(malicious);
+    expect(result).not.toContain("</script>");
+    expect(result).not.toContain("<script>");
+  });
+
+  it("エスケープ後もJSONとして正しくパースできる（意味を破壊しない）", () => {
+    const malicious = { title: "</script><script>alert(1)</script>" };
+    const result = safeJsonLd(malicious);
+    expect(JSON.parse(result)).toEqual(malicious);
+  });
+
+  it("通常の値は通常通りシリアライズする", () => {
+    expect(safeJsonLd({ a: 1, b: "テスト" })).toBe(JSON.stringify({ a: 1, b: "テスト" }));
   });
 });

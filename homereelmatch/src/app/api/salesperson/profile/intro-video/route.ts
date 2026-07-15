@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { uploadFaceVideo, deleteFaceVideo, buildSalespersonIntroVideoPath } from "@/lib/storage";
 import { getVideoDurationSec } from "@/lib/video-duration";
+import { looksLikeAllowedVideo } from "@/lib/file-sniff";
 import { auth } from "@/lib/auth";
 
 const ALLOWED_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
@@ -32,6 +33,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
+    if (!looksLikeAllowedVideo(buffer)) {
+      return NextResponse.json({ error: "Invalid file content" }, { status: 400 });
+    }
     const ext = extFromMime(file.type);
     const durationSec = await getVideoDurationSec(buffer, ext);
 

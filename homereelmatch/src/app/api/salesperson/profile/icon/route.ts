@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { uploadProfileImage } from "@/lib/storage";
+import { looksLikeAllowedImage } from "@/lib/file-sniff";
 
 const ALLOWED_TYPES: Record<string, string> = {
   "image/jpeg": "jpg",
@@ -35,6 +36,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
+    if (!looksLikeAllowedImage(buffer, file.type)) {
+      return NextResponse.json({ error: "画像ファイルの内容が不正です" }, { status: 400 });
+    }
     const { publicUrl } = await uploadProfileImage(buffer, session.user.id, ext, file.type);
 
     await prisma.salesperson.update({

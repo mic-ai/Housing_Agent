@@ -9,6 +9,9 @@ vi.mock("@/lib/video-duration", () => ({
   getVideoDurationSec: vi.fn(),
 }));
 
+// mp4 ISO container: [size(4)]["ftyp"][brand] — real magic bytes required by looksLikeAllowedVideo()
+const MP4_BYTES = new Uint8Array([0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d]);
+
 const SP_SESSION = {
   user: { id: "sp_001", name: "営業太郎", email: "sp@example.com", role: "SALESPERSON" as const, companyId: "co1" },
   expires: "2099-01-01T00:00:00.000Z",
@@ -54,7 +57,7 @@ describe("POST /api/salesperson/profile/face-videos", () => {
     vi.mocked(auth).mockResolvedValue(null as never);
     const { POST } = await import("@/app/api/salesperson/profile/face-videos/route");
     const fd = new FormData();
-    fd.append("file", new File(["x"], "t.mp4", { type: "video/mp4" }));
+    fd.append("file", new File([MP4_BYTES], "t.mp4", { type: "video/mp4" }));
     fd.append("type", "pre");
     const res = await POST(new NextRequest("http://localhost", { method: "POST", body: fd }));
     expect(res.status).toBe(401);
@@ -64,7 +67,7 @@ describe("POST /api/salesperson/profile/face-videos", () => {
     vi.mocked(auth).mockResolvedValue(SP_SESSION as never);
     const { POST } = await import("@/app/api/salesperson/profile/face-videos/route");
     const fd = new FormData();
-    fd.append("file", new File(["x"], "t.mp4", { type: "video/mp4" }));
+    fd.append("file", new File([MP4_BYTES], "t.mp4", { type: "video/mp4" }));
     fd.append("type", "invalid");
     const res = await POST(new NextRequest("http://localhost", { method: "POST", body: fd }));
     expect(res.status).toBe(400);
@@ -75,7 +78,7 @@ describe("POST /api/salesperson/profile/face-videos", () => {
     vi.mocked(getVideoDurationSec).mockResolvedValue(15);
     const { POST } = await import("@/app/api/salesperson/profile/face-videos/route");
     const fd = new FormData();
-    fd.append("file", new File(["x"], "t.mp4", { type: "video/mp4" }));
+    fd.append("file", new File([MP4_BYTES], "t.mp4", { type: "video/mp4" }));
     fd.append("type", "pre");
     const res = await POST(new NextRequest("http://localhost", { method: "POST", body: fd }));
     expect(res.status).toBe(400);
@@ -89,7 +92,7 @@ describe("POST /api/salesperson/profile/face-videos", () => {
     });
     const { POST } = await import("@/app/api/salesperson/profile/face-videos/route");
     const fd = new FormData();
-    fd.append("file", new File(["x"], "t.mp4", { type: "video/mp4" }));
+    fd.append("file", new File([MP4_BYTES], "t.mp4", { type: "video/mp4" }));
     fd.append("type", "pre");
     const res = await POST(new NextRequest("http://localhost", { method: "POST", body: fd }));
     expect(res.status).toBe(201);

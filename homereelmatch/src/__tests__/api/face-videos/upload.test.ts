@@ -17,6 +17,11 @@ import { POST } from "@/app/api/face-videos/upload/route";
 const SALESPERSON_ID = "sp_001";
 const VIDEO_ID = "vid_001";
 
+// mp4 ISO container: [size(4)]["ftyp"][brand] — real magic bytes required by looksLikeAllowedVideo()
+const MP4_BYTES = new Uint8Array([0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d]);
+// WebM/Matroska EBML header
+const WEBM_BYTES = new Uint8Array([0x1a, 0x45, 0xdf, 0xa3, 0, 0, 0, 0, 0, 0, 0, 0]);
+
 function makeFormData(overrides: {
   file?: File;
   salespersonId?: string;
@@ -24,7 +29,7 @@ function makeFormData(overrides: {
   type?: string;
 }) {
   const defaults = {
-    file: new File(["dummy"], "face.mp4", { type: "video/mp4" }),
+    file: new File([MP4_BYTES], "face.mp4", { type: "video/mp4" }),
     salespersonId: SALESPERSON_ID,
     videoId: VIDEO_ID,
     type: "pre",
@@ -95,14 +100,14 @@ describe("POST /api/face-videos/upload", () => {
   });
 
   it("video/webmは受け付ける", async () => {
-    const file = new File(["data"], "face.webm", { type: "video/webm" });
+    const file = new File([WEBM_BYTES], "face.webm", { type: "video/webm" });
     const req = makeRequest(makeFormData({ file }));
     const res = await POST(req);
     expect(res.status).toBe(200);
   });
 
   it("video/quicktimeは受け付ける", async () => {
-    const file = new File(["data"], "face.mov", { type: "video/quicktime" });
+    const file = new File([MP4_BYTES], "face.mov", { type: "video/quicktime" });
     const req = makeRequest(makeFormData({ file }));
     const res = await POST(req);
     expect(res.status).toBe(200);
@@ -112,7 +117,7 @@ describe("POST /api/face-videos/upload", () => {
   // File.size を使って先に弾くため、実バッファ確保は不要
   function makeRequestWithFakeFile(sizeBytes: number) {
     const req = new NextRequest("http://localhost/api/face-videos/upload", { method: "POST" });
-    const fakeFile = { type: "video/mp4", size: sizeBytes, name: "test.mp4", arrayBuffer: async () => new ArrayBuffer(8) };
+    const fakeFile = { type: "video/mp4", size: sizeBytes, name: "test.mp4", arrayBuffer: async () => MP4_BYTES.buffer };
     vi.spyOn(req, "formData").mockResolvedValueOnce({
       get: (key: string) => {
         const map: Record<string, unknown> = { file: fakeFile, salespersonId: SALESPERSON_ID, videoId: VIDEO_ID, type: "pre" };

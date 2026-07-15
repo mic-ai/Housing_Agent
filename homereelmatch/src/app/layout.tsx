@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { safeJsonLd } from "@/lib/utils";
 import "./globals.css";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://homereelmatch.vercel.app";
@@ -59,7 +60,7 @@ export default function RootLayout({
       <head>
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(websiteJsonLd) }}
         />
         {/* YouTube サムネイル・プレーヤーへの事前接続 */}
         <link rel="preconnect" href="https://www.youtube.com" />

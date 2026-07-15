@@ -2,6 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { requireSalesperson } from "@/lib/admin";
+import { auth } from "@/lib/auth";
+
+async function requireOwnedVideo(videoId: string): Promise<NextResponse | null> {
+  const session = (await auth())!;
+  if (session.user.role === "ADMIN") return null;
+  const assignment = await prisma.salespersonVideo.findFirst({
+    where: { videoId, salespersonId: session.user.id },
+    select: { id: true },
+  });
+  if (!assignment) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  return null;
+}
 
 export async function GET(
   _request: NextRequest,
@@ -55,6 +69,10 @@ export async function PATCH(
 
   try {
     const { videoId } = await params;
+
+    const ownershipDenied = await requireOwnedVideo(videoId);
+    if (ownershipDenied) return ownershipDenied;
+
     const body = await request.json();
     const data = PatchVideoSchema.parse(body);
 
@@ -102,6 +120,10 @@ export async function DELETE(
 
   try {
     const { videoId } = await params;
+
+    const ownershipDenied = await requireOwnedVideo(videoId);
+    if (ownershipDenied) return ownershipDenied;
+
     await prisma.video.update({
       where: { id: videoId },
       data: { isActive: false },

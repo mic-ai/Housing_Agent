@@ -1,4 +1,4 @@
-import { createHmac } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 
 const LINE_API = "https://api.line.me/v2/bot/message/push";
 
@@ -56,6 +56,9 @@ export function validateLineSignature(body: string, signature: string): boolean 
   const secret = process.env.LINE_CHANNEL_SECRET;
   if (!secret) return false; // LINE not configured
 
-  const hash = createHmac("SHA256", secret).update(body).digest("base64");
-  return hash === signature;
+  const expected = createHmac("SHA256", secret).update(body).digest("base64");
+  const expectedBuf = Buffer.from(expected);
+  const signatureBuf = Buffer.from(signature);
+  if (expectedBuf.length !== signatureBuf.length) return false;
+  return timingSafeEqual(expectedBuf, signatureBuf);
 }

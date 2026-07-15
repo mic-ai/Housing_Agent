@@ -9,6 +9,9 @@ vi.mock("@/lib/video-duration", () => ({
   getVideoDurationSec: vi.fn(),
 }));
 
+// mp4 ISO container: [size(4)]["ftyp"][brand] — real magic bytes required by looksLikeAllowedVideo()
+const MP4_BYTES = new Uint8Array([0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d]);
+
 const SP_SESSION = {
   user: { id: "sp_001", name: "営業太郎", email: "sp@example.com", role: "SALESPERSON" as const, companyId: "co1" },
   expires: "2099-01-01T00:00:00.000Z",
@@ -31,7 +34,7 @@ describe("POST /api/salesperson/profile/intro-video", () => {
   it("未認証は401を返す", async () => {
     vi.mocked(auth).mockResolvedValue(null as never);
     const res = await (await import("@/app/api/salesperson/profile/intro-video/route")).POST(
-      makePostReq(new File(["x"], "t.mp4", { type: "video/mp4" }))
+      makePostReq(new File([MP4_BYTES], "t.mp4", { type: "video/mp4" }))
     );
     expect(res.status).toBe(401);
   });
@@ -47,7 +50,7 @@ describe("POST /api/salesperson/profile/intro-video", () => {
     vi.mocked(auth).mockResolvedValue(SP_SESSION as never);
     vi.mocked(getVideoDurationSec).mockResolvedValue(45);
     const { POST } = await import("@/app/api/salesperson/profile/intro-video/route");
-    const res = await POST(makePostReq(new File(["x"], "t.mp4", { type: "video/mp4" })));
+    const res = await POST(makePostReq(new File([MP4_BYTES], "t.mp4", { type: "video/mp4" })));
     expect(res.status).toBe(400);
   });
 
@@ -60,7 +63,7 @@ describe("POST /api/salesperson/profile/intro-video", () => {
       introVideoDurationSec: 20,
     } as never);
     const { POST } = await import("@/app/api/salesperson/profile/intro-video/route");
-    const res = await POST(makePostReq(new File(["x"], "t.mp4", { type: "video/mp4" })));
+    const res = await POST(makePostReq(new File([MP4_BYTES], "t.mp4", { type: "video/mp4" })));
     expect(res.status).toBe(201);
     expect(deleteFaceVideo).toHaveBeenCalledWith("intro-videos/sp_001/old.mp4");
   });
@@ -73,7 +76,7 @@ describe("POST /api/salesperson/profile/intro-video", () => {
       introVideoDurationSec: 20,
     } as never);
     const { POST } = await import("@/app/api/salesperson/profile/intro-video/route");
-    const res = await POST(makePostReq(new File(["x"], "t.mp4", { type: "video/mp4" })));
+    const res = await POST(makePostReq(new File([MP4_BYTES], "t.mp4", { type: "video/mp4" })));
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body.data.introVideoUrl).toBe("https://storage/intro.mp4");

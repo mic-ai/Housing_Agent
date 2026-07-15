@@ -1,5 +1,14 @@
 import nodemailer from "nodemailer";
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function createTransporter() {
   const user = process.env.GMAIL_USER;
   const pass = process.env.GMAIL_APP_PASSWORD;
@@ -39,9 +48,9 @@ export async function sendInquiryNotificationToSalesperson(params: {
     to: params.email,
     subject: `【HomeReelMatch】新規問い合わせ: ${params.userName}様`,
     html: `
-      <p><strong>${params.userName}</strong>様から問い合わせが届きました。</p>
-      <p>動画: ${params.videoTitle}</p>
-      <p>希望連絡方法: ${params.contactMethod}</p>
+      <p><strong>${escapeHtml(params.userName)}</strong>様から問い合わせが届きました。</p>
+      <p>動画: ${escapeHtml(params.videoTitle)}</p>
+      <p>希望連絡方法: ${escapeHtml(params.contactMethod)}</p>
       <p><a href="${params.dashboardUrl}">ダッシュボードで確認する</a></p>
     `,
   });
@@ -60,9 +69,9 @@ export async function sendBookingConfirmationToUser(params: {
     subject: "【HomeReelMatch】面談予約が確定しました",
     html: `
       <p>ご予約が確定しました！</p>
-      <p>担当: <strong>${params.salespersonName}</strong>（${params.companyName}）</p>
-      <p>日時: ${params.scheduledAt}</p>
-      <p>場所: ${params.modelHouseName}<br>${params.modelHouseAddress}</p>
+      <p>担当: <strong>${escapeHtml(params.salespersonName)}</strong>（${escapeHtml(params.companyName)}）</p>
+      <p>日時: ${escapeHtml(params.scheduledAt)}</p>
+      <p>場所: ${escapeHtml(params.modelHouseName)}<br>${escapeHtml(params.modelHouseAddress)}</p>
     `,
   });
 }

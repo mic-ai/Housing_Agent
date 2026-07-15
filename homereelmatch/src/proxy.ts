@@ -17,6 +17,19 @@ function basicAuthResponse() {
   });
 }
 
+// Edge runtime has no Node `crypto.timingSafeEqual` — compare byte-by-byte without
+// early return to avoid leaking password length/prefix via response timing.
+function timingSafeEqualString(a: string, b: string): boolean {
+  const aBytes = new TextEncoder().encode(a);
+  const bBytes = new TextEncoder().encode(b);
+  const maxLength = Math.max(aBytes.length, bBytes.length);
+  let diff = aBytes.length === bBytes.length ? 0 : 1;
+  for (let i = 0; i < maxLength; i++) {
+    diff |= (aBytes[i] ?? 0) ^ (bBytes[i] ?? 0);
+  }
+  return diff === 0;
+}
+
 export default async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
@@ -27,11 +40,11 @@ export default async function middleware(request: NextRequest) {
     if (!authHeader.startsWith("Basic ")) return basicAuthResponse();
     const decoded = atob(authHeader.slice(6));
     const password = decoded.slice(decoded.indexOf(":") + 1);
-    if (password !== previewPassword) return basicAuthResponse();
+    if (!timingSafeEqualString(password, previewPassword)) return basicAuthResponse();
   }
 
-  // ── Dashboard auth guard ─────────────────────────────────────────────────
-  if (path.startsWith("/dashboard")) {
+  // ── Dashboard/Admin auth guard ───────────────────────────────────────────
+  if (path.startsWith("/dashboard") || path.startsWith("/admin")) {
     const token = await getToken({
       req: request,
       secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,

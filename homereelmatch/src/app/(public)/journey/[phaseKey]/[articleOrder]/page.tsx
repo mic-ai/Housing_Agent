@@ -83,7 +83,7 @@ export default async function JourneyArticlePage({
   }
 
   return (
-    <main className="px-4 py-8">
+    <main className="min-h-screen bg-amber-50 px-4 py-8">
       <ArticleViewer
         article={article}
         prevHref={prevArticle ? `/journey/${phase.key}/${prevArticle.order}` : null}

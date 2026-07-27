@@ -171,7 +171,7 @@ async function main() {
     update: {},
     create: {
       key: "maker_selection",
-      title: "② メーカー選びの基礎",
+      title: "② メーカー選び",
       order: 1,
       description: "ハウスメーカーをどう比較・検討すればよいかを学びます。",
     },

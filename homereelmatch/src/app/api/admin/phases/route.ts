@@ -5,7 +5,7 @@ import { z } from "zod";
 
 const CreateSchema = z.object({
   key: z.string().min(1).max(50),
-  title: z.string().min(1).max(100),
+  title: z.string().min(1).max(6),
   order: z.number().int().min(0),
   description: z.string().max(500).optional(),
   isActive: z.boolean().optional(),

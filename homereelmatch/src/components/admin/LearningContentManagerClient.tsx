@@ -667,7 +667,8 @@ export function LearningContentManagerClient() {
           <input
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
-            placeholder="フェーズ名"
+            placeholder="フェーズ名（6文字以内）"
+            maxLength={6}
             className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm placeholder-gray-500"
           />
           <button

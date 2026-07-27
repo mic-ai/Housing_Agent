@@ -42,7 +42,25 @@ export default async function TagPage({ params }: TagPageProps) {
       venue: true,
       videoHashtags: { include: { hashtag: true } },
       salespersonVideos: {
-        include: { salesperson: { include: { company: true } } },
+        // salesperson.include{company:true}はSalespersonの全フィールド(passwordハッシュ等)までSELECTするため明示的selectに narrow化
+        include: {
+          salesperson: {
+            select: {
+              id: true,
+              name: true,
+              profileImage: true,
+              toneQuote: true,
+              company: {
+                select: {
+                  id: true,
+                  name: true,
+                  modelHouseName: true,
+                  modelHouseAddress: true,
+                },
+              },
+            },
+          },
+        },
       },
     },
   });

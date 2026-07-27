@@ -17,8 +17,9 @@ export interface JourneyOverview {
   hasAnyProgress: boolean;
 }
 
-export const getJourneyOverview = cache(async (): Promise<JourneyOverview> => {
-  const phases = await prisma.learningPhase.findMany({
+// getJourneyOverview()と/journey/[phaseKey]/[articleOrder]ページが同一クエリを別々に発行していたため共有ヘルパーに切り出す
+export const getActivePhasesWithArticles = cache(async () => {
+  return prisma.learningPhase.findMany({
     where: { isActive: true },
     orderBy: { order: "asc" },
     select: {
@@ -31,6 +32,10 @@ export const getJourneyOverview = cache(async (): Promise<JourneyOverview> => {
       },
     },
   });
+});
+
+export const getJourneyOverview = cache(async (): Promise<JourneyOverview> => {
+  const phases = await getActivePhasesWithArticles();
 
   const viewerToken = await getViewerToken();
   let completedArticleIds = new Set<string>();

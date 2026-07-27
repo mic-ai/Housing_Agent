@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ContactForm } from "@/components/contact/ContactForm";
@@ -13,12 +14,43 @@ interface Props {
   searchParams: Promise<{ videoId?: string; method?: string }>;
 }
 
+// generateMetadataとページ本体が同じsalespersonIdで別々にfindUniqueしていたため共有フェッチャーに統合
+const getSalespersonProfile = cache((salespersonId: string) =>
+  prisma.salesperson.findUnique({
+    where: { id: salespersonId },
+    select: {
+      id: true,
+      name: true,
+      profileImage: true,
+      profileDetail: true,
+      toneQuote: true,
+      yearsExperience: true,
+      handoverCount: true,
+      introVideoUrl: true,
+      houseMaker: { select: { id: true, name: true, logoUrl: true } },
+      company: { select: { id: true, name: true } },
+      videoSegments: {
+        orderBy: { createdAt: "desc" },
+        select: {
+          video: {
+            select: {
+              id: true,
+              title: true,
+              thumbnailUrl: true,
+              platform: true,
+              url: true,
+              videoHashtags: { select: { hashtag: { select: { tagName: true } } } },
+            },
+          },
+        },
+      },
+    },
+  })
+);
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { salespersonId } = await params;
-  const sp = await prisma.salesperson.findUnique({
-    where: { id: salespersonId },
-    select: { name: true, toneQuote: true, profileImage: true },
-  });
+  const sp = await getSalespersonProfile(salespersonId);
   if (!sp) return { title: "営業マンが見つかりません" };
   return {
     title: `${sp.name} | HomeReelMatch`,
@@ -77,36 +109,7 @@ export default async function SalespersonProfilePage({ params, searchParams }: P
   const sp2 = await searchParams;
   const defaultMethod = sp2.method === "EMAIL" ? "EMAIL" : "LINE";
 
-  const sp = await prisma.salesperson.findUnique({
-    where: { id: salespersonId },
-    select: {
-      id: true,
-      name: true,
-      profileImage: true,
-      profileDetail: true,
-      toneQuote: true,
-      yearsExperience: true,
-      handoverCount: true,
-      introVideoUrl: true,
-      houseMaker: { select: { id: true, name: true, logoUrl: true } },
-      company: { select: { id: true, name: true } },
-      videoSegments: {
-        orderBy: { createdAt: "desc" },
-        select: {
-          video: {
-            select: {
-              id: true,
-              title: true,
-              thumbnailUrl: true,
-              platform: true,
-              url: true,
-              videoHashtags: { select: { hashtag: { select: { tagName: true } } } },
-            },
-          },
-        },
-      },
-    },
-  });
+  const sp = await getSalespersonProfile(salespersonId);
 
   if (!sp) notFound();
 

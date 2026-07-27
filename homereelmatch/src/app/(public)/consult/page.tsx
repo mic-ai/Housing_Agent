@@ -10,35 +10,35 @@ export default async function ConsultPage() {
     ? await prisma.viewerProfile.findUnique({ where: { viewerToken } })
     : null;
 
-  const viewedList = viewer
-    ? await prisma.viewerSalespersonView.findMany({
-        where: { viewerId: viewer.id },
-        orderBy: { lastViewedAt: "desc" },
-        select: {
-          id: true,
-          videoId: true,
-          viewCount: true,
-          salesperson: {
-            select: {
-              id: true,
-              name: true,
-              profileImage: true,
-              toneQuote: true,
-              company: { select: { id: true, name: true } },
+  // viewedListとsavedMakersは互いに依存しないためPromise.allで並列実行
+  const [viewedList, savedMakers] = viewer
+    ? await Promise.all([
+        prisma.viewerSalespersonView.findMany({
+          where: { viewerId: viewer.id },
+          orderBy: { lastViewedAt: "desc" },
+          select: {
+            id: true,
+            videoId: true,
+            viewCount: true,
+            salesperson: {
+              select: {
+                id: true,
+                name: true,
+                profileImage: true,
+                toneQuote: true,
+                company: { select: { id: true, name: true } },
+              },
             },
           },
-        },
-      })
-    : [];
+        }),
+        prisma.viewerSavedMaker.findMany({
+          where: { viewerId: viewer.id },
+          select: { houseMakerId: true },
+        }),
+      ])
+    : [[], []];
 
   const viewedSalespersonIds = viewedList.map((v) => v.salesperson.id);
-
-  const savedMakers = viewer
-    ? await prisma.viewerSavedMaker.findMany({
-        where: { viewerId: viewer.id },
-        select: { houseMakerId: true },
-      })
-    : [];
   const savedMakerIds = savedMakers.map((m) => m.houseMakerId);
 
   const candidates =

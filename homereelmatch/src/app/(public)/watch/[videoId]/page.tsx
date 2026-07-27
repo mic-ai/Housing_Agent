@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { WatchClientShell } from "@/components/video/WatchClientShell";
@@ -10,12 +11,46 @@ interface WatchPageProps {
   params: Promise<{ videoId: string }>;
 }
 
+// generateMetadataとページ本体が同じvideoIdで別々にfindUniqueしていたため共有フェッチャーに統合
+const getWatchVideo = cache((videoId: string) =>
+  prisma.video.findUnique({
+    where: { id: videoId },
+    include: {
+      videoHashtags: { include: { hashtag: true } },
+      salespersonVideos: {
+        include: {
+          salesperson: {
+            select: {
+              id: true,
+              name: true,
+              profileImage: true,
+              toneQuote: true,
+              company: {
+                select: {
+                  id: true,
+                  name: true,
+                  modelHouseName: true,
+                  modelHouseAddress: true,
+                },
+              },
+              faceVideos: {
+                select: { rollType: true, publicUrl: true, durationSec: true },
+                orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+              },
+            },
+          },
+        },
+        // isPrimary: true を優先し、なければ最古の接続にフォールバック
+        orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
+        take: 1,
+      },
+    },
+  })
+);
+
 export async function generateMetadata({ params }: WatchPageProps): Promise<Metadata> {
   const { videoId } = await params;
-  const video = await prisma.video.findUnique({
-    where: { id: videoId },
-    include: { videoHashtags: { include: { hashtag: true } } },
-  });
+  const video = await getWatchVideo(videoId);
   if (!video) return { title: "動画が見つかりません" };
   const ytId = video.platform === "YOUTUBE" ? extractYouTubeId(video.url) : null;
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://homereelmatch.vercel.app";
@@ -63,36 +98,7 @@ export async function generateMetadata({ params }: WatchPageProps): Promise<Meta
 export default async function WatchPage({ params }: WatchPageProps) {
   const { videoId } = await params;
 
-  const video = await prisma.video.findUnique({
-    where: { id: videoId },
-    include: {
-      videoHashtags: { include: { hashtag: true } },
-      salespersonVideos: {
-        include: {
-          salesperson: {
-            select: {
-              id: true,
-              name: true,
-              profileImage: true,
-              toneQuote: true,
-              company: {
-                select: {
-                  id: true,
-                  name: true,
-                  modelHouseName: true,
-                  modelHouseAddress: true,
-                },
-              },
-              faceVideos: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] },
-            },
-          },
-        },
-        // isPrimary: true を優先し、なければ最古の接続にフォールバック
-        orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
-        take: 1,
-      },
-    },
-  });
+  const video = await getWatchVideo(videoId);
 
   if (!video) notFound();
 

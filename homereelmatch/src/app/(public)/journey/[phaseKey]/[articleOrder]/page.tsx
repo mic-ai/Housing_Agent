@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ArticleViewer } from "@/components/journey/ArticleViewer";
+import { getActivePhasesWithArticles } from "@/lib/journey";
 
 export default async function JourneyArticlePage({
   params,
@@ -11,19 +12,9 @@ export default async function JourneyArticlePage({
   const order = Number(articleOrder);
   if (!Number.isInteger(order)) notFound();
 
-  const phases = await prisma.learningPhase.findMany({
-    where: { isActive: true },
-    orderBy: { order: "asc" },
-    select: {
-      key: true,
-      title: true,
-      articles: {
-        where: { status: "PUBLISHED" },
-        orderBy: { order: "asc" },
-        select: { id: true, order: true },
-      },
-    },
-  });
+  // layout.tsx の getJourneyOverview() がリクエスト内で既に同じクエリを実行済みのため、
+  // React cache() でラップされた共有ヘルパーを使い重複DBラウンドトリップを避ける。
+  const phases = await getActivePhasesWithArticles();
 
   const phaseIndex = phases.findIndex((p) => p.key === phaseKey);
   if (phaseIndex === -1) notFound();

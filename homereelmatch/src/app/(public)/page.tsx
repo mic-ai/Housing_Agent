@@ -7,6 +7,7 @@ import { HashtagCloud } from "@/components/search/HashtagCloud";
 import { FilterBar } from "@/components/search/FilterBar";
 import { VideoFeedClient } from "@/components/video/VideoFeedClient";
 import { FirstRunJourneyCard } from "@/components/journey/FirstRunJourneyCard";
+import { SourceViewTracker } from "@/components/tracking/SourceViewTracker";
 import { mapVideoToDTO } from "@/lib/utils";
 import { getJourneyOverview } from "@/lib/journey";
 import { JOURNEY_INTRO_DISMISSED_COOKIE } from "@/lib/viewer-cookie";
@@ -28,6 +29,7 @@ interface HomePageProps {
     houseMakerId?: string;
     venueId?: string;
     salespersonId?: string;
+    source?: string;
   }>;
 }
 
@@ -123,6 +125,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-4">
+        <SourceViewTracker source={params.source} />
         {showFirstRunCard && <FirstRunJourneyCard />}
 
         {!params.q && (

@@ -36,6 +36,7 @@ const SLOT = {
   salesperson: {
     id: "sp_001",
     name: "山田花子",
+    introVideoUrl: null as string | null,
     company: {
       id: "co_001",
       name: "テスト住宅",
@@ -148,5 +149,33 @@ describe("POST /api/booking/confirm", () => {
     );
     const res = await POST(makeReq(VALID_BODY));
     expect(res.status).toBe(201);
+  });
+
+  it("introVideoUrlがある場合はintroVideoLinkUrlを通知に含める", async () => {
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://homereelmatch.vercel.app");
+    vi.mocked(prisma.availableSlot.findUnique).mockResolvedValue(
+      { ...SLOT, salesperson: { ...SLOT.salesperson, introVideoUrl: "https://example.com/intro.mp4" } } as never
+    );
+    const res = await POST(makeReq(VALID_BODY));
+    expect(res.status).toBe(201);
+    await vi.waitFor(() =>
+      expect(vi.mocked(sendBookingConfirmationToUser)).toHaveBeenCalledOnce()
+    );
+    expect(vi.mocked(sendBookingConfirmationToUser)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        introVideoLinkUrl: "https://homereelmatch.vercel.app/salesperson/sp_001?source=pre_booking",
+      })
+    );
+  });
+
+  it("introVideoUrlが無い場合はintroVideoLinkUrlをundefinedにする", async () => {
+    const res = await POST(makeReq(VALID_BODY));
+    expect(res.status).toBe(201);
+    await vi.waitFor(() =>
+      expect(vi.mocked(sendBookingConfirmationToUser)).toHaveBeenCalledOnce()
+    );
+    expect(vi.mocked(sendBookingConfirmationToUser)).toHaveBeenCalledWith(
+      expect.objectContaining({ introVideoLinkUrl: undefined })
+    );
   });
 });

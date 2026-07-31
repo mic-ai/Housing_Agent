@@ -56,6 +56,11 @@ export async function sendInquiryNotificationToSalesperson(params: {
   });
 }
 
+function introVideoLinkHtml(introVideoLinkUrl?: string): string {
+  if (!introVideoLinkUrl) return "";
+  return `<p><a href="${introVideoLinkUrl}">担当の自己紹介動画を見る</a></p>`;
+}
+
 export async function sendBookingConfirmationToUser(params: {
   email: string;
   salespersonName: string;
@@ -63,6 +68,7 @@ export async function sendBookingConfirmationToUser(params: {
   scheduledAt: string;
   modelHouseName: string;
   modelHouseAddress: string;
+  introVideoLinkUrl?: string;
 }): Promise<void> {
   await sendEmail({
     to: params.email,
@@ -72,6 +78,29 @@ export async function sendBookingConfirmationToUser(params: {
       <p>担当: <strong>${escapeHtml(params.salespersonName)}</strong>（${escapeHtml(params.companyName)}）</p>
       <p>日時: ${escapeHtml(params.scheduledAt)}</p>
       <p>場所: ${escapeHtml(params.modelHouseName)}<br>${escapeHtml(params.modelHouseAddress)}</p>
+      ${introVideoLinkHtml(params.introVideoLinkUrl)}
+    `,
+  });
+}
+
+export async function sendBookingReminderToUser(params: {
+  email: string;
+  salespersonName: string;
+  companyName: string;
+  scheduledAt: string;
+  modelHouseName: string;
+  modelHouseAddress: string;
+  introVideoLinkUrl?: string;
+}): Promise<void> {
+  await sendEmail({
+    to: params.email,
+    subject: "【HomeReelMatch】本日のご予約について",
+    html: `
+      <p>本日はご予約ありがとうございます。</p>
+      <p>担当: <strong>${escapeHtml(params.salespersonName)}</strong>（${escapeHtml(params.companyName)}）</p>
+      <p>日時: ${escapeHtml(params.scheduledAt)}</p>
+      <p>場所: ${escapeHtml(params.modelHouseName)}<br>${escapeHtml(params.modelHouseAddress)}</p>
+      ${introVideoLinkHtml(params.introVideoLinkUrl)}
     `,
   });
 }

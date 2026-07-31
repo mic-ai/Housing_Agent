@@ -36,6 +36,10 @@ export async function notifySalespersonNewInquiry(params: {
   await pushMessage(params.lineId, text);
 }
 
+function introVideoLinkText(introVideoLinkUrl?: string): string {
+  return introVideoLinkUrl ? `\n担当の自己紹介動画: ${introVideoLinkUrl}` : "";
+}
+
 export async function notifyUserBookingConfirmed(params: {
   lineId: string;
   salespersonName: string;
@@ -43,12 +47,32 @@ export async function notifyUserBookingConfirmed(params: {
   scheduledAt: string;
   modelHouseName: string;
   modelHouseAddress: string;
+  introVideoLinkUrl?: string;
 }): Promise<void> {
   const text =
     `ご予約が確定しました！\n` +
     `担当: ${params.salespersonName}（${params.companyName}）\n` +
     `日時: ${params.scheduledAt}\n` +
-    `場所: ${params.modelHouseName} ${params.modelHouseAddress}`;
+    `場所: ${params.modelHouseName} ${params.modelHouseAddress}` +
+    introVideoLinkText(params.introVideoLinkUrl);
+  await pushMessage(params.lineId, text);
+}
+
+export async function notifyUserBookingReminder(params: {
+  lineId: string;
+  salespersonName: string;
+  companyName: string;
+  scheduledAt: string;
+  modelHouseName: string;
+  modelHouseAddress: string;
+  introVideoLinkUrl?: string;
+}): Promise<void> {
+  const text =
+    `本日はご予約ありがとうございます。\n` +
+    `担当: ${params.salespersonName}（${params.companyName}）\n` +
+    `日時: ${params.scheduledAt}\n` +
+    `場所: ${params.modelHouseName} ${params.modelHouseAddress}` +
+    introVideoLinkText(params.introVideoLinkUrl);
   await pushMessage(params.lineId, text);
 }
 

@@ -33,6 +33,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "スロットが利用できません" }, { status: 409 });
     }
 
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://homereelmatch.vercel.app";
+    const introVideoLinkUrl = slot.salesperson.introVideoUrl
+      ? `${appUrl}/salesperson/${slot.salespersonId}?source=pre_booking`
+      : undefined;
+
     const appointment = await prisma.$transaction(async (tx) => {
       await tx.availableSlot.update({
         where: { id: data.slotId },
@@ -60,6 +65,7 @@ export async function POST(request: NextRequest) {
       scheduledAt: formatDateTime(slot.startAt),
       modelHouseName: slot.salesperson.company?.modelHouseName ?? "",
       modelHouseAddress: slot.salesperson.company?.modelHouseAddress ?? "",
+      introVideoLinkUrl,
     };
 
     if (contactRequest.user.lineId) {

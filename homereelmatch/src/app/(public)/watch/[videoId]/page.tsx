@@ -3,12 +3,14 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { WatchClientShell } from "@/components/video/WatchClientShell";
 import { WatchOverlay } from "@/components/video/WatchOverlay";
+import { SourceViewTracker } from "@/components/tracking/SourceViewTracker";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { extractYouTubeId, safeJsonLd } from "@/lib/utils";
 import type { Metadata } from "next";
 
 interface WatchPageProps {
   params: Promise<{ videoId: string }>;
+  searchParams: Promise<{ source?: string }>;
 }
 
 // generateMetadataとページ本体が同じvideoIdで別々にfindUniqueしていたため共有フェッチャーに統合
@@ -95,8 +97,9 @@ export async function generateMetadata({ params }: WatchPageProps): Promise<Meta
   };
 }
 
-export default async function WatchPage({ params }: WatchPageProps) {
+export default async function WatchPage({ params, searchParams }: WatchPageProps) {
   const { videoId } = await params;
+  const { source } = await searchParams;
 
   const video = await getWatchVideo(videoId);
 
@@ -197,6 +200,7 @@ export default async function WatchPage({ params }: WatchPageProps) {
               videoUrl={canonicalUrl}
               salespersonId={primarySalesperson?.id}
             />
+            <SourceViewTracker source={source} videoId={video.id} />
             <WatchClientShell
               platform={video.platform}
               url={video.url}

@@ -54,7 +54,10 @@ export async function GET(request: NextRequest) {
       };
     }
     if (query.venueId) where.venueId = query.venueId;
-    if (query.houseMakerId) where.houseMakerId = query.houseMakerId;
+    if (query.houseMakerId) {
+      const houseMakerIds = query.houseMakerId.split(",").filter(Boolean);
+      where.houseMakerId = houseMakerIds.length > 1 ? { in: houseMakerIds } : houseMakerIds[0];
+    }
     if (query.salespersonId) {
       where.salespersonVideos = { some: { salespersonId: query.salespersonId } };
     }

@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime } from "@/lib/utils";
+import { IntroVideoPlayer } from "@/components/video/IntroVideoPlayer";
+import { SourceViewTracker } from "@/components/tracking/SourceViewTracker";
 import type { Metadata } from "next";
 
 interface CompletePageProps {
@@ -17,8 +19,17 @@ export default async function BookingCompletePage({ params }: CompletePageProps)
 
   const contactRequest = await prisma.contactRequest.findUnique({
     where: { id: contactRequestId },
-    include: {
-      salesperson: { include: { company: true } },
+    select: {
+      salesperson: {
+        select: {
+          id: true,
+          name: true,
+          introVideoUrl: true,
+          company: {
+            select: { id: true, name: true, modelHouseName: true, modelHouseAddress: true },
+          },
+        },
+      },
       appointment: true,
     },
   });
@@ -77,6 +88,15 @@ export default async function BookingCompletePage({ params }: CompletePageProps)
             </>
           )}
         </div>
+
+        {/* 担当の自己紹介動画 */}
+        {salesperson.introVideoUrl && (
+          <div className="mb-8">
+            <SourceViewTracker source="pre_booking" />
+            <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">担当の自己紹介動画</p>
+            <IntroVideoPlayer url={salesperson.introVideoUrl} />
+          </div>
+        )}
 
         {/* ナビゲーション */}
         <div className="space-y-3">

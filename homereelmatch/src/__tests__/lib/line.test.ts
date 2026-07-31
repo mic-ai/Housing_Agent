@@ -5,8 +5,12 @@ const LINE_API = "https://api.line.me/v2/bot/message/push";
 const CHANNEL_SECRET = "test_secret_abc";
 const ACCESS_TOKEN = "test_access_token";
 
-const { notifySalespersonNewInquiry, notifyUserBookingConfirmed, validateLineSignature } =
-  await import("@/lib/line");
+const {
+  notifySalespersonNewInquiry,
+  notifyUserBookingConfirmed,
+  notifyUserBookingReminder,
+  validateLineSignature,
+} = await import("@/lib/line");
 
 describe("validateLineSignature", () => {
   beforeEach(() => vi.stubEnv("LINE_CHANNEL_SECRET", CHANNEL_SECRET));
@@ -119,5 +123,56 @@ describe("notifyUserBookingConfirmed", () => {
     expect(body.messages[0].text).toContain("山田花子");
     expect(body.messages[0].text).toContain("テスト住宅");
     expect(body.messages[0].text).toContain("2026年7月1日 14:00");
+  });
+
+  it("introVideoLinkUrlが渡された場合はメッセージ本文に含める", async () => {
+    await notifyUserBookingConfirmed({
+      lineId: "U99999",
+      salespersonName: "山田花子",
+      companyName: "テスト住宅",
+      scheduledAt: "2026年7月1日 14:00",
+      modelHouseName: "モデルハウスA",
+      modelHouseAddress: "東京都渋谷区",
+      introVideoLinkUrl: "https://homereelmatch.vercel.app/salesperson/sp_001?source=pre_booking",
+    });
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.messages[0].text).toContain(
+      "https://homereelmatch.vercel.app/salesperson/sp_001?source=pre_booking"
+    );
+  });
+});
+
+describe("notifyUserBookingReminder", () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vi.stubEnv("LINE_CHANNEL_ACCESS_TOKEN", ACCESS_TOKEN);
+    fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal("fetch", fetchMock);
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it("本日の予約リマインドメッセージを送信する", async () => {
+    await notifyUserBookingReminder({
+      lineId: "U88888",
+      salespersonName: "山田花子",
+      companyName: "テスト住宅",
+      scheduledAt: "2026年7月1日 14:00",
+      modelHouseName: "モデルハウスA",
+      modelHouseAddress: "東京都渋谷区",
+      introVideoLinkUrl: "https://homereelmatch.vercel.app/salesperson/sp_001?source=pre_reminder",
+    });
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.to).toBe("U88888");
+    expect(body.messages[0].text).toContain("本日");
+    expect(body.messages[0].text).toContain("山田花子");
+    expect(body.messages[0].text).toContain(
+      "https://homereelmatch.vercel.app/salesperson/sp_001?source=pre_reminder"
+    );
   });
 });

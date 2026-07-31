@@ -10,8 +10,11 @@ vi.mock("nodemailer", () => ({
   },
 }));
 
-const { sendInquiryNotificationToSalesperson, sendBookingConfirmationToUser } =
-  await import("@/lib/email");
+const {
+  sendInquiryNotificationToSalesperson,
+  sendBookingConfirmationToUser,
+  sendBookingReminderToUser,
+} = await import("@/lib/email");
 
 import nodemailer from "nodemailer";
 
@@ -99,5 +102,67 @@ describe("sendBookingConfirmationToUser", () => {
     expect(mailArgs.html).toContain("テスト住宅");
     expect(mailArgs.html).toContain("2026年7月1日 14:00");
     expect(mailArgs.html).toContain("東京都渋谷区1-1");
+  });
+
+  it("introVideoLinkUrlが渡された場合はリンクを本文に含める", async () => {
+    await sendBookingConfirmationToUser({
+      email: "user@example.com",
+      salespersonName: "山田花子",
+      companyName: "テスト住宅",
+      scheduledAt: "2026年7月1日 14:00",
+      modelHouseName: "モデルハウスA",
+      modelHouseAddress: "東京都渋谷区1-1",
+      introVideoLinkUrl: "https://homereelmatch.vercel.app/salesperson/sp_001?source=pre_booking",
+    });
+
+    const mailArgs = sendMailMock.mock.calls[0][0];
+    expect(mailArgs.html).toContain(
+      "https://homereelmatch.vercel.app/salesperson/sp_001?source=pre_booking"
+    );
+  });
+
+  it("introVideoLinkUrlが無い場合はリンクを含めない", async () => {
+    await sendBookingConfirmationToUser({
+      email: "user@example.com",
+      salespersonName: "山田花子",
+      companyName: "テスト住宅",
+      scheduledAt: "2026年7月1日 14:00",
+      modelHouseName: "モデルハウスA",
+      modelHouseAddress: "東京都渋谷区1-1",
+    });
+
+    const mailArgs = sendMailMock.mock.calls[0][0];
+    expect(mailArgs.html).not.toContain("salesperson");
+  });
+});
+
+describe("sendBookingReminderToUser", () => {
+  beforeEach(() => {
+    vi.stubEnv("GMAIL_USER", GMAIL_USER);
+    vi.stubEnv("GMAIL_APP_PASSWORD", GMAIL_PASS);
+    sendMailMock.mockClear();
+  });
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("本日の予約リマインドメールを送信する", async () => {
+    await sendBookingReminderToUser({
+      email: "user@example.com",
+      salespersonName: "山田花子",
+      companyName: "テスト住宅",
+      scheduledAt: "2026年7月1日 14:00",
+      modelHouseName: "モデルハウスA",
+      modelHouseAddress: "東京都渋谷区1-1",
+      introVideoLinkUrl: "https://homereelmatch.vercel.app/salesperson/sp_001?source=pre_reminder",
+    });
+
+    expect(sendMailMock).toHaveBeenCalledOnce();
+    const mailArgs = sendMailMock.mock.calls[0][0];
+    expect(mailArgs.to).toBe("user@example.com");
+    expect(mailArgs.subject).toContain("本日");
+    expect(mailArgs.html).toContain("山田花子");
+    expect(mailArgs.html).toContain("2026年7月1日 14:00");
+    expect(mailArgs.html).toContain(
+      "https://homereelmatch.vercel.app/salesperson/sp_001?source=pre_reminder"
+    );
   });
 });

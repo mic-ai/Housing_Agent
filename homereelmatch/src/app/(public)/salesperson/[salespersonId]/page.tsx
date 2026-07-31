@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ContactForm } from "@/components/contact/ContactForm";
 import { IntroVideoPlayer } from "@/components/video/IntroVideoPlayer";
+import { SourceViewTracker } from "@/components/tracking/SourceViewTracker";
 import { extractYouTubeId, getYouTubeThumbnail } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
@@ -11,7 +12,7 @@ import type { Platform } from "@/types";
 
 interface Props {
   params: Promise<{ salespersonId: string }>;
-  searchParams: Promise<{ videoId?: string; method?: string }>;
+  searchParams: Promise<{ videoId?: string; method?: string; source?: string }>;
 }
 
 // generateMetadataとページ本体が同じsalespersonIdで別々にfindUniqueしていたため共有フェッチャーに統合
@@ -122,6 +123,7 @@ export default async function SalespersonProfilePage({ params, searchParams }: P
 
   return (
     <div className="min-h-screen bg-amber-50 text-stone-800">
+      <SourceViewTracker source={sp2.source} />
       <header className="sticky top-0 z-10 bg-white border-b border-amber-100 shadow-sm px-4 py-3">
         <div className="max-w-lg mx-auto flex items-center gap-3">
           <Link

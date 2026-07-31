@@ -82,26 +82,28 @@ model SalespersonFaceVideo {
 }
 
 model HouseMaker {
-  id             String                 @id @default(cuid())
-  name           String                 @unique
-  logoUrl        String?
-  isActive       Boolean                @default(true)
-  videos         Video[]
-  salespersons   Salesperson[]
-  comparisonRows ArticleComparisonRow[]
-  savedByViewers ViewerSavedMaker[]
-  createdAt      DateTime               @default(now())
+  id               String                       @id @default(cuid())
+  name             String                       @unique
+  logoUrl          String?
+  isActive         Boolean                      @default(true)
+  videos           Video[]
+  salespersons     Salesperson[]
+  comparisonRows   ArticleComparisonRow[]
+  savedByViewers   ViewerSavedMaker[]
+  visitorInterests VisitorHouseMakerInterest[]
+  createdAt        DateTime                     @default(now())
 
   @@map("house_makers")
 }
 
 model Venue {
-  id        String   @id @default(cuid())
-  name      String   @unique
+  id        String    @id @default(cuid())
+  name      String    @unique
   address   String?
-  isActive  Boolean  @default(true)
+  isActive  Boolean   @default(true)
   videos    Video[]
-  createdAt DateTime @default(now())
+  visitors  Visitor[]
+  createdAt DateTime  @default(now())
 
   @@map("venues")
 }
@@ -123,6 +125,7 @@ model Video {
   salespersonVideos SalespersonVideo[]
   videoHashtags     VideoHashtag[]
   viewerViews       ViewerSalespersonView[]
+  visitorViews      VisitorVideoView[]
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
 
@@ -155,10 +158,11 @@ model SalespersonVideo {
 }
 
 model Hashtag {
-  id            String         @id @default(cuid())
-  tagName       String         @unique
-  usageCount    Int            @default(0)
-  videoHashtags VideoHashtag[]
+  id               String                     @id @default(cuid())
+  tagName          String                     @unique
+  usageCount       Int                        @default(0)
+  videoHashtags    VideoHashtag[]
+  visitorInterests VisitorHashtagInterest[]
 
   @@map("hashtags")
 }
@@ -185,6 +189,7 @@ model ContactRequest {
   questionnaireJson Json?
   status            ContactStatus @default(PENDING)
   appointment       Appointment?
+  visitorContact    VisitorContact?
   createdAt         DateTime      @default(now())
 
   @@map("contact_requests")
@@ -211,6 +216,7 @@ model Appointment {
   scheduledAt      DateTime
   modelHouseId     String?
   status           AppointmentStatus @default(CONFIRMED)
+  reminderSentAt   DateTime?
   createdAt        DateTime          @default(now())
 
   @@map("appointments")
@@ -305,6 +311,8 @@ model ViewerProfile {
   articleProgress  ViewerArticleProgress[]
   salespersonViews ViewerSalespersonView[]
   savedMakers      ViewerSavedMaker[]
+  visitors         Visitor[]
+  visitorVideoViews VisitorVideoView[]
 
   @@map("viewer_profiles")
 }
@@ -346,4 +354,84 @@ model ViewerSavedMaker {
 
   @@unique([viewerId, houseMakerId])
   @@map("viewer_saved_makers")
+}
+
+// --- 展示場 来場者トラッキング（Step1） ---
+
+model Visitor {
+  id                 String                      @id @default(cuid())
+  visitDate          DateTime                    @default(now())
+  venueId            String?
+  venue              Venue?                      @relation(fields: [venueId], references: [id])
+  consentGiven       Boolean                     @default(false)
+  consentedAt        DateTime?
+  lineOptIn          Boolean                     @default(false)
+  lineOptInAt        DateTime?
+  viewerId           String?
+  viewer             ViewerProfile?              @relation(fields: [viewerId], references: [id])
+  interestedMakers   VisitorHouseMakerInterest[]
+  interestedHashtags VisitorHashtagInterest[]
+  videoViews         VisitorVideoView[]
+  contacts           VisitorContact[]
+  createdAt          DateTime                    @default(now())
+  updatedAt          DateTime                    @updatedAt
+
+  @@index([viewerId])
+  @@index([visitDate])
+  @@map("visitors")
+}
+
+model VisitorHouseMakerInterest {
+  id           String     @id @default(cuid())
+  visitorId    String
+  visitor      Visitor    @relation(fields: [visitorId], references: [id], onDelete: Cascade)
+  houseMakerId String
+  houseMaker   HouseMaker @relation(fields: [houseMakerId], references: [id])
+  createdAt    DateTime   @default(now())
+
+  @@unique([visitorId, houseMakerId])
+  @@map("visitor_house_maker_interests")
+}
+
+model VisitorHashtagInterest {
+  id        String   @id @default(cuid())
+  visitorId String
+  visitor   Visitor  @relation(fields: [visitorId], references: [id], onDelete: Cascade)
+  hashtagId String
+  hashtag   Hashtag  @relation(fields: [hashtagId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([visitorId, hashtagId])
+  @@map("visitor_hashtag_interests")
+}
+
+model VisitorVideoView {
+  id        String        @id @default(cuid())
+  visitorId String?
+  visitor   Visitor?      @relation(fields: [visitorId], references: [id], onDelete: Cascade)
+  viewerId  String
+  viewer    ViewerProfile @relation(fields: [viewerId], references: [id], onDelete: Cascade)
+  videoId   String?
+  video     Video?        @relation(fields: [videoId], references: [id])
+  source    String
+  viewedAt  DateTime      @default(now())
+
+  @@index([visitorId])
+  @@index([viewerId])
+  @@index([source])
+  @@map("visitor_video_views")
+}
+
+model VisitorContact {
+  id               String          @id @default(cuid())
+  visitorId        String
+  visitor          Visitor         @relation(fields: [visitorId], references: [id], onDelete: Cascade)
+  converted        Boolean         @default(false)
+  contactChannel   ContactMethod?
+  contactRequestId String?         @unique
+  contactRequest   ContactRequest? @relation(fields: [contactRequestId], references: [id])
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@map("visitor_contacts")
 }

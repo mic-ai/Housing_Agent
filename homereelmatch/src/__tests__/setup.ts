@@ -39,6 +39,9 @@ vi.mock("@/lib/prisma", () => ({
         salespersonVideo: { deleteMany: vi.fn() },
         user: { create: vi.fn() },
         contactRequest: { create: vi.fn() },
+        visitor: { create: vi.fn() },
+        visitorHouseMakerInterest: { createMany: vi.fn() },
+        visitorHashtagInterest: { createMany: vi.fn() },
       };
       return (arg as (tx: unknown) => unknown)(tx);
     }),
@@ -102,6 +105,8 @@ vi.mock("@/lib/prisma", () => ({
     },
     appointment: {
       create: vi.fn(),
+      findMany: vi.fn(),
+      update: vi.fn(),
     },
     learningPhase: {
       findMany: vi.fn(),
@@ -138,6 +143,24 @@ vi.mock("@/lib/prisma", () => ({
       upsert: vi.fn(),
       findUnique: vi.fn(),
       delete: vi.fn(),
+    },
+    visitor: {
+      create: vi.fn(),
+      findUnique: vi.fn(),
+      update: vi.fn(),
+    },
+    visitorHouseMakerInterest: {
+      createMany: vi.fn(),
+    },
+    visitorHashtagInterest: {
+      createMany: vi.fn(),
+    },
+    visitorVideoView: {
+      create: vi.fn(),
+    },
+    visitorContact: {
+      create: vi.fn(),
+      update: vi.fn(),
     },
   },
 }));

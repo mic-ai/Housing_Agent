@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -7,6 +8,7 @@ import { sendInquiryNotificationToSalesperson } from "@/lib/email";
 import { requireSalesperson } from "@/lib/admin";
 import { auth } from "@/lib/auth";
 import { encryptJson, decryptJson } from "@/lib/encrypt";
+import { VISITOR_ID_COOKIE } from "@/lib/viewer-cookie";
 
 const ListQuerySchema = z.object({
   salespersonId: z.string().min(1),
@@ -125,6 +127,20 @@ export async function POST(request: NextRequest) {
 
       return contactRequest;
     });
+
+    const visitorId = (await cookies()).get(VISITOR_ID_COOKIE)?.value;
+    if (visitorId) {
+      prisma.visitorContact
+        .create({
+          data: {
+            visitorId,
+            contactRequestId: result.id,
+            contactChannel: data.contactMethod,
+            converted: true,
+          },
+        })
+        .catch(console.error);
+    }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
     const dashboardUrl = `${appUrl}/dashboard/inquiries/${result.id}`;

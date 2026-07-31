@@ -107,6 +107,7 @@ vi.mock("@/lib/prisma", () => ({
       create: vi.fn(),
       findMany: vi.fn(),
       update: vi.fn(),
+      count: vi.fn(),
     },
     learningPhase: {
       findMany: vi.fn(),
@@ -148,19 +149,23 @@ vi.mock("@/lib/prisma", () => ({
       create: vi.fn(),
       findUnique: vi.fn(),
       update: vi.fn(),
+      findMany: vi.fn(),
     },
     visitorHouseMakerInterest: {
       createMany: vi.fn(),
+      findMany: vi.fn(),
     },
     visitorHashtagInterest: {
       createMany: vi.fn(),
     },
     visitorVideoView: {
       create: vi.fn(),
+      findMany: vi.fn(),
     },
     visitorContact: {
       create: vi.fn(),
       update: vi.fn(),
+      findMany: vi.fn(),
     },
   },
 }));

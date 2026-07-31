@@ -433,5 +433,6 @@ model VisitorContact {
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
+  @@index([visitorId])
   @@map("visitor_contacts")
 }

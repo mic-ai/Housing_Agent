@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { NextRequest } from "next/server";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 
@@ -265,5 +266,59 @@ describe("POST /api/contact — 通知ディスパッチ", () => {
     vi.mocked(prisma.salesperson.findUnique).mockResolvedValue(null);
     const res = await POST(makePostReq(VALID_EMAIL_BODY));
     expect(res.status).toBe(404);
+  });
+});
+
+function mockVisitorIdCookie(value: string | undefined) {
+  vi.mocked(cookies).mockReturnValue({
+    get: vi.fn((name: string) => (name === "hrm_visitor_id" && value ? { value } : undefined)),
+    set: vi.fn(),
+    delete: vi.fn(),
+  } as never);
+}
+
+describe("POST /api/contact — VisitorContact連携", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(prisma.salesperson.findUnique).mockResolvedValue(BASE_SALESPERSON as never);
+    vi.mocked(prisma.video.findUnique).mockResolvedValue({ title: "注文住宅の動画" } as never);
+    vi.mocked(prisma.$transaction).mockImplementation(async (cb: unknown) => {
+      const tx = {
+        user: { create: vi.fn().mockResolvedValue(CREATED_USER) },
+        contactRequest: { create: vi.fn().mockResolvedValue(CREATED_CR) },
+      };
+      return (cb as (tx: unknown) => unknown)(tx);
+    });
+    vi.mocked(prisma.visitorContact.create).mockResolvedValue({} as never);
+  });
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("hrm_visitor_id Cookieがある場合はVisitorContactを作成する", async () => {
+    mockVisitorIdCookie("visitor_1");
+    const res = await POST(makePostReq(VALID_EMAIL_BODY));
+    expect(res.status).toBe(201);
+    await vi.waitFor(() => expect(prisma.visitorContact.create).toHaveBeenCalledOnce());
+    expect(prisma.visitorContact.create).toHaveBeenCalledWith({
+      data: {
+        visitorId: "visitor_1",
+        contactRequestId: "cr_new",
+        contactChannel: "EMAIL",
+        converted: true,
+      },
+    });
+  });
+
+  it("hrm_visitor_id Cookieが無い場合はVisitorContactを作成しない", async () => {
+    mockVisitorIdCookie(undefined);
+    const res = await POST(makePostReq(VALID_EMAIL_BODY));
+    expect(res.status).toBe(201);
+    expect(prisma.visitorContact.create).not.toHaveBeenCalled();
+  });
+
+  it("VisitorContact作成失敗は201レスポンスに影響しない", async () => {
+    mockVisitorIdCookie("visitor_1");
+    vi.mocked(prisma.visitorContact.create).mockRejectedValueOnce(new Error("invalid visitorId"));
+    const res = await POST(makePostReq(VALID_EMAIL_BODY));
+    expect(res.status).toBe(201);
   });
 });

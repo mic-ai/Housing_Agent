@@ -166,3 +166,5 @@ export interface ViewerSavedMakerDTO {
   viewerId: string;
   houseMakerId: string;
 }
+
+export type { VisitorAnalyticsData as VisitorAnalyticsDTO, AnalyticsPeriod } from "@/lib/analytics";

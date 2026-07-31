@@ -531,6 +531,9 @@ npx vercel --prod
 | 学習フェーズ名を新規追加時6文字以内に制限 | 完了（2026-07-27、既存フェーズタイトルの編集UIは無いため既存データは対象外） |
 | 学習ジャーニーページ（`/journey`配下）のダークモード視認性バグ修正 | 完了（2026-07-27） |
 | 公開ページのローディング画面追加・DB往復回数削減（パフォーマンス改善） | 完了（2026-07-27、サブエージェント調査） |
+| 中立的AIエージェント構想 Step1（QRコード動線・受付タブレット連携・来場者トラッキング） | 完了（2026-07-31、`/tdd`でTDD実装・本番DBマイグレーション適用済み） |
+| 中立的AIエージェント構想 Step2（来場前デジタル導線：予約完了/確認メール/リマインドに自己紹介動画リンク） | 完了（2026-07-31、Vercel Cron新設・本番マイグレーション適用済み） |
+| 中立的AIエージェント構想 Step3（来場者データ集計ダッシュボード） | 完了（2026-07-31、本番マイグレーション未適用・要ユーザー実施） |
 
 ### 直近の主要変更（2026-06-23）
 
@@ -934,4 +937,54 @@ npx vercel --prod
 
 - **バックグラウンドサブエージェントがAPI接続エラーで処理途中に停止した場合、`SendMessage`で同じagentIdに再開を指示すれば worktree 上の途中状態から続行できる**。今回は`/consult`ページの編集途中で停止したが、再開後に完了まで到達した
 - **エージェントの成果はagentId名義のgit worktreeに残るが、worktree側の`node_modules`が壊れている（`@types`欠落・`.bin`シンボリックリンク未生成）ことがある**。この場合はworktreeでtsc/vitestを直接流そうとせず、`git diff`をパッチとして書き出し、動作確認済みのメイン作業ツリーに`git apply`してから検証する方が確実
+
+### 直近の主要変更（2026-07-31）
+
+`neutral_housing_agent_requirements.md`（中立的住宅購入AIエージェント構想。層1＝新規AIエージェント本体、層2＝HomeReelMatch拡張のStep1〜4）が新たに追加され、ドキュメントの推奨実装順（Step1→2→3→4→層1）に従い、`everything-claude-code`プラグインの`/tdd`コマンドを導入してTDD（RED→GREEN、Explore/Planサブエージェントによる事前調査→AskUserQuestionでのスコープ確認→実装）でStep1〜3まで実装した。
+
+#### Step1: 展示場内の物理接点実装（QRコード動線・受付タブレット連携・来場者トラッキング）
+- **Prismaモデル追加**: `Visitor`（匿名、実名/メール/LINE ID非保持、`consentGiven`/`lineOptIn`/`viewerId`）、`VisitorHouseMakerInterest`、`VisitorHashtagInterest`、`VisitorVideoView`（`visitorId`はnullable、`viewerId`は必須、`source`文字列でQR流入元を記録）、`VisitorContact`（Step3で配線）
+- **QRトラッキング**: `SourceViewTracker`（fire-and-forget、`WatchOverlay.tsx`と同じパターン）を`/`・`/watch/[videoId]`に配置し`POST /api/visitor-video-views`で記録。QR4種（入口/ブース/設備前/出口）はすべて既存ページへの`?source=`付きディープリンクで実現し、新規ランディングページは作らなかった
+- **受付タブレット（`/reception`、意図的に認証なし）**: 同意→メーカー/工法選択→結果（動画グリッド＋LINEオプトイン＋scan-to-link QR）の3ステップ。`qrcode`パッケージを新規導入
+- **scan-to-link機構**: 受付でチェックインした`Visitor`と、来場者本人のスマホでの後続QRスキャンを紐付けるため、`GET /api/visitor/link/[visitorId]`で一度だけ表示するQRを経由して`hrm_viewer_token`（既存）と`hrm_visitor_id`（新規、1日）cookieを紐付ける。scan-to-linkされなかった場合、`VisitorVideoView.visitorId`はnullのままだが`viewerId`/`source`は記録され続けるため集計自体は失われない（許容している既知の制約）
+
+#### Step2: 来場前デジタル導線
+- 予約完了画面（`/booking/[contactRequestId]/complete`）・確認メール（`sendBookingConfirmationToUser`）・LINE通知（`notifyUserBookingConfirmed`）に営業マン自己紹介動画（`Salesperson.introVideoUrl`）へのリンクを追加（`source=pre_booking`）
+- `/salesperson/[salespersonId]`に`source`パラメータを追加し、広告ランディング（`pre_ad`）も同じ既存ページで兼用
+- **新規Vercel Cron**（`vercel.json`の`crons`、`0 0 * * *`=JST朝9時）: `GET /api/cron/booking-reminders`が当日予約者にリマインド送信（`source=pre_reminder`）。`CRON_SECRET`環境変数によるBearer認証、`Appointment.reminderSentAt`で二重送信防止、JST日付境界はサーバーのタイムゾーンに依存しないよう`Date.UTC()`ベースで計算
+
+#### Step3: 来場者データ集計ダッシュボード
+- ドキュメントは「Step1・2のデータ蓄積後、1〜2ヶ月の運用を経て構築」を推奨していたが、ユーザー判断で「コード実装は先行、数値の解釈判断（メーカー間優劣等）はデータが溜まってから」の方針で今回着手
+- 調査の結果、要件定義書のKPI4種のうち2種（視聴→コンタクト転換率・フォロー後再エンゲージメント率）が当初は計算不可能と判明。前者は`POST /api/contact`に`VisitorContact`作成配線を追加（`hrm_visitor_id`cookieのみ使用、新規PII取得なし）して解消。後者は来場後フォロー機能自体が未実装のため「未計測」固定表示とした
+- 来場者属性別（年代・検討住宅種別）の集計軸と初回/再来場判定は、フィールド自体が存在しない・匿名設計上正確な判定が不可能なためユーザー判断でスコープ外とした
+- `src/lib/analytics.ts`（`$queryRaw`不使用、Prismaの`findMany`/`count`結果をアプリ側でJS集計）と管理画面「来場者データ」タブ（新規チャートライブラリ導入せず既存の数値タイル/テーブルスタイルを踏襲）を追加
+
+#### 来場後3項目（アンケート・LINE定期配信・メールフォロー）は保留
+`Visitor`が実名/メール/LINE IDを一切持たない匿名設計（Step1で意図的にそう設計）のため、来場後の外向きフォロー（LINE配信・メール送付）は技術的に届け先が無い。実装するには個人情報取扱い方針の変更と法務確認が前提になるため、ユーザー判断で今回は対象外とした。
+
+### 実装上の重要な知見（2026-07-31 追加）
+
+#### `/plugin`によるサードパーティCLAUDE Codeプラグイン導入
+- `worldflowai/everything-claude-code`（`affaan-m/everything-claude-code`のフォーク）を`/plugin marketplace add` → `/plugin install`で導入し、`/tdd`コマンド（`tdd-guide`エージェント相当の指示文をロードするスキル）でTDD実装を進めた
+- `/plugin`はビルトインCLIコマンドであり、Claude Code自身が代行実行することはできない。ユーザーに入力欄で直接`/plugin ...`と入力してもらう必要がある
+- プラグインのREADMEには「MCPを一度に全部有効にしない（コンテキストウィンドウが70kまで縮む可能性）」「1プロジェクトあたり10個未満に抑える」という注意書きがある
+
+#### サンドボックスとユーザーのWindows環境が同一ファイルシステムを共有している
+- `D:\claude-test\Housing_Agent`はサンドボックス側`/d/claude-test/Housing_Agent`と**同一の実体**であることが判明した（新規作成直後のフォルダが見えないケースはあったが、既存の`Housing_Agent`配下は双方から同時に読み書きできるライブ共有）。そのため、こちらのサンドボックスでの`npm install`とユーザーのWindows端末での`npm install`が同じ`node_modules`を取り合い、互いのプラットフォーム別ネイティブバイナリ（`@rolldown/binding-linux-x64-gnu` vs `binding-win32-x64-msvc`等）を壊し合う
+  - **Why:** `qrcode`追加時にサンドボックス側`npm install`が`ENOTEMPTY`/`EIO`で頻繁に失敗し、直後にユーザー側Windowsで`npm install`した後もサンドボックス側の`vitest`が`Cannot find module '@rolldown/binding-linux-x64-gnu'`で起動不能になる、を何度か繰り返した
+  - **How to apply:** サンドボックスで`npm install`系が失敗したら`find node_modules -maxdepth 2 -name ".*-*" -type d -exec rm -rf {} +`（中断済みインストールの一時ディレクトリ）を削除してから再実行する。**`--omit=optional`は絶対に使わない**（現在のプラットフォームに必須のネイティブバイナリまで除外され、双方の環境を壊す）。また`yarn.lock`は都度無関係な依存バージョン差分でdiffが入るため、コミット前に`git diff --stat yarn.lock`で確認し、意図しない差分なら`git checkout -- yarn.lock`で戻してからコミットする
+
+#### QRコード（scan-to-link含む）のローカル動作確認はlocalhostでは不可
+- 受付タブレット（PC）とスマホが別デバイスの場合、`npm run dev`の既定の`localhost:3000`でアクセスしていると、生成されるQRのURLも`http://localhost:3000/...`になりスマホから到達不能になる
+  - **How to apply:** PCのLAN内IPアドレス（`ipconfig`で確認）で`http://<LAN-IP>:3000/...`としてアクセスする必要がある。Windowsファイアウォールでプライベートネットワークからのアクセス許可も必要
+
+#### Vercel Cronの導入
+- `vercel.json`に`crons`を追加しても、Vercelダッシュボードの「Cron Jobs」ページに反映されるのはデプロイ後（`git push`→ビルド成功後）。反映前は「Get Started」のオンボーディング画面が表示され続ける
+- Cron Jobsページの実際の日本語UI項目名（2026-07時点）: 左サイドバー「設定」→「Cron Jobs」。実行ログは「ログ」タブでパスをフィルタして確認する
+- HobbyプランのCronは「UTC基準」「実行時刻に最大1時間の揺らぎ」がある。当日分をまとめて処理する設計（今回の`booking-reminders`）であれば実行時刻の揺らぎは結果に影響しない
+
+#### 大規模requirements文書は「まず1ステップだけ」を毎回確認してから着手する
+- `neutral_housing_agent_requirements.md`はStep1〜4＋AIエージェント本体まで書かれた大規模文書だったが、都度「今回はどこまでを対象にするか」「ドキュメントが推奨する前提条件（データ蓄積期間・法務確認等）を無視して良いか」をAskUserQuestionで確認してから各Stepに着手した
+  - **Why:** Step3はドキュメント自身が「1〜2ヶ月の運用後に構築」を推奨しており、来場後3項目は個人情報取扱い方針の変更が前提だった。事前確認なしに一括実装すると、方針判断が必要な箇所を無断で決めてしまうリスクがあった
+  - **How to apply:** 複数ステップからなる要件書を渡されたら、各ステップの前提条件・依存関係をまず洗い出し、ステップごとにスコープと前提の妥当性をユーザーに確認してから実装する
 - **`generateMetadata`とpage本体が同一エンティティを別々に`findUnique`するのはNext.js App Routerでありがちな重複クエリパターン**。React`cache()`でラップした共有フェッチャー関数に切り出せば、Next.js自身のfetchデデュープ機構が使えないPrismaクエリでも1リクエスト内で1回に統合できる

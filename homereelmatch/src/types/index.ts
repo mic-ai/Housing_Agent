@@ -131,6 +131,12 @@ export interface ArticleComparisonRowDTO {
   houseMaker: { id: string; name: string; logoUrl: string | null } | null;
 }
 
+export interface ArticleSourceDTO {
+  id: string;
+  url: string;
+  title: string | null;
+}
+
 export interface ArticleDetailDTO {
   id: string;
   phaseId: string;
@@ -144,6 +150,7 @@ export interface ArticleDetailDTO {
   status: ArticleStatus;
   phase: { id: string; key: string; title: string };
   comparisonRows: ArticleComparisonRowDTO[];
+  sources?: ArticleSourceDTO[];
 }
 
 export interface ViewerArticleProgressDTO {

@@ -32,7 +32,7 @@ export async function GET(_request: NextRequest, { params }: Params): Promise<Ne
   const { articleId } = await params;
   const article = await prisma.article.findUnique({
     where: { id: articleId },
-    include: { comparisonRows: { orderBy: { order: "asc" } } },
+    include: { comparisonRows: { orderBy: { order: "asc" } }, sources: { orderBy: { createdAt: "asc" } } },
   });
   if (!article) {
     return NextResponse.json({ error: "Not Found" }, { status: 404 });

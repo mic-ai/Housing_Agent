@@ -41,6 +41,12 @@ interface AdminComparisonRow {
   order: number;
 }
 
+interface AdminArticleSource {
+  id: string;
+  url: string;
+  title: string | null;
+}
+
 interface AdminArticleDetail {
   id: string;
   phaseId: string;
@@ -53,6 +59,7 @@ interface AdminArticleDetail {
   translateBoxValue: string | null;
   status: ArticleStatus;
   comparisonRows: AdminComparisonRow[];
+  sources: AdminArticleSource[];
 }
 
 const DIFFICULTY_LABEL: Record<ArticleDifficulty, string> = { BEGINNER: "入門", BASIC: "基礎" };
@@ -145,6 +152,7 @@ function ArticleEditPanel({
     translateBoxValue: translateBoxValue || null,
     status: article.status,
     phase: { id: phase.id, key: phase.key, title: phase.title },
+    sources: article.sources,
     comparisonRows: rows.map((row, i) => ({
       id: `preview-${i}`,
       priceRangeTag: row.priceRangeTag,
@@ -287,6 +295,28 @@ function ArticleEditPanel({
         </div>
       )}
 
+      {article.sources.length > 0 && (
+        <div className="bg-gray-800/60 rounded p-3 space-y-1">
+          <p className="text-xs text-gray-400">
+            Web検索により生成された下書きです。内容を確認のうえ公開してください。参照した情報源:
+          </p>
+          <ul className="space-y-0.5">
+            {article.sources.map((source) => (
+              <li key={source.id} className="text-xs">
+                <a
+                  href={source.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-amber-500 underline break-all"
+                >
+                  {source.title || source.url}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {error && <p className="text-red-400 text-sm">{error}</p>}
 
       <div className="flex flex-wrap gap-2 items-center">
@@ -356,6 +386,10 @@ function PhaseArticles({
   const [newDifficulty, setNewDifficulty] = useState<ArticleDifficulty>("BEGINNER");
   const [creating, setCreating] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [showGenerateForm, setShowGenerateForm] = useState(false);
+  const [genTopic, setGenTopic] = useState("");
+  const [generating, setGenerating] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -428,20 +462,77 @@ function PhaseArticles({
     await load();
   }
 
+  async function handleGenerate(e: React.FormEvent) {
+    e.preventDefault();
+    if (!genTopic.trim()) return;
+    setGenerating(true);
+    setGenError(null);
+    const res = await fetch("/api/admin/articles/generate-draft", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phaseId: phase.id, topic: genTopic.trim() }),
+    });
+    setGenerating(false);
+    if (!res.ok) {
+      const body = await res.json();
+      setGenError(typeof body.error === "string" ? body.error : "生成に失敗しました");
+      return;
+    }
+    const body = await res.json();
+    setGenTopic("");
+    setShowGenerateForm(false);
+    await load();
+    await openEdit(body.data.id);
+  }
+
   if (loading) return <div className="text-center py-4 text-gray-500 text-sm">読み込み中...</div>;
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-semibold text-gray-200">「{phase.title}」の記事</h4>
-        <button
-          type="button"
-          onClick={() => setShowForm((v) => !v)}
-          className="text-xs px-3 py-1.5 rounded bg-amber-600 hover:bg-amber-700 text-white"
-        >
-          {showForm ? "閉じる" : "+ 記事を追加"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setShowGenerateForm((v) => !v)}
+            className="text-xs px-3 py-1.5 rounded bg-purple-700 hover:bg-purple-600 text-white"
+          >
+            {showGenerateForm ? "閉じる" : "Web下書き生成"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowForm((v) => !v)}
+            className="text-xs px-3 py-1.5 rounded bg-amber-600 hover:bg-amber-700 text-white"
+          >
+            {showForm ? "閉じる" : "+ 記事を追加"}
+          </button>
+        </div>
       </div>
+
+      {showGenerateForm && (
+        <form onSubmit={handleGenerate} className="bg-gray-800 rounded-lg p-4 space-y-3 border border-gray-700">
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">
+              トピック（Web検索で公的機関の情報等を優先的に収集し、下書きを自動生成します）
+            </label>
+            <input
+              value={genTopic}
+              onChange={(e) => setGenTopic(e.target.value)}
+              placeholder="例: 住宅ローン控除の基礎知識"
+              maxLength={200}
+              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-white text-sm"
+            />
+          </div>
+          {genError && <p className="text-red-400 text-xs">{genError}</p>}
+          <button
+            type="submit"
+            disabled={generating || !genTopic.trim()}
+            className="px-4 py-1.5 bg-purple-700 hover:bg-purple-600 disabled:opacity-50 text-white text-xs rounded"
+          >
+            {generating ? "生成中...（数十秒かかることがあります）" : "下書きを生成する"}
+          </button>
+        </form>
+      )}
 
       {showForm && (
         <form onSubmit={handleCreate} className="bg-gray-800 rounded-lg p-4 space-y-3 border border-gray-700">

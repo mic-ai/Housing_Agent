@@ -31,6 +31,10 @@ export async function GET(
             houseMaker: { select: { id: true, name: true, logoUrl: true } },
           },
         },
+        sources: {
+          orderBy: { createdAt: "asc" },
+          select: { id: true, url: true, title: true },
+        },
       },
     });
 

@@ -96,6 +96,26 @@ export function ArticleViewer({
         <ComparisonTable rows={article.comparisonRows} interactive={!previewMode} />
       )}
 
+      {article.sources && article.sources.length > 0 && (
+        <div className="bg-stone-50 border border-stone-200 rounded-lg p-4">
+          <p className="text-xs font-semibold text-stone-500 mb-2">情報源</p>
+          <ul className="space-y-1">
+            {article.sources.map((source) => (
+              <li key={source.id} className="text-xs">
+                <a
+                  href={source.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-amber-700 underline break-all"
+                >
+                  {source.title || source.url}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="flex items-center justify-between pt-4 border-t border-stone-200">
         {prevHref ? (
           <a href={prevHref} className="text-sm text-stone-500 hover:text-stone-700">

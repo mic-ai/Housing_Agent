@@ -281,11 +281,25 @@ model Article {
   publishedAt       DateTime?
   comparisonRows    ArticleComparisonRow[]
   progress          ViewerArticleProgress[]
+  sources           ArticleSource[]
   createdAt         DateTime                @default(now())
   updatedAt         DateTime                @updatedAt
 
   @@index([phaseId, order])
   @@map("articles")
+}
+
+// Web検索による下書き生成時に参照した情報源（透明性確保のため保持）
+model ArticleSource {
+  id        String   @id @default(cuid())
+  articleId String
+  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  url       String
+  title     String?
+  createdAt DateTime @default(now())
+
+  @@index([articleId])
+  @@map("article_sources")
 }
 
 model ArticleComparisonRow {

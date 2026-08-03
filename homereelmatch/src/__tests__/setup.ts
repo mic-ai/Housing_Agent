@@ -122,10 +122,15 @@ vi.mock("@/lib/prisma", () => ({
       create: vi.fn(),
       update: vi.fn(),
       delete: vi.fn(),
+      count: vi.fn(),
     },
     articleComparisonRow: {
       deleteMany: vi.fn(),
       create: vi.fn(),
+    },
+    articleSource: {
+      create: vi.fn(),
+      findMany: vi.fn(),
     },
     viewerProfile: {
       upsert: vi.fn(),

@@ -534,6 +534,7 @@ npx vercel --prod
 | 中立的AIエージェント構想 Step1（QRコード動線・受付タブレット連携・来場者トラッキング） | 完了（2026-07-31、`/tdd`でTDD実装・本番DBマイグレーション適用済み） |
 | 中立的AIエージェント構想 Step2（来場前デジタル導線：予約完了/確認メール/リマインドに自己紹介動画リンク） | 完了（2026-07-31、Vercel Cron新設・本番マイグレーション適用済み） |
 | 中立的AIエージェント構想 Step3（来場者データ集計ダッシュボード） | 完了（2026-07-31、本番マイグレーション適用済み・2026-08-03に`prisma migrate status`で確認） |
+| 学習コンテンツ記事のWeb下書き自動生成機能（管理者向け、Claude web_search） | 完了（2026-08-03、本番push・Vercel環境変数`ANTHROPIC_API_KEY`設定・本番DBマイグレーション適用済み） |
 
 ### 直近の主要変更（2026-06-23）
 
@@ -988,3 +989,29 @@ npx vercel --prod
   - **Why:** Step3はドキュメント自身が「1〜2ヶ月の運用後に構築」を推奨しており、来場後3項目は個人情報取扱い方針の変更が前提だった。事前確認なしに一括実装すると、方針判断が必要な箇所を無断で決めてしまうリスクがあった
   - **How to apply:** 複数ステップからなる要件書を渡されたら、各ステップの前提条件・依存関係をまず洗い出し、ステップごとにスコープと前提の妥当性をユーザーに確認してから実装する
 - **`generateMetadata`とpage本体が同一エンティティを別々に`findUnique`するのはNext.js App Routerでありがちな重複クエリパターン**。React`cache()`でラップした共有フェッチャー関数に切り出せば、Next.js自身のfetchデデュープ機構が使えないPrismaクエリでも1リクエスト内で1回に統合できる
+
+### 直近の主要変更（2026-08-03）
+
+#### 学習コンテンツ記事のWeb下書き自動生成機能
+バックグラウンドサブエージェントのworktree（`.claude/worktrees/gleaming-twirling-rabbit`）に未コミットのまま残っていた実装を発見し、mainに統合してpush・本番デプロイまで完了した。管理画面「学習コンテンツ」タブの各フェーズに「Web下書き生成」ボタンを追加し、トピックを入力すると`@anthropic-ai/sdk`のweb_searchツールでClaudeが国土交通省・消費者庁等の公的機関サイトを優先して情報収集し、中立的な記事下書き（`status: DRAFT`）を自動生成する。
+
+- **新規**: `src/lib/web-screening.ts`（`generateArticleDraft()`）、`POST /api/admin/articles/generate-draft`（`requireAdmin()`必須）
+- **新規Prismaモデル**: `ArticleSource`（`Article`に`sources`リレーション追加）。生成時に参照したURLを透明性確保のため保存し、管理画面プレビューと公開記事ページ（`/journey/...`）の両方に出典リンクとして表示
+- 生成された記事は必ず`DRAFT`で作成され、自動公開はしない。管理者が内容を確認・編集してから手動で公開する運用
+- マイグレーション: `20260803000000_add_article_sources`（`article_sources`テーブル追加のみの安全な追加的変更）
+
+#### worktree統合時に発覚した問題と対処
+- **テストのモック実装がアロー関数で`new`不可能だった**: `vi.mock("@anthropic-ai/sdk", () => ({ default: vi.fn().mockImplementation(() => ({...})) }))`は、`new Anthropic()`のようにコンストラクタとして呼び出すと`TypeError: ... is not a constructor`になる。`mockImplementation(function () { return {...}; })`のように通常のfunction宣言に変更して解消
+- **`@anthropic-ai/sdk`のバージョン指定`^0.70.0`が古く、実装が使う`web_search_20260209`ツール識別子の型が存在せず`tsc`が失敗**: `npm view @anthropic-ai/sdk versions --json`で最新版を確認し、`npm pack @anthropic-ai/sdk@0.115.0`でtarballを展開して型定義に`web_search_20260209`が含まれることを確認した上で`^0.115.0`に更新して解消
+- **`ANTHROPIC_API_KEY`が`.env.local.example`に未記載**だったため追記（ただし`.env.local.example`自体は`.gitignore`の`.env*`パターンでリポジトリ管理外のため、この追記はローカルの参照用のみでコミット対象にはならない）
+- **`yarn.lock`ノイズが今回も再発**: `npm install`のたびに1000行超の無関係な差分が入る既知の問題（2026-07-31の知見参照）が本セッションでも2回発生し、いずれも`git checkout -- yarn.lock`で破棄してからコミット・pushした
+
+### 実装上の重要な知見（2026-08-03 追加）
+
+#### サブエージェントworktreeの成果物は、mainだけを見ていると存在に気づけない
+ユーザーから「スクリーニングの件」と過去の話題を尋ねられた際、mainブランチのコード・コミット履歴・CLAUDE.md・project memoryのいずれにも該当する記述が無く、一見「記憶が無い＝該当作業が存在しない」ように見えた。しかし`.claude/worktrees/`配下を検索したところ、独立したgit worktree（別ブランチ）に実装済み・未コミットのまま放置された機能が見つかった。
+- **Why:** バックグラウンドサブエージェント（Task/Agent経由）はデフォルトで独立したworktreeに変更を書き込む。エージェントの作業が完了してもユーザー・メイン会話側が明示的に「取り込む」操作（diff適用またはマージ＋コミット）をしない限り、その成果はmainからは一切見えず、`git log`にも现れない
+- **How to apply:** 過去に依頼したはずの作業について「どうなっているか」と聞かれ、mainやCLAUDE.md・記憶のどこにも記録が無い場合は、結論を急がずまず`find . -path '*/.claude/worktrees/*' -newer <基準ファイル>`や`grep -r <キーワード> .claude/worktrees/`で未統合のworktreeを探す。見つかった場合はブランチの内容・テスト状態を確認した上でユーザーに報告し、取り込むかどうかの判断を仰ぐ
+
+#### 依存パッケージが提供する新しいAPI機能の型定義バージョンずれ
+`package.json`に固定されたパッケージバージョンが古く、実装コードが使うAPI機能（今回は新しいツール識別子文字列）の型がSDKに存在しない、というケースが発生した。`npm view <pkg> versions --json`で利用可能なバージョン一覧を確認し、`npm pack <pkg>@<version>`でtarballを展開すれば、実際にインストールせずとも型定義ファイル（`.d.ts`）の中身をgrepで確認できる。目的のシンボルが含まれるバージョンを特定してから`package.json`を更新するのが、当てずっぽうにバージョンを上げるより確実

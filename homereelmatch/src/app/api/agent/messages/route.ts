@@ -97,6 +97,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const t0 = Date.now();
+  const mark = (label: string) => console.error(`agent-messages timing: ${label} at ${Date.now() - t0}ms`);
   try {
     const body = BodySchema.parse(await request.json());
     const viewerToken = await getViewerToken();
@@ -105,6 +107,7 @@ export async function POST(request: NextRequest) {
     }
 
     const viewer = await ensureViewerProfile(viewerToken);
+    mark("viewer resolved");
 
     let conversation;
     if (body.conversationId) {
@@ -120,6 +123,7 @@ export async function POST(request: NextRequest) {
     } else {
       conversation = await prisma.agentConversation.create({ data: { viewerId: viewer.id } });
     }
+    mark("conversation resolved");
 
     const historyRows = await prisma.agentMessage.findMany({
       where: { conversationId: conversation.id },
@@ -130,10 +134,12 @@ export async function POST(request: NextRequest) {
       role: h.role,
       content: h.content,
     }));
+    mark("history loaded");
 
     await prisma.agentMessage.create({
       data: { conversationId: conversation.id, role: "USER", content: body.message },
     });
+    mark("user message saved");
 
     const priorConditions = conversation.conditionsJson
       ? AgentConditionsSchema.parse(conversation.conditionsJson)
@@ -145,10 +151,12 @@ export async function POST(request: NextRequest) {
       take: 20,
       select: { id: true, title: true, bodyMarkdown: true, category: true },
     });
+    mark("knowledge context loaded");
 
     const candidateHouseMakers = await findCandidateHouseMakers(
       priorConditions ?? { priorityFactors: [], desiredTags: [] }
     );
+    mark("candidates resolved, calling Claude");
 
     const result = await generateAgentChatTurn({
       history,
@@ -157,6 +165,7 @@ export async function POST(request: NextRequest) {
       candidateHouseMakers,
       priorConditions,
     });
+    mark("Claude call returned");
 
     // 安全検証: LLM出力を無条件に信頼しない。DBに実在・有効なIDのみを採用する。
     const rawMakerIds = [...new Set(result.candidateHouseMakerIds)];

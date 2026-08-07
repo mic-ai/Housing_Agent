@@ -51,11 +51,9 @@ export async function generateKnowledgeDraft(
 
   const client = new Anthropic({ apiKey });
 
-  const response = await client.beta.messages.create({
-    model: "claude-opus-5",
+  const response = await client.messages.create({
+    model: "claude-sonnet-5",
     max_tokens: 6000,
-    betas: ["server-side-fallback-2026-07-01"],
-    fallbacks: "default",
     system: SYSTEM_PROMPT,
     tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 6 }],
     messages: [

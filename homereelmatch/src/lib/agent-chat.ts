@@ -117,7 +117,7 @@ export async function generateAgentChatTurn(
     ? `直近までに把握している条件: ${JSON.stringify(input.priorConditions)}\n\n`
     : "";
 
-  const messages: Anthropic.Beta.Messages.BetaMessageParam[] = [
+  const messages: Anthropic.Messages.MessageParam[] = [
     ...input.history.map((turn) => ({
       role: turn.role === "USER" ? ("user" as const) : ("assistant" as const),
       content: turn.content,
@@ -128,13 +128,11 @@ export async function generateAgentChatTurn(
     },
   ];
 
-  const response = await client.beta.messages.create({
-    model: "claude-opus-5",
-    // Claude Opus 5はデフォルトでadaptive thinkingが有効で、thinking+本文の合計がmax_tokensにカウントされる。
+  const response = await client.messages.create({
+    model: "claude-sonnet-5",
+    // Claude Sonnet 5もデフォルトでadaptive thinkingが有効で、thinking+本文の合計がmax_tokensにカウントされる。
     // 2000では thinking に消費されJSON出力が途中で打ち切られるケースがあったため引き上げる。
     max_tokens: 4000,
-    betas: ["server-side-fallback-2026-07-01"],
-    fallbacks: "default",
     system: buildSystemPrompt(input.candidateHouseMakers, input.knowledgeContext),
     messages,
   });

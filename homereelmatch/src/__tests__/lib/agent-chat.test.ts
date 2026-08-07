@@ -4,7 +4,7 @@ const mockCreate = vi.fn();
 
 vi.mock("@anthropic-ai/sdk", () => ({
   default: vi.fn().mockImplementation(function () {
-    return { beta: { messages: { create: mockCreate } } };
+    return { messages: { create: mockCreate } };
   }),
 }));
 
@@ -70,9 +70,7 @@ describe("generateAgentChatTurn", () => {
 
     expect(mockCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: "claude-opus-5",
-        fallbacks: "default",
-        betas: expect.arrayContaining(["server-side-fallback-2026-07-01"]),
+        model: "claude-sonnet-5",
         system: expect.stringContaining("hm1"),
       })
     );

@@ -120,6 +120,8 @@ export async function generateAgentChatTurn(
     max_tokens: 2000,
     betas: ["server-side-fallback-2026-07-01"],
     fallbacks: "default",
+    // 対話のレイテンシを抑えるため、思考の深さをmediumに抑える(モデルの切り替え・思考の無効化はしない)
+    output_config: { effort: "medium" },
     system: buildSystemPrompt(input.candidateHouseMakers, input.knowledgeContext),
     messages,
   });

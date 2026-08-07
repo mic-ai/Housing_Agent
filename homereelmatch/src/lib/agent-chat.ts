@@ -130,7 +130,9 @@ export async function generateAgentChatTurn(
 
   const response = await client.beta.messages.create({
     model: "claude-opus-5",
-    max_tokens: 2000,
+    // Claude Opus 5はデフォルトでadaptive thinkingが有効で、thinking+本文の合計がmax_tokensにカウントされる。
+    // 2000では thinking に消費されJSON出力が途中で打ち切られるケースがあったため引き上げる。
+    max_tokens: 4000,
     betas: ["server-side-fallback-2026-07-01"],
     fallbacks: "default",
     system: buildSystemPrompt(input.candidateHouseMakers, input.knowledgeContext),
@@ -139,6 +141,9 @@ export async function generateAgentChatTurn(
 
   if (response.stop_reason === "refusal") {
     throw new Error("リクエストが拒否されました");
+  }
+  if (response.stop_reason === "max_tokens") {
+    throw new Error("応答がmax_tokensに達し途中で打ち切られました");
   }
 
   const text = extractText(response.content);

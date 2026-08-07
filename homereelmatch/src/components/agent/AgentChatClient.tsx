@@ -98,8 +98,10 @@ export function AgentChatClient() {
         ))}
         {sending && (
           <div className="flex justify-start">
-            <div className="bg-white border border-amber-100 rounded-2xl rounded-bl-sm px-4 py-2 text-sm text-stone-400">
-              考え中…
+            <div className="bg-white border border-amber-100 rounded-2xl rounded-bl-sm px-4 py-3 flex items-center gap-1.5" aria-live="polite" aria-label="AIが考え中です">
+              <span className="w-2 h-2 rounded-full bg-amber-300 animate-bounce [animation-delay:-0.3s]" />
+              <span className="w-2 h-2 rounded-full bg-amber-300 animate-bounce [animation-delay:-0.15s]" />
+              <span className="w-2 h-2 rounded-full bg-amber-300 animate-bounce" />
             </div>
           </div>
         )}

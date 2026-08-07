@@ -64,4 +64,20 @@ describe("findCandidateHouseMakers", () => {
 
     expect(result.map((r) => r.id)).toEqual(["hm-high", "hm-low"]);
   });
+
+  it("タグ一致する動画が無い場合はisActiveな企業一覧にフォールバックする(登録済み企業が0件と誤って伝わるのを防ぐ)", async () => {
+    vi.mocked(prisma.houseMaker.findMany)
+      .mockResolvedValueOnce([]) // タグ絞り込みクエリ: 一致なし
+      .mockResolvedValueOnce([
+        { id: "hm1", name: "登録済みハウス", logoUrl: null },
+      ] as never); // フォールバック: isActive一覧
+
+    const result = await findCandidateHouseMakers(
+      { priorityFactors: [], desiredTags: ["木造"] },
+      5
+    );
+
+    expect(prisma.houseMaker.findMany).toHaveBeenCalledTimes(2);
+    expect(result).toEqual([{ id: "hm1", name: "登録済みハウス", logoUrl: null }]);
+  });
 });

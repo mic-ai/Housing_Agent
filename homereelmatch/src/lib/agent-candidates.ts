@@ -7,6 +7,15 @@ export interface AgentCandidateHouseMaker {
   logoUrl: string | null;
 }
 
+async function findActiveHouseMakers(limit: number): Promise<AgentCandidateHouseMaker[]> {
+  return prisma.houseMaker.findMany({
+    where: { isActive: true },
+    orderBy: { name: "asc" },
+    take: limit,
+    select: { id: true, name: true, logoUrl: true },
+  });
+}
+
 export async function findCandidateHouseMakers(
   conditions: AgentConditions,
   limit = 5
@@ -14,12 +23,7 @@ export async function findCandidateHouseMakers(
   const tags = conditions.desiredTags.filter(Boolean);
 
   if (tags.length === 0) {
-    return prisma.houseMaker.findMany({
-      where: { isActive: true },
-      orderBy: { name: "asc" },
-      take: limit,
-      select: { id: true, name: true, logoUrl: true },
-    });
+    return findActiveHouseMakers(limit);
   }
 
   const makers = await prisma.houseMaker.findMany({
@@ -67,5 +71,13 @@ export async function findCandidateHouseMakers(
 
   scored.sort((a, b) => b.score - a.score);
 
-  return scored.slice(0, limit).map(({ id, name, logoUrl }) => ({ id, name, logoUrl }));
+  const ranked = scored.slice(0, limit).map(({ id, name, logoUrl }) => ({ id, name, logoUrl }));
+
+  // タグに一致する動画がまだ無い(登録初期でコンテンツが少ない等)場合、
+  // 「登録済み企業が0件」という誤った印象をAIに与えないよう、既存のisActive企業一覧にフォールバックする
+  if (ranked.length === 0) {
+    return findActiveHouseMakers(limit);
+  }
+
+  return ranked;
 }

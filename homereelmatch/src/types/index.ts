@@ -229,4 +229,30 @@ export interface AgentSendMessageResponseDTO {
   message: AgentMessageDTO;
 }
 
+export type AgentKnowledgeSourceType = "URL" | "PDF";
+
+export interface AgentKnowledgeRegisteredSourceDTO {
+  id: string;
+  sourceType: AgentKnowledgeSourceType;
+  url: string | null;
+  publicUrl: string | null;
+  fileName: string | null;
+  title: string | null;
+  createdAt: string;
+}
+
+export interface AgentKnowledgeSourceGroupListItemDTO {
+  id: string;
+  topic: string;
+  category: string;
+  sourceCount: number;
+  lastCrawledAt: string | null;
+  entry: { id: string; status: AgentKnowledgeStatus } | null;
+  createdAt: string;
+}
+
+export interface AgentKnowledgeSourceGroupDetailDTO extends AgentKnowledgeSourceGroupListItemDTO {
+  sources: AgentKnowledgeRegisteredSourceDTO[];
+}
+
 export type { VisitorAnalyticsData as VisitorAnalyticsDTO, AnalyticsPeriod } from "@/lib/analytics";

@@ -500,6 +500,7 @@ model AgentKnowledgeEntry {
   status       AgentKnowledgeStatus   @default(DRAFT)
   publishedAt  DateTime?
   sources      AgentKnowledgeSource[]
+  sourceGroup  AgentKnowledgeSourceGroup?
   createdAt    DateTime               @default(now())
   updatedAt    DateTime               @updatedAt
 
@@ -518,4 +519,42 @@ model AgentKnowledgeSource {
 
   @@index([entryId])
   @@map("agent_knowledge_sources")
+}
+
+// --- AIナレッジ: 登録済み参考ソース(URL/PDF)からの自動クロール生成 ---
+
+enum AgentKnowledgeSourceType {
+  URL
+  PDF
+}
+
+model AgentKnowledgeSourceGroup {
+  id            String                           @id @default(cuid())
+  topic         String
+  category      String
+  entryId       String?                          @unique
+  entry         AgentKnowledgeEntry?              @relation(fields: [entryId], references: [id], onDelete: SetNull)
+  sources       AgentKnowledgeRegisteredSource[]
+  lastCrawledAt DateTime?
+  createdAt     DateTime                         @default(now())
+  updatedAt     DateTime                         @updatedAt
+
+  @@index([category])
+  @@map("agent_knowledge_source_groups")
+}
+
+model AgentKnowledgeRegisteredSource {
+  id          String                    @id @default(cuid())
+  groupId     String
+  group       AgentKnowledgeSourceGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  sourceType  AgentKnowledgeSourceType
+  url         String?
+  storagePath String?
+  publicUrl   String?
+  fileName    String?
+  title       String?
+  createdAt   DateTime                  @default(now())
+
+  @@index([groupId])
+  @@map("agent_knowledge_registered_sources")
 }

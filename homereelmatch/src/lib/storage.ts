@@ -102,3 +102,34 @@ export async function deleteProfileImage(path: string): Promise<void> {
   const { error } = await admin.storage.from(BUCKET).remove([path]);
   if (error) throw new Error(`Storage delete failed: ${error.message}`);
 }
+
+export function buildKnowledgeSourcePath(groupId: string, ext: string): string {
+  return `knowledge-sources/${groupId}/${Date.now()}.${ext}`;
+}
+
+export async function uploadKnowledgeSourceFile(
+  file: Buffer,
+  path: string,
+  contentType: string
+): Promise<{ path: string; publicUrl: string }> {
+  const admin = requireAdmin();
+  const { error } = await admin.storage
+    .from(BUCKET)
+    .upload(path, file, { contentType, upsert: true });
+  if (error) throw new Error(`Storage upload failed: ${error.message}`);
+  const { data } = admin.storage.from(BUCKET).getPublicUrl(path);
+  return { path, publicUrl: data.publicUrl };
+}
+
+export async function deleteKnowledgeSourceFile(path: string): Promise<void> {
+  const admin = requireAdmin();
+  const { error } = await admin.storage.from(BUCKET).remove([path]);
+  if (error) throw new Error(`Storage delete failed: ${error.message}`);
+}
+
+export async function downloadKnowledgeSourceFile(path: string): Promise<Buffer> {
+  const admin = requireAdmin();
+  const { data, error } = await admin.storage.from(BUCKET).download(path);
+  if (error || !data) throw new Error(`Storage download failed: ${error?.message ?? "unknown"}`);
+  return Buffer.from(await data.arrayBuffer());
+}

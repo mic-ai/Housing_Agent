@@ -14,6 +14,11 @@ export function looksLikeAllowedVideo(buffer: Buffer): boolean {
   return ["ftyp", "moov", "free", "mdat", "wide", "skip"].includes(boxType);
 }
 
+export function looksLikeAllowedPdf(buffer: Buffer): boolean {
+  if (buffer.length < 5) return false;
+  return buffer.subarray(0, 5).toString("ascii") === "%PDF-";
+}
+
 export function looksLikeAllowedImage(buffer: Buffer, mime: string): boolean {
   if (mime === "image/jpeg" || mime === "image/jpg") {
     return buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;

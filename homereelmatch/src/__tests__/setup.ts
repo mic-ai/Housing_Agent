@@ -87,6 +87,19 @@ vi.mock("@/lib/prisma", () => ({
     },
     agentKnowledgeSource: {
       create: vi.fn(),
+      deleteMany: vi.fn(),
+    },
+    agentKnowledgeSourceGroup: {
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+    },
+    agentKnowledgeRegisteredSource: {
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      delete: vi.fn(),
     },
     salespersonVideo: {
       findUnique: vi.fn(),
@@ -209,6 +222,10 @@ vi.mock("@/lib/storage", () => ({
   buildSalespersonIntroVideoPath: vi.fn((spId: string, ext: string) =>
     `intro-videos/${spId}/intro_123.${ext}`
   ),
+  buildKnowledgeSourcePath: vi.fn((groupId: string, ext: string) => `knowledge-sources/${groupId}/123.${ext}`),
+  uploadKnowledgeSourceFile: vi.fn(),
+  deleteKnowledgeSourceFile: vi.fn(),
+  downloadKnowledgeSourceFile: vi.fn(),
 }));
 
 // next-auth mock

@@ -5,6 +5,8 @@ import type {
   AgentKnowledgeEntryDetailDTO,
   AgentKnowledgeEntryListItemDTO,
   AgentKnowledgeStatus,
+  AgentKnowledgeSourceGroupListItemDTO,
+  AgentKnowledgeSourceGroupDetailDTO,
 } from "@/types";
 
 const SUGGESTED_CATEGORIES = ["工法", "価格帯", "検討ポイント", "その他"];
@@ -156,6 +158,415 @@ function AgentKnowledgeEditPanel({
           閉じる
         </button>
       </div>
+    </div>
+  );
+}
+
+function statusBadgeLabel(status: AgentKnowledgeStatus | null): string {
+  if (status === "PUBLISHED") return "公開中";
+  if (status === "DRAFT") return "下書き";
+  return "未生成";
+}
+
+function AgentKnowledgeSourceGroupsPanel({ onOpenEntry }: { onOpenEntry: (entryId: string) => void }) {
+  const [groups, setGroups] = useState<AgentKnowledgeSourceGroupListItemDTO[]>([]);
+  const [loadingGroups, setLoadingGroups] = useState(true);
+
+  const [showAddGroupForm, setShowAddGroupForm] = useState(false);
+  const [newGroupTopic, setNewGroupTopic] = useState("");
+  const [newGroupCategory, setNewGroupCategory] = useState(SUGGESTED_CATEGORIES[0]);
+  const [creatingGroup, setCreatingGroup] = useState(false);
+  const [groupFormError, setGroupFormError] = useState<string | null>(null);
+
+  const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
+  const [expandedGroupDetail, setExpandedGroupDetail] = useState<AgentKnowledgeSourceGroupDetailDTO | null>(null);
+  const [pendingDeleteGroupId, setPendingDeleteGroupId] = useState<string | null>(null);
+  const [pendingDeleteSourceId, setPendingDeleteSourceId] = useState<string | null>(null);
+
+  const [newSourceUrl, setNewSourceUrl] = useState("");
+  const [newSourceTitle, setNewSourceTitle] = useState("");
+  const [addingUrlSource, setAddingUrlSource] = useState(false);
+  const [uploadingPdf, setUploadingPdf] = useState(false);
+  const [sourceError, setSourceError] = useState<string | null>(null);
+
+  const [crawlingGroupId, setCrawlingGroupId] = useState<string | null>(null);
+  const [crawlError, setCrawlError] = useState<string | null>(null);
+
+  const loadGroups = useCallback(async () => {
+    setLoadingGroups(true);
+    const res = await fetch("/api/admin/agent-knowledge/source-groups");
+    if (res.ok) {
+      const body = await res.json();
+      setGroups(body.data ?? []);
+    }
+    setLoadingGroups(false);
+  }, []);
+
+  useEffect(() => {
+    loadGroups();
+  }, [loadGroups]);
+
+  async function refreshExpandedDetail(groupId: string) {
+    const res = await fetch(`/api/admin/agent-knowledge/source-groups/${groupId}`);
+    if (res.ok) {
+      const body = await res.json();
+      setExpandedGroupDetail(body.data);
+    }
+  }
+
+  async function toggleExpand(groupId: string) {
+    if (expandedGroupId === groupId) {
+      setExpandedGroupId(null);
+      setExpandedGroupDetail(null);
+      return;
+    }
+    setSourceError(null);
+    setCrawlError(null);
+    setExpandedGroupId(groupId);
+    await refreshExpandedDetail(groupId);
+  }
+
+  async function handleCreateGroup(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newGroupTopic.trim()) return;
+    setCreatingGroup(true);
+    setGroupFormError(null);
+    const res = await fetch("/api/admin/agent-knowledge/source-groups", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ topic: newGroupTopic.trim(), category: newGroupCategory }),
+    });
+    setCreatingGroup(false);
+    if (!res.ok) {
+      const body = await res.json();
+      setGroupFormError(body.error ? JSON.stringify(body.error) : "作成に失敗しました");
+      return;
+    }
+    setNewGroupTopic("");
+    setShowAddGroupForm(false);
+    await loadGroups();
+  }
+
+  async function handleDeleteGroup(groupId: string) {
+    const res = await fetch(`/api/admin/agent-knowledge/source-groups/${groupId}`, { method: "DELETE" });
+    if (res.ok) {
+      setGroups((prev) => prev.filter((g) => g.id !== groupId));
+      if (expandedGroupId === groupId) {
+        setExpandedGroupId(null);
+        setExpandedGroupDetail(null);
+      }
+    }
+    setPendingDeleteGroupId(null);
+  }
+
+  async function handleAddUrlSource(groupId: string, e: React.FormEvent) {
+    e.preventDefault();
+    if (!newSourceUrl.trim()) return;
+    setAddingUrlSource(true);
+    setSourceError(null);
+    const res = await fetch(`/api/admin/agent-knowledge/source-groups/${groupId}/sources`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: newSourceUrl.trim(), title: newSourceTitle.trim() || undefined }),
+    });
+    setAddingUrlSource(false);
+    if (!res.ok) {
+      const body = await res.json();
+      setSourceError(body.error ? JSON.stringify(body.error) : "追加に失敗しました");
+      return;
+    }
+    setNewSourceUrl("");
+    setNewSourceTitle("");
+    await refreshExpandedDetail(groupId);
+    await loadGroups();
+  }
+
+  async function handleUploadPdf(groupId: string, file: File) {
+    setUploadingPdf(true);
+    setSourceError(null);
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await fetch(`/api/admin/agent-knowledge/source-groups/${groupId}/sources/upload`, {
+      method: "POST",
+      body: formData,
+    });
+    setUploadingPdf(false);
+    if (!res.ok) {
+      const body = await res.json();
+      setSourceError(body.error ? JSON.stringify(body.error) : "アップロードに失敗しました");
+      return;
+    }
+    await refreshExpandedDetail(groupId);
+    await loadGroups();
+  }
+
+  async function handleDeleteSource(groupId: string, sourceId: string) {
+    const res = await fetch(`/api/admin/agent-knowledge/source-groups/${groupId}/sources/${sourceId}`, {
+      method: "DELETE",
+    });
+    if (res.ok) {
+      await refreshExpandedDetail(groupId);
+      await loadGroups();
+    }
+    setPendingDeleteSourceId(null);
+  }
+
+  async function handleCrawlNow(groupId: string) {
+    setCrawlingGroupId(groupId);
+    setCrawlError(null);
+    const res = await fetch(`/api/admin/agent-knowledge/source-groups/${groupId}/crawl-now`, { method: "POST" });
+    setCrawlingGroupId(null);
+    if (!res.ok) {
+      const body = await res.json();
+      setCrawlError(typeof body.error === "string" ? body.error : "クロールに失敗しました");
+      return;
+    }
+    const body = await res.json();
+    await loadGroups();
+    await refreshExpandedDetail(groupId);
+    onOpenEntry(body.data.entryId);
+  }
+
+  return (
+    <div className="space-y-3 border-t border-gray-800 pt-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h4 className="text-sm font-semibold text-gray-200">登録済みソースから生成</h4>
+          <p className="text-xs text-gray-500 mt-0.5">
+            参考URL・PDF資料を登録しておくと、「今すぐクロール」または毎週自動で、その情報源のみに基づいたナレッジ下書きを生成します。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowAddGroupForm((v) => !v)}
+          className="text-xs px-3 py-1.5 rounded bg-purple-700 hover:bg-purple-600 text-white shrink-0"
+        >
+          {showAddGroupForm ? "閉じる" : "+ ソースグループを追加"}
+        </button>
+      </div>
+
+      {showAddGroupForm && (
+        <form onSubmit={handleCreateGroup} className="bg-gray-800 rounded-lg p-4 space-y-3 border border-gray-700">
+          <input
+            value={newGroupTopic}
+            onChange={(e) => setNewGroupTopic(e.target.value)}
+            placeholder="トピック"
+            maxLength={200}
+            className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-white text-sm"
+          />
+          <select
+            value={newGroupCategory}
+            onChange={(e) => setNewGroupCategory(e.target.value)}
+            className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-white text-sm"
+          >
+            {SUGGESTED_CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+          {groupFormError && <p className="text-red-400 text-xs">{groupFormError}</p>}
+          <button
+            type="submit"
+            disabled={creatingGroup || !newGroupTopic.trim()}
+            className="px-4 py-1.5 bg-purple-700 hover:bg-purple-600 disabled:opacity-50 text-white text-xs rounded"
+          >
+            {creatingGroup ? "作成中..." : "作成する"}
+          </button>
+        </form>
+      )}
+
+      {loadingGroups ? (
+        <p className="text-gray-500 text-xs py-2">読み込み中...</p>
+      ) : groups.length === 0 ? (
+        <p className="text-gray-500 text-sm py-4 text-center">ソースグループがありません</p>
+      ) : (
+        <div className="divide-y divide-gray-800">
+          {groups.map((group) => (
+            <div key={group.id} className="py-2.5">
+              <div className="flex items-center gap-3">
+                <div className="flex-1 min-w-0 cursor-pointer" onClick={() => toggleExpand(group.id)}>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm text-white truncate">{group.topic}</p>
+                    <span
+                      className={`text-xs px-1.5 py-0.5 rounded shrink-0 ${
+                        group.entry?.status === "PUBLISHED"
+                          ? "bg-green-900 text-green-300"
+                          : group.entry
+                            ? "bg-gray-800 text-gray-400"
+                            : "bg-gray-800 text-gray-500"
+                      }`}
+                    >
+                      {statusBadgeLabel(group.entry?.status ?? null)}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    {group.category} · ソース{group.sourceCount}件 ·{" "}
+                    {group.lastCrawledAt ? `最終クロール: ${new Date(group.lastCrawledAt).toLocaleString("ja-JP")}` : "未クロール"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => toggleExpand(group.id)}
+                  className="text-xs px-3 py-1 rounded bg-blue-800 hover:bg-blue-700 text-white shrink-0"
+                >
+                  {expandedGroupId === group.id ? "閉じる" : "詳細"}
+                </button>
+                {pendingDeleteGroupId === group.id ? (
+                  <div className="flex gap-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteGroup(group.id)}
+                      className="text-xs px-2 py-1 rounded bg-red-700 hover:bg-red-600 text-white"
+                    >
+                      はい
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPendingDeleteGroupId(null)}
+                      className="text-xs px-2 py-1 rounded border border-gray-600 text-gray-300"
+                    >
+                      いいえ
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setPendingDeleteGroupId(group.id)}
+                    className="text-xs px-3 py-1 rounded border border-red-800 text-red-400 hover:bg-red-900/30 shrink-0"
+                  >
+                    削除
+                  </button>
+                )}
+              </div>
+
+              {expandedGroupId === group.id && (
+                <div className="mt-3 pt-3 border-t border-gray-700 space-y-3">
+                  <p className="text-xs text-gray-500">
+                    ※ グループを削除しても、既に生成済みのナレッジ本体（AIエージェント ナレッジ一覧）は削除されません。
+                  </p>
+
+                  {expandedGroupDetail && expandedGroupDetail.id === group.id && (
+                    <ul className="space-y-1">
+                      {expandedGroupDetail.sources.length === 0 && (
+                        <li className="text-xs text-gray-500">ソースが登録されていません</li>
+                      )}
+                      {expandedGroupDetail.sources.map((source) => (
+                        <li key={source.id} className="flex items-center gap-2 text-xs bg-gray-800/60 rounded px-2 py-1.5">
+                          <span
+                            className={`px-1.5 py-0.5 rounded shrink-0 ${
+                              source.sourceType === "URL" ? "bg-blue-900 text-blue-300" : "bg-amber-900 text-amber-300"
+                            }`}
+                          >
+                            {source.sourceType}
+                          </span>
+                          {source.sourceType === "URL" ? (
+                            <a
+                              href={source.url ?? undefined}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-amber-500 underline break-all flex-1 min-w-0 truncate"
+                            >
+                              {source.title || source.url}
+                            </a>
+                          ) : (
+                            <span className="flex-1 min-w-0 truncate text-gray-300">
+                              {source.title || source.fileName}
+                            </span>
+                          )}
+                          {pendingDeleteSourceId === source.id ? (
+                            <div className="flex gap-1 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteSource(group.id, source.id)}
+                                className="px-2 py-0.5 rounded bg-red-700 hover:bg-red-600 text-white"
+                              >
+                                はい
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setPendingDeleteSourceId(null)}
+                                className="px-2 py-0.5 rounded border border-gray-600 text-gray-300"
+                              >
+                                いいえ
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setPendingDeleteSourceId(source.id)}
+                              className="px-2 py-0.5 rounded border border-red-800 text-red-400 hover:bg-red-900/30 shrink-0"
+                            >
+                              削除
+                            </button>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  <form
+                    onSubmit={(e) => handleAddUrlSource(group.id, e)}
+                    className="flex flex-wrap gap-2 items-center bg-gray-800 rounded p-2"
+                  >
+                    <input
+                      value={newSourceUrl}
+                      onChange={(e) => setNewSourceUrl(e.target.value)}
+                      placeholder="参考URL (https://...)"
+                      className="flex-1 min-w-[12rem] bg-gray-700 border border-gray-600 rounded px-2 py-1 text-white text-xs"
+                    />
+                    <input
+                      value={newSourceTitle}
+                      onChange={(e) => setNewSourceTitle(e.target.value)}
+                      placeholder="タイトル(任意)"
+                      maxLength={200}
+                      className="w-32 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-white text-xs"
+                    />
+                    <button
+                      type="submit"
+                      disabled={addingUrlSource || !newSourceUrl.trim()}
+                      className="px-3 py-1 bg-blue-800 hover:bg-blue-700 disabled:opacity-50 text-white text-xs rounded"
+                    >
+                      {addingUrlSource ? "追加中..." : "URLを追加"}
+                    </button>
+                  </form>
+
+                  <div className="flex items-center gap-2 bg-gray-800 rounded p-2">
+                    <label className="text-xs text-gray-400 shrink-0">PDFを追加:</label>
+                    <input
+                      type="file"
+                      accept="application/pdf"
+                      disabled={uploadingPdf}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        e.target.value = "";
+                        if (file) handleUploadPdf(group.id, file);
+                      }}
+                      className="text-xs text-gray-300 file:mr-2 file:px-2 file:py-1 file:rounded file:border-0 file:bg-amber-600 file:text-white file:text-xs"
+                    />
+                    {uploadingPdf && <span className="text-xs text-gray-500">アップロード中...</span>}
+                  </div>
+
+                  {sourceError && <p className="text-red-400 text-xs">{sourceError}</p>}
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleCrawlNow(group.id)}
+                      disabled={crawlingGroupId === group.id}
+                      className="px-4 py-1.5 bg-purple-700 hover:bg-purple-600 disabled:opacity-50 text-white text-xs font-medium rounded"
+                    >
+                      {crawlingGroupId === group.id ? "クロール中...（数十秒かかることがあります）" : "今すぐクロール"}
+                    </button>
+                    {group.entry && <span className="text-xs text-gray-500">クロールすると必ず下書き状態に戻ります</span>}
+                  </div>
+                  {crawlError && <p className="text-red-400 text-xs">{crawlError}</p>}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -374,6 +785,8 @@ export function AgentKnowledgeManagerClient() {
           </button>
         </form>
       )}
+
+      <AgentKnowledgeSourceGroupsPanel onOpenEntry={openEdit} />
 
       {entries.length === 0 ? (
         <p className="text-gray-500 text-sm py-4 text-center">ナレッジがありません</p>

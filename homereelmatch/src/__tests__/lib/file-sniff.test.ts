@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { looksLikeAllowedVideo, looksLikeAllowedImage } from "@/lib/file-sniff";
+import { looksLikeAllowedVideo, looksLikeAllowedImage, looksLikeAllowedPdf } from "@/lib/file-sniff";
 
 describe("looksLikeAllowedVideo", () => {
   it("mp4/mov (ISO container ftyp box) を受け入れる", () => {
@@ -41,5 +41,21 @@ describe("looksLikeAllowedImage", () => {
   it("宣言されたMIMEと実データが一致しない場合は拒否する（例: PNGバイトをJPEGと偽装）", () => {
     const pngBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
     expect(looksLikeAllowedImage(pngBytes, "image/jpeg")).toBe(false);
+  });
+});
+
+describe("looksLikeAllowedPdf", () => {
+  it("%PDF-ヘッダを受け入れる", () => {
+    const bytes = Buffer.from("%PDF-1.4\n%¥±ë\n");
+    expect(looksLikeAllowedPdf(bytes)).toBe(true);
+  });
+
+  it("別のマジックバイト（PNG）は拒否する", () => {
+    const bytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    expect(looksLikeAllowedPdf(bytes)).toBe(false);
+  });
+
+  it("短すぎるデータは拒否する", () => {
+    expect(looksLikeAllowedPdf(Buffer.from("%PDF"))).toBe(false);
   });
 });

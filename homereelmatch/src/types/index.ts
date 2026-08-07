@@ -174,4 +174,59 @@ export interface ViewerSavedMakerDTO {
   houseMakerId: string;
 }
 
+// --- 中立的AIエージェント（層1） ---
+
+export type AgentMessageRole = "USER" | "ASSISTANT";
+export type AgentKnowledgeStatus = "DRAFT" | "PUBLISHED";
+
+export interface AgentKnowledgeSourceDTO {
+  id: string;
+  url: string;
+  title: string | null;
+}
+
+export interface AgentKnowledgeEntryListItemDTO {
+  id: string;
+  topic: string;
+  category: string;
+  title: string;
+  status: AgentKnowledgeStatus;
+}
+
+export interface AgentKnowledgeEntryDetailDTO extends AgentKnowledgeEntryListItemDTO {
+  bodyMarkdown: string;
+  sources: AgentKnowledgeSourceDTO[];
+}
+
+export interface AgentCandidateHouseMakerDTO {
+  id: string;
+  name: string;
+  logoUrl: string | null;
+}
+
+export interface AgentReferencedKnowledgeDTO {
+  id: string;
+  title: string;
+}
+
+export interface AgentMessageDTO {
+  id: string;
+  role: AgentMessageRole;
+  content: string;
+  candidates: AgentCandidateHouseMakerDTO[];
+  referencedKnowledge: AgentReferencedKnowledgeDTO[];
+  createdAt: string;
+}
+
+export interface AgentConversationHistoryDTO {
+  conversationId: string;
+  conditions: Record<string, unknown> | null;
+  messages: AgentMessageDTO[];
+}
+
+export interface AgentSendMessageResponseDTO {
+  conversationId: string;
+  message: AgentMessageDTO;
+}
+
 export type { VisitorAnalyticsData as VisitorAnalyticsDTO, AnalyticsPeriod } from "@/lib/analytics";

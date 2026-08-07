@@ -170,6 +170,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       <footer className="border-t border-amber-100 mt-12 py-6 text-center bg-white">
         <p className="text-stone-400 text-xs mb-2">© HomeReelMatch</p>
         <div className="flex items-center justify-center gap-4 text-xs text-stone-400">
+          <Link href="/agent" className="hover:text-amber-600 transition-colors">
+            AIに相談する
+          </Link>
           <Link href="/embed-demo" className="hover:text-amber-600 transition-colors">
             ウィジェット埋め込み
           </Link>

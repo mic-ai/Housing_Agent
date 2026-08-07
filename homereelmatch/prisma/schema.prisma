@@ -327,6 +327,7 @@ model ViewerProfile {
   savedMakers      ViewerSavedMaker[]
   visitors         Visitor[]
   visitorVideoViews VisitorVideoView[]
+  agentConversations AgentConversation[]
 
   @@map("viewer_profiles")
 }
@@ -449,4 +450,72 @@ model VisitorContact {
 
   @@index([visitorId])
   @@map("visitor_contacts")
+}
+
+// --- 中立的AIエージェント（層1） ---
+
+enum AgentMessageRole {
+  USER
+  ASSISTANT
+}
+
+model AgentConversation {
+  id             String         @id @default(cuid())
+  viewerId       String
+  viewer         ViewerProfile  @relation(fields: [viewerId], references: [id], onDelete: Cascade)
+  conditionsJson Json?
+  messages       AgentMessage[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([viewerId])
+  @@map("agent_conversations")
+}
+
+model AgentMessage {
+  id                     String            @id @default(cuid())
+  conversationId         String
+  conversation           AgentConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role                   AgentMessageRole
+  content                String            @db.Text
+  candidateHouseMakerIds Json? // string[]。DB検証後の確定IDのみ(ASSISTANTのみ)
+  referencedKnowledgeIds Json? // string[]。PUBLISHEDのみ(ASSISTANTのみ)
+  createdAt              DateTime          @default(now())
+
+  @@index([conversationId, createdAt])
+  @@map("agent_messages")
+}
+
+enum AgentKnowledgeStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model AgentKnowledgeEntry {
+  id           String                 @id @default(cuid())
+  topic        String
+  category     String
+  title        String
+  bodyMarkdown String                 @db.Text
+  status       AgentKnowledgeStatus   @default(DRAFT)
+  publishedAt  DateTime?
+  sources      AgentKnowledgeSource[]
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+
+  @@index([status, category])
+  @@map("agent_knowledge_entries")
+}
+
+// Web検索により参照した情報源(ArticleSourceと同じ透明性確保パターン)
+model AgentKnowledgeSource {
+  id        String              @id @default(cuid())
+  entryId   String
+  entry     AgentKnowledgeEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  url       String
+  title     String?
+  createdAt DateTime            @default(now())
+
+  @@index([entryId])
+  @@map("agent_knowledge_sources")
 }

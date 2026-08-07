@@ -8,6 +8,7 @@ import { AssignmentManagerClient } from "./AssignmentManagerClient";
 import { VideoManagerClient } from "./VideoManagerClient";
 import { LearningContentManagerClient } from "./LearningContentManagerClient";
 import { AnalyticsManagerClient } from "./AnalyticsManagerClient";
+import { AgentKnowledgeManagerClient } from "./AgentKnowledgeManagerClient";
 
 interface FaceVideo {
   id: string;
@@ -49,7 +50,15 @@ interface AdminDashboardClientProps {
   initialHouseMakers: { id: string; name: string }[];
 }
 
-type Tab = "salesperson" | "housemaker" | "venue" | "assignment" | "video" | "learning" | "analytics";
+type Tab =
+  | "salesperson"
+  | "housemaker"
+  | "venue"
+  | "assignment"
+  | "video"
+  | "learning"
+  | "analytics"
+  | "agent-knowledge";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "assignment", label: "公開設定" },
@@ -58,6 +67,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "housemaker", label: "ハウスメーカー" },
   { id: "venue", label: "会場管理" },
   { id: "learning", label: "学習コンテンツ" },
+  { id: "agent-knowledge", label: "AIナレッジ" },
   { id: "analytics", label: "来場者データ" },
 ];
 
@@ -110,6 +120,9 @@ export function AdminDashboardClient({
         </div>
         <div className={activeTab === "learning" ? "" : "hidden"}>
           <LearningContentManagerClient />
+        </div>
+        <div className={activeTab === "agent-knowledge" ? "" : "hidden"}>
+          <AgentKnowledgeManagerClient />
         </div>
         <div className={activeTab === "analytics" ? "" : "hidden"}>
           <AnalyticsManagerClient />

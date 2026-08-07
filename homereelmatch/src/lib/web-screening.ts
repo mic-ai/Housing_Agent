@@ -1,5 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
+import { extractJsonBlock, extractSources, extractText, type WebScreeningSource } from "./anthropic-web-search";
+export type { WebScreeningSource } from "./anthropic-web-search";
 
 const SYSTEM_PROMPT = `あなたは住宅購入を検討しているユーザー向けに、中立的な立場で学習コンテンツ記事を作成するアシスタントです。
 
@@ -28,11 +30,6 @@ const GeneratedArticleSchema = z.object({
   difficulty: z.enum(["BEGINNER", "BASIC"]),
 });
 
-export interface WebScreeningSource {
-  url: string;
-  title: string | null;
-}
-
 export interface GeneratedArticleDraft {
   title: string;
   bodyMarkdown: string;
@@ -44,39 +41,6 @@ export interface GeneratedArticleDraft {
 export interface GenerateArticleDraftInput {
   phaseTitle: string;
   topic: string;
-}
-
-function extractJsonBlock(text: string): unknown {
-  const matches = [...text.matchAll(/```json\s*([\s\S]*?)```/g)];
-  const last = matches.at(-1);
-  if (!last) {
-    throw new Error("応答からJSONブロックを抽出できませんでした");
-  }
-  return JSON.parse(last[1]);
-}
-
-function extractSources(content: Anthropic.Messages.ContentBlock[]): WebScreeningSource[] {
-  const sources: WebScreeningSource[] = [];
-  const seen = new Set<string>();
-  for (const block of content) {
-    if (block.type !== "web_search_tool_result") continue;
-    const result = block.content;
-    if (!Array.isArray(result)) continue;
-    for (const item of result) {
-      if (item.type !== "web_search_result") continue;
-      if (seen.has(item.url)) continue;
-      seen.add(item.url);
-      sources.push({ url: item.url, title: item.title ?? null });
-    }
-  }
-  return sources;
-}
-
-function extractText(content: Anthropic.Messages.ContentBlock[]): string {
-  return content
-    .filter((block): block is Anthropic.Messages.TextBlock => block.type === "text")
-    .map((block) => block.text)
-    .join("\n");
 }
 
 export async function generateArticleDraft(

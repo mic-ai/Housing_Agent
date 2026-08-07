@@ -84,6 +84,12 @@ export default async function ConsultPage() {
             <li>・契約の約束をするものではありません</li>
             <li>・気になる担当に気軽に連絡してみましょう</li>
           </ul>
+          <Link
+            href="/agent"
+            className="mt-4 block text-center text-sm font-medium text-amber-600 hover:text-amber-700"
+          >
+            まずAIに相談してみる →
+          </Link>
         </section>
 
         <section>

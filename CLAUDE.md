@@ -535,6 +535,7 @@ npx vercel --prod
 | 中立的AIエージェント構想 Step2（来場前デジタル導線：予約完了/確認メール/リマインドに自己紹介動画リンク） | 完了（2026-07-31、Vercel Cron新設・本番マイグレーション適用済み） |
 | 中立的AIエージェント構想 Step3（来場者データ集計ダッシュボード） | 完了（2026-07-31、本番マイグレーション適用済み・2026-08-03に`prisma migrate status`で確認） |
 | 学習コンテンツ記事のWeb下書き自動生成機能（管理者向け、Claude web_search） | 完了（2026-08-03、本番push・Vercel環境変数`ANTHROPIC_API_KEY`設定・本番DBマイグレーション適用済み） |
+| 中立的AIエージェント本体（層1）MVP実装（チャットUI・事前生成ナレッジベース・出展社のみ推薦） | 実装完了（2026-08-07、コードのみ・本番マイグレーション未適用・push未実施。デプロイ前に要ユーザー確認） |
 
 ### 直近の主要変更（2026-06-23）
 
@@ -1015,3 +1016,24 @@ npx vercel --prod
 
 #### 依存パッケージが提供する新しいAPI機能の型定義バージョンずれ
 `package.json`に固定されたパッケージバージョンが古く、実装コードが使うAPI機能（今回は新しいツール識別子文字列）の型がSDKに存在しない、というケースが発生した。`npm view <pkg> versions --json`で利用可能なバージョン一覧を確認し、`npm pack <pkg>@<version>`でtarballを展開すれば、実際にインストールせずとも型定義ファイル（`.d.ts`）の中身をgrepで確認できる。目的のシンボルが含まれるバージョンを特定してから`package.json`を更新するのが、当てずっぽうにバージョンを上げるより確実
+
+### 直近の主要変更（2026-08-07）
+
+#### 中立的AIエージェント本体（層1）MVP実装
+`neutral_housing_agent_requirements.md` の実装優先順位では層1（中立的AIエージェント本体）は「データ層（自己登録型プラットフォーム）が一定規模稼働した後」が推奨タイミングだったが、それではニワトリタマゴ問題になるというユーザー判断により前倒しで着手。Web検索で集めた一般知識と、実際の出展社（既存`HouseMaker`）データのみを根拠にしたAIチャットエージェントをMVPとして実装した。
+
+- **チャット形式**（ユーザーが要求した仕様。ターン制のブロッキング応答でストリーミングは未実装）。`/agent`ページ + `AgentChatClient`（`sessionStorage`でタブ単位の会話IDを保持、`hrm_viewer_token`Cookie経由で匿名viewerに紐付け）
+- **Prismaモデル追加**: `AgentConversation`, `AgentMessage`（`role`: USER/ASSISTANT、`candidateHouseMakerIds`/`referencedKnowledgeIds`はJSON配列でDB検証済みIDのみ保存）, `AgentKnowledgeEntry`（`status`: DRAFT/PUBLISHED、`Article`と同じCMSパターン）, `AgentKnowledgeSource`（`ArticleSource`と同じ出典透明性パターン）
+- **知識生成は事前生成+管理者レビュー方式**（ライブ生成ではない）: 管理画面「AIナレッジ」タブ（`AgentKnowledgeManagerClient.tsx`、`LearningContentManagerClient.tsx`のCRUD・Web下書き生成パターンをフラットに移植）で管理者がトピックを指定→`generateKnowledgeDraft()`（`web_search_20260209`使用）がDRAFTを生成→内容確認後に手動でPUBLISHED化。チャット応答時はPUBLISHEDのナレッジのみをsystem promptに注入し、ライブでのweb_search実行はしない（速度・コスト・回答の安定性のため）
+- **推薦候補は実出展社（`HouseMaker`）のみ**: 要件書でWebスクレイピングによる他社データ収集は「不採用」と明記されているため、AIの一般知識から非出展の実在企業名を出力することを禁止するsystem prompt制約に加え、**LLM出力を無条件に信頼せずAPIルート側でDB実在確認する安全検証**を実装（`POST /api/agent/messages`内で`candidateHouseMakerIds`を`prisma.houseMaker.findMany({where:{id:{in:...}, isActive:true}})`と突き合わせ、非実在/非アクティブなIDは黙って除外してから永続化・レスポンス返却）
+- **共通ヘルパー抽出**: `src/lib/web-screening.ts`（学習コンテンツ用の既存Web下書き生成）から`extractJsonBlock`/`extractSources`/`extractText`を`src/lib/anthropic-web-search.ts`に切り出し、新設の`src/lib/agent-knowledge.ts`（ナレッジ下書き生成）と共有。既存ファイルへの差分は最小限（純関数の移動のみ）
+- **`claude-api`スキルの拘束的ガイダンスに従いモデルは全箇所`claude-opus-5`に統一**（コスト都合でのモデルダウングレードは「ユーザーの判断であってこちらが決めることではない」という同スキルの明示的な方針のため、対話応答用途でも`claude-sonnet-5`は使わずeffortチューニング等で速度・コストを調整する設計にした）。あわせて同スキルの指示により`fallbacks: "default"`（beta `server-side-fallback-2026-07-01`、`client.beta.messages.create`経由）を`generateKnowledgeDraft`・`generateAgentChatTurn`の両方に追加（安全分類器によるrefusal時に自動でOpus 4.8等へフォールバック）
+- **プロトタイプとして免責文言付きで進める方針**（宅建業法・景品表示法まわりは要件書§5で法務未確定事項と明記されているが、ユーザー判断で先行実装）: `AgentDisclaimerBanner`を常時表示・非表示不可で設置し、system prompt側にも「媒介行為ではない」旨を初回・企業提示時に必ず一言添えるよう指示
+- **導線はホームフッター1行 + `/consult`冒頭1行のみ**（要件通りナビゲーション再設計はしない）
+- **テスト39件追加**（lib: agent-knowledge/agent-chat/agent-candidates、API: admin agent-knowledge CRUD・generate-draft、公開`POST/GET /api/agent/messages`）。核心の安全テストとして「LLMが返した非実在`houseMakerId`/非PUBLISHEDの`knowledgeId`がDB保存・レスポンスから除外される」ケースと、`AgentConversation`の他viewerによる不正アクセス（IDOR）403テストを含む
+- **マイグレーション**: `20260807000000_add_neutral_agent_layer1`（新規テーブル4つ+enum2つのみの追加的変更、既存テーブルへのALTERなし）。**本番未適用・mainへのpush未実施**。既存の運用ルール（2026-07-01/07-02のクラッシュ事故の教訓）に従い、マイグレーション適用確認（`prisma migrate deploy`→`prisma migrate status`）を先に済ませてからpush・デプロイする必要がある
+
+#### 実装上の重要な知見（2026-08-07 追加）
+- **`claude-api`スキルは「新しくclaude-opus-5のコードを書くときはfallbacksパラメータをデフォルトで含める」ことを明示的に要求している**。既存の`web-screening.ts`（学習コンテンツ用、2026-08-03実装）は`fallbacks`無しの旧パターンのままだが、動作実績のあるファイルへの不要な変更を避けるため今回はそちらを触らず、新規に書く2つの生成関数（`agent-knowledge.ts`・`agent-chat.ts`）にのみ適用した。スキルの拘束的ガイダンスは「今書くコード」に適用され、「過去の動くコードを遡って直す」ことまでは要求しない、という読み方をした
+- **`client.beta.messages.create()`のレスポンス型（`BetaContentBlock[]`）と`client.messages.create()`の型（`ContentBlock[]`）は別名前空間で、そのままでは相互代入できない**（TypeScript SDKドキュメントに明記）。既存の`extractText`/`extractSources`ヘルパーの引数型を、両方の配列と構造的に互換な最小限のインターフェース（`{type: string; text?: string; content?: unknown}[]`）に変更することで、beta/非beta両方の呼び出し元から型エラー無く共有できるようにした
+- **「LLM出力は候補リストのIDのみを返すようsystem promptで指示する」だけでは不十分**、という前提でAPIルート側の再検証を実装した。system prompt制約はあくまで一次防御であり、モデルが従わない可能性は常にある。「DB問い合わせでの再検証が実際の安全境界」という設計は、他の箇所（画像アップロードのMagic Byte検証等）と同じ「クライアント/モデル入力を信頼しない」という本プロジェクトの一貫した方針に沿っている

@@ -7,7 +7,7 @@ import { findCandidateHouseMakers } from "@/lib/agent-candidates";
 import { generateAgentChatTurn, type AgentChatHistoryTurn } from "@/lib/agent-chat";
 import type { AgentMessageDTO } from "@/types";
 
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 const BodySchema = z.object({
   conversationId: z.string().optional(),
